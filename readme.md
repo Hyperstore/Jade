@@ -1,11 +1,4 @@
 
-# dededed
+# Hyperstore for Javascript
 
-
-> deded dededed
-> dededed
-
-szszsz dededed
-
- *dededed* deded
-
+This is the Javascript version of *Hyperstore*.
