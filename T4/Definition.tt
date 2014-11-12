@@ -1,0 +1,115 @@
+﻿<#@ template debug="true" hostspecific="false" language="C#" #>
+<#@ Domains Processor="HyperstoreProcessor" #>
+<#@ output extension=".js" #>
+
+<#
+var domain = Domains.First();
+#>
+var <#= domain.Name#>Definition = {
+
+	defineSchema: function (schema) {   
+<#	
+	foreach(var vo in domain.ValueObjects) {
+#>
+		var <#=vo.Name#>Schema = new Hyperstore.SchemaValueObject(schema, "<#=vo.Name#>" <#
+	if( vo.Constraints.Any()) { #>		
+		, function (value, oldValue, ctx) { <#
+			foreach(var constraint in vo.Constraints) { #> 
+			if( (<#= constraint.Condition.Code #>) == false ) {
+				ctx.log("<#= constraint.Message #>");
+			}
+<#		} 
+	} #>
+		});
+<#
+	} // ValueObjects
+	foreach(var entity in domain.Elements.OfType<IEntitySymbol>()) { 
+        var super= entity.SuperType != null ? String.Format(", {0}Schema", entity.SuperType.Name) : String.Empty;
+#>
+		
+        var <#=entity.Name#>Schema = new Hyperstore.SchemaEntity(schema, "<#=entity.Name#>"<#=super#>); <#
+		GenerateProperties(entity);
+		GenerateConstraints(entity);
+    } // Entities
+
+    foreach(var rel in domain.Elements.OfType<IRelationshipSymbol>()) { 
+        var super= rel.SuperType != null ? String.Format(", {0}Schema", rel.SuperType.Name) : String.Empty;
+#>
+		
+        var <#= rel.Name#>Schema = new Hyperstore.SchemaRelationship(schema, "<#= rel.Name#>", <#= rel.Definition.Source.Name #>Schema.id, <#= rel.Definition.End.Name #>Schema.id, <#=rel.Definition.IsEmbedded.ToString().ToLower()#>, Hyperstore.Cardinality.<#=rel.Definition.Cardinality#> <#=super#>); <#
+        GenerateProperties(rel);
+		GenerateConstraints(rel);
+    } // Relationships
+
+	
+#> 
+
+	}
+}
+
+<#+
+private void GenerateProperties(IElementSymbol entity) {
+	    foreach(var prop in entity.Properties) {
+            
+            var defaultValue = String.Empty;
+            if (prop.DefaultValue != null)
+                defaultValue = ", " + prop.DefaultValue.Script;
+
+			var constraints = string.Empty;
+			if( prop.Constraints.Any()) {
+				var sb = new System.Text.StringBuilder();
+				foreach(var constraint in prop.Constraints) {
+					sb.AppendLine();
+					sb.AppendFormat("			.addConstraint(\"{0}\", function(value, oldValue, ctx) {{", constraint.Message.Replace("\"", @"\"""));
+					sb.AppendFormat("	return {0};}}, {1}, ConstraintKind.{2})", constraint.Condition.Code, constraint.AsError.ToString().ToLower(), constraint.Kind);	
+				}
+				constraints = sb.ToString();
+			}
+
+            string type;
+            var ext = prop.PropertyType as IExternSymbol;
+            if ((ext != null && ext.Kind != ExternalKind.Primitive && ext.Kind != ExternalKind.Enum) || prop.PropertyType is IValueObjectSymbol)
+            {
+                type = prop.PropertyType.Name + "Schema";
+            }
+            else {
+                var t = prop.PropertyType.Name;
+                switch(t) {
+                    case "int":
+                    case "Guid": 
+                    case "Int16":
+                    case "Int32":
+                    case "Int64":
+                    case "UInt16":
+                    case "UInt32":
+                    case "UInt64":
+                    case "decimal":
+                    case "double":
+                    case "float":
+                        t="Number";
+                        break;
+                    case "bool":
+                        t="Boolean";
+                        break;
+                }
+                type = "\"" + t + "\"";
+            }#>              
+        <#=entity.Name#>Schema.defineProperty(new Hyperstore.SchemaProperty("<#=prop.Name#>", <#= type#><#=defaultValue#>))<#= constraints#>;
+<#+
+      }
+  }
+#>
+
+<#+
+private void GenerateConstraints(IElementSymbol entity) {
+	if( entity.Constraints.Any()) {
+		var sb = new System.Text.StringBuilder();
+		foreach(var constraint in entity.Constraints) { #>
+			<#=entity.Name#>Schema.addConstraint("<#=constraint.Message.Replace("\"", @"\""")#>", function(self, ctx) {
+				return <#=constraint.Condition.Code#>;
+				}, Hyperstore.ConstraintKind.<#=constraint.Kind#>, <#=constraint.AsError.ToString().ToLower()#>); 
+<#+
+		}
+	}
+}
+#>
