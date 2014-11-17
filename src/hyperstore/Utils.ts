@@ -174,6 +174,21 @@ module Hyperstore
             return list2;
         }
 
+        static indexOf(list, fn) : number
+        {
+            var ix = -1;
+            Utils.forEach(list, e=>
+            {
+                ix++;
+                var r = fn(e);
+                if (r)
+                {
+                    return ix;
+                }
+            });
+            return -1;
+        }
+
         static select(list, fn)
         {
             var list2 = [];
@@ -254,7 +269,7 @@ module Hyperstore
 
         any(fn?):boolean
         {
-            return Utils.firstOrDefault(this.items, fn) != undefined;
+            return !!Utils.firstOrDefault(this.items, fn);
         }
 
         select(fn):Queryable<T>
@@ -298,7 +313,7 @@ module Hyperstore
 // ----------------------------------------------------------------------------
 // from https://github.com/Azure/azure-mobile-services/blob/master/sdk/Javascript/src/Utilities/Promises.js
     enum ResolutionState {
-        success,
+        success=1,
         error
     }
 
@@ -308,7 +323,7 @@ module Hyperstore
         private _callbackFrames;
         private _resolutionState;
         private _resolutionValueOrError;
-        resolve:(val:any)=>void;
+        resolve:(val?:any)=>void;
         reject:(val:any)=>void;
 
         constructor()
@@ -320,7 +335,7 @@ module Hyperstore
             this.reject = this.bind(this._resolveError, this);
         }
 
-        then(success, error)
+        then(success?, error?)
         {
             var callbackFrame = {success: success, error: error, chainedPromise: new Promise()};
 
@@ -421,6 +436,5 @@ module Hyperstore
             });
             return undefined; // You can't chain onto a .done()
         }
-
     }
 }

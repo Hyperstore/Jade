@@ -107,12 +107,14 @@ module Hyperstore
             });
         }
 
-        // -------------------------------------------------------------------------------------
-        //
-        // -------------------------------------------------------------------------------------
-        loadElementsAsync(filter?:(id, schemaId) => boolean):JQueryPromise<SessionResult>
+        /**
+         *
+         * @param filter
+         * @returns {Promise<SessionResult>}
+         */
+        loadElementsAsync(filter?:(id, schemaId) => boolean):Promise
         {
-            var defer = $.Deferred();
+            var promise = new Promise();
 
             var session = this.domain.store.beginSession({mode: SessionMode.Loading});
             try
@@ -178,9 +180,9 @@ module Hyperstore
             }
             finally
             {
-                defer.resolve(session.close());
+                promise.resolve(session.close());
             }
-            return defer.promise();
+            return promise;
         }
 
         private loadProperties(id, schema:SchemaElement)

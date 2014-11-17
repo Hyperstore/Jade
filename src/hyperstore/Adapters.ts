@@ -13,7 +13,6 @@
 // WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 // See the License for the specific language governing permissions and
 // limitations under the License.
-/// <reference path="../../scripts/typings/jquery/jquery.d.ts" />
 
 module Hyperstore
 {
@@ -32,21 +31,16 @@ module Hyperstore
         // -------------------------------------------------------------------------------------
         //
         // -------------------------------------------------------------------------------------
-        initAsync(domain:DomainModel):JQueryPromise<any>
+        initAsync(domain:DomainModel): Promise
         {
-            if (!$.Deferred)
-            {
-                throw "Adapter needs JQuery.";
-            }
-
-            var defer = $.Deferred();
+            var promise = new Promise();
 
             this.domain = domain;
-            this._cookie = domain.store.subscribeSessionCompleted((s:Session) =>
+            this._cookie = domain.store.onSessionCompleted((s:Session) =>
             {
                 var storeId = this.domain.store.storeId;
                 var originId = s.originStoreId;
-                if (s.aborted || !s.events || (originId != undefined && originId !== storeId) || (s.mode & SessionMode.Loading) === SessionMode.Loading)
+                if (s.aborted || !s.events || (originId && originId !== storeId) || (s.mode & SessionMode.Loading) === SessionMode.Loading)
                 {
                     return;
                 }
@@ -54,6 +48,7 @@ module Hyperstore
                 var elements = new Queryable<ITrackedElement>(Utils.select(s.trackingData.involvedTrackedElements, (e:ITrackedElement) => (e.domain === this.domain.name /*&& e.extension == this.domain.extension*/)
                     ? e
                     : undefined));
+
                 if (!elements.any())
                 {
                     return;
@@ -62,8 +57,8 @@ module Hyperstore
                 this.persistElements(s, elements);
             });
 
-            defer.resolve(this);
-            return defer.promise();
+            promise.resolve(this);
+            return promise;
         }
 
         // -------------------------------------------------------------------------------------
@@ -71,7 +66,7 @@ module Hyperstore
         // -------------------------------------------------------------------------------------
         dispose()
         {
-            this.domain.store.unsubscribeSessionCompleted(this._cookie);
+            this.domain.store.removeSessionCompleted(this._cookie);
         }
 
         // -------------------------------------------------------------------------------------
@@ -81,7 +76,7 @@ module Hyperstore
         {
         }
 
-        loadElementsAsync(filter?:(id, schemaId) => boolean):JQueryPromise<SessionResult>
+        loadElementsAsync(filter?:(id, schemaId) => boolean): Promise
         {
             return undefined;
         }

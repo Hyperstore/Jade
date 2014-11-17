@@ -99,12 +99,12 @@ module Hyperstore
             this.result = new SessionResult();
             this.result.maxVersionNumber = 0;
 
-            if (config != undefined && config.origin != undefined)
+            if (config && config.origin )
             {
                 this.originStoreId = config.origin;
             }
 
-            if (config != undefined && config.sessionId != undefined)
+            if (config && config.sessionId)
             {
                 this.sessionId = config.sessionId;
             }
@@ -113,9 +113,9 @@ module Hyperstore
                 Session._sequence++;
                 this.sessionId = Session._sequence;
             }
-            if (config != undefined)
+            if (config)
             {
-                if (config.mode != undefined)
+                if (config.mode)
                 {
                     this.mode = config.mode;
                 }
@@ -186,7 +186,7 @@ module Hyperstore
             Session.current = undefined;
 
             var self = this;
-            this.store.domains.forEach(d=> (<DomainModel>d).events.__onSessionCompleted(self));
+            this.store.domains.forEach(d=> (<DomainModel>d).events.__notifySessionCompleted(self));
             this.store.__sendSessionCompletedEvent(self);
 
             return this.result;
@@ -259,15 +259,15 @@ module Hyperstore
 
             Utils.forEach(this.involvedTrackedElements, t=>
             {
-                if (list[t.id] != undefined)
+                if (list[t.id])
                 {
                     return;
                 }
 
-                if (t.state != TrackingState.Removed)
+                if (t.state !== TrackingState.Removed)
                 {
                     var mel = store.getElement(t.id);
-                    if (mel != undefined)
+                    if (mel)
                     {
                         list[mel.id] = mel;
                     }

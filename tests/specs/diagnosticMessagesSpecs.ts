@@ -12,7 +12,7 @@
 
         //Spec - 1
         it('Checks message formatting with element properties', function () {
-            var mel = <any>domain.createEntity(librarySchema, "1");
+            var mel = <any>domain.createEntity(librarySchema, "Test:1");
             mel.Name = 'test';
             var msg = new Hyperstore.DiagnosticMessage(Hyperstore.MessageType.Error, "Name prop {Name} Id={id}", mel);
             expect(msg.toString()).toEqual('Name prop test Id=Test:1');

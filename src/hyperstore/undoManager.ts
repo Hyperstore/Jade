@@ -86,7 +86,7 @@ module Hyperstore
             };
             this.Enabled = true;
             var self = this;
-            domain.events.subscribeSessionCompleted(function (s:SessionInfo)
+            domain.events.on(EventManager.SessionCompleted, function (s:SessionInfo)
             {
                 if (!s.aborted && self.Enabled && (s.mode & (SessionMode.UndoOrRedo | SessionMode.Loading)) === 0)
                 {
@@ -164,7 +164,7 @@ module Hyperstore
                 {
                     return false;
                 }
-                return infos.filter != undefined
+                return infos.filter
                     ? infos.filter(e)
                     : true;
             });

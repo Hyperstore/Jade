@@ -70,12 +70,11 @@ module Hyperstore
                 return this.message;
             }
 
-            var properties = {};
-            var ix = 0;
-            var regex = /\{([^}]+)\}/g;
-            return this.message.replace(regex, function(propertyName)
+            var self = this;
+            var regex = /{(\S+)}/g;
+            return this.message.replace(regex, function(match, propertyName )
             {
-                return this.element[propertyName];
+                return self.element[propertyName];
             });
         }
     }
@@ -190,7 +189,7 @@ module Hyperstore
         private checkElement(ctx:ConstraintContext, schemaElement:SchemaElement)
         {
             var constraints = this._constraints[schemaElement.id];
-            if (constraints != undefined)
+            if (constraints)
             {
                 for (var key in constraints)
                 {
@@ -206,7 +205,7 @@ module Hyperstore
             }
 
             var parentSchema = schemaElement.baseElement;
-            if (parentSchema != undefined && parentSchema.kind != SchemaKind.Primitive)
+            if (parentSchema && parentSchema.kind !== SchemaKind.Primitive)
             {
                 this.checkElement(ctx, parentSchema);
             }
@@ -215,9 +214,8 @@ module Hyperstore
         private validateElement(ctx:ConstraintContext, schemaElement:SchemaElement)
         {
             var constraints = this._constraints[schemaElement.id];
-            if (constraints != undefined)
+            if (constraints)
             {
-
                 for (var constraint in constraints)
                 {
                     if (!constraint.executeConstraint(ctx.element, ctx))
@@ -227,7 +225,7 @@ module Hyperstore
                 }
             }
             var parentSchema = schemaElement.baseElement;
-            if (parentSchema != undefined && parentSchema.kind != SchemaKind.Primitive)
+            if (parentSchema && parentSchema.kind !== SchemaKind.Primitive)
             {
                 this.validateElement(ctx, parentSchema);
             }

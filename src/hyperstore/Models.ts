@@ -16,35 +16,77 @@
 
 module Hyperstore
 {
-    // ---------------------------------------------------------------------------------------------
-    // store is the main hyperstore container for domains and schemas.
-    // It can contains many domains and schemas and supports references between domains.
-    // Every change made on a domain must be in a session which works like an unit of work. When the session is closed, constraints are check on every 
-    // involved elements generating potential diagnostic messages. Then events representing all changes made during the session are raised.
-    //
-    //    var session = store.beginSession(); // Start a session
-    //    try {
-    //      ... adds, removes or changes actions
-    //      session.acceptChanges(); // commit all changes
-    //    }
-    //    finally {
-    //      session.close();   // abort or commit changes and send events
-    //    }
-    //
+    export interface IStoreConfiguration {
+        defaultDomainModel?:string;
+        storeId?:string;
+        channels?: any[];
+        schemas : any;
+        domains? : any;
+    }
+
+    /**
+     *
+     * store is the main hyperstore container for domains and schemas.
+     * It can contains many domains and schemas and supports references between domains.
+     * Every change made on a domain must be in a session which works like an unit of work. When the session is closed, constraints are check on every
+     * involved elements generating potential diagnostic messages. Then events representing all changes made during the session are raised.
+     *
+     *    var session = store.beginSession(); // Start a session
+     *    try {
+     *      ... adds, removes or changes actions
+     *      session.acceptChanges(); // commit all changes
+     *    }
+     *    finally {
+     *      session.close();   // abort or commit changes and send events
+     *    }
+     */
     export class Store
     {
         private schemasBySimpleName;
         private schemas;
         private _domains:Array<DomainModel>;
-        private _subscriptions:Array<(s:Session) => any>;
+        private _subscriptions;
+        public storeId:string;
+        public defaultDomainModel: DomainModel;
 
-        // event bus 
+        /**
+         * EventBus - Allow communication between stores.
+         */
         public eventBus:EventBus;
 
-        // ------------------------------------------------------------------------------------------------------
-        // create a new store. You can create many independent store. They can communicate between them with the eventBus.
-        // ------------------------------------------------------------------------------------------------------
-        constructor(public storeId?:string)
+        /**
+         * create a new store. You can create many independent store. They can communicate between them with the eventBus.
+         * @param config - Contains all informations to initialize a new store.
+         *
+         * Sample to define a new config object
+         *
+         *    var hyperstore = require('hyperstore');
+         *    module.exports = (function() {
+         *    "use strict";
+         *
+         *      return {
+         *         defaultDomainModel : 'test',
+         *         // schemas definition
+         *         schemas: {
+         *              // Define a schema named mySchema
+         *   	        mySchema : {
+         *                  defineSchema: function (schema) {
+         *                      this.libSchema = new hyperstore.SchemaEntity(schema, 'Library');
+         *                      this.libSchema.defineProperty('name', 'string');
+         *                  }
+         *              }
+         *          },
+         *          domains : {
+         *              // load a domain named test
+         *              test: {
+         *                  // adapters : [],
+         *              }
+         *          }
+         *      };
+         *    })();
+         *
+         */
+        constructor(config?:any)
         {
             this._subscriptions = [];
             this.eventBus = new EventBus(this);
@@ -52,15 +94,70 @@ module Hyperstore
             this.schemasBySimpleName = {};
             this._domains = new Array<DomainModel>();
 
-            if (storeId !== undefined)
-            {
-                this.storeId = storeId;
-            }
-            else
-            {
-                this.storeId = Utils.newGuid();
-            }
             new Schema(this, "$", this.primitiveSchemaDefinition());
+            this.storeId = Utils.newGuid();
+            if (!config)
+                return;
+
+            if (typeof config === 'function')
+                config = config();
+
+            if (!config.schemas)
+            {
+                this.storeId = config;
+                return;
+            }
+
+            if( config.storeId)
+                this.storeId = config.storeId;
+
+            if( config.schemas)
+            {
+                for (var schemaName in config.schemas)
+                {
+                    if (!config.schemas.hasOwnProperty(schemaName))
+                        continue;
+                    var def = config.schemas[schemaName];
+                    config.schemas[schemaName].instance = new Schema(this, schemaName, def);
+                }
+            }
+
+            if( config.domains)
+            {
+                for(var domainName in config.domains)
+                {
+                    if (!config.domains.hasOwnProperty(domainName))
+                        continue;
+
+                    var def = config.domains[domainName];
+                    var domain = new DomainModel(this, domainName);
+
+                    if (def.adapters)
+                        def.adapters.forEach(a=> domain.addAdapterAsync(a));
+
+                    if (def.seed && (
+                        def.seed.always || !domain.getElements().any()))
+                    {
+                        if (typeof def.seed.resource === 'function')
+                        {
+                            var session = this.beginSession();
+                            try
+                            {
+                                def.seed.resource(domain);
+                                session.acceptChanges();
+                            }
+                            finally
+                            {
+                                session.close();
+                            }
+                        }
+
+                        config.domains[domainName] = domain;
+                    }
+                }
+
+                this.defaultDomainModel = this.getDomain(config.defaultDomainModel);
+            }
         }
 
         dispose()
@@ -81,29 +178,39 @@ module Hyperstore
             this._domains.splice(pos);
         }
 
-        // ------------------------------------------------------------------------------------------------------
-        // Get the list of loaded domains
-        // ------------------------------------------------------------------------------------------------------
+        /**
+         * Get the list of loaded domains
+         * @returns {Hyperstore.Queryable<DomainModel>}
+         */
         public get domains():Queryable<DomainModel>
         {
             return new Queryable<DomainModel>(this._domains);
         }
 
-        // ------------------------------------------------------------------------------------------------------
-        // Subscribe to session completed event. This event is always raise even if the session is aborted.
-        // Returns a cookie used to unsubscribe to this event
-        // ------------------------------------------------------------------------------------------------------
-        subscribeSessionCompleted(action:(s:Session) => any):number
+        /**
+         * Subscribe to session completed event. This event is always raise even if the session is aborted.
+         * Returns a cookie allowing to unsubscribe to this event
+         *
+         * @param action
+         * @returns {any}
+         */
+        onSessionCompleted(action:(s:Session) => any) : number
         {
-            return this._subscriptions.push(action);
+            var ix = this._subscriptions.length;
+            this._subscriptions.push({ix:ix, fn:action});
+            return ix;
         }
 
         // ------------------------------------------------------------------------------------------------------
         // Unsubscribe to session completed event. Cookie is provided by the subscribe function.
         // ------------------------------------------------------------------------------------------------------
-        unsubscribeSessionCompleted(cookie:number)
+        removeSessionCompleted(cookie:number)
         {
-            this._subscriptions.splice(cookie);
+            var pos = Utils.indexOf(this._subscriptions, s=> s.ix===cookie);
+            if( pos >= 0)
+            {
+                this._subscriptions.splice(pos, 1);
+            }
         }
 
         // ------------------------------------------------------------------------------------------------------
@@ -111,7 +218,7 @@ module Hyperstore
         // ------------------------------------------------------------------------------------------------------
         __sendSessionCompletedEvent(session:Session)
         {
-            this._subscriptions.forEach(fn=> fn(session));
+            this._subscriptions.forEach(s=> s.fn(session));
         }
 
         private primitiveSchemaDefinition()
@@ -148,18 +255,20 @@ module Hyperstore
             this._domains.push(domain);
         }
 
-        // ------------------------------------------------------------------------------------------------------
-        // begin a new session with optional configuration.
-        // if a session already exist a nested session is created.
-        // sessions are flatten, if your abort the top level session or any of a nested session, the top level session will be aborted.
-        //  session configurations can be :
-        //   - defaultDomain : if you create a new element during this session with no domain specified, the default domain will be use.
-        //   
-        // ------------------------------------------------------------------------------------------------------
+        /**
+         * begin a new session with optional configuration.
+         * if a session already exist a nested session is created.
+         * sessions are flatten, if your abort the top level session or any of a nested session, the top level session will be aborted.
+         * @param config - session configuration has following options :
+         *          - defaultDomain : if you create a new element during this session with no domain specified, the default domain will be use.
+         * @returns {Session}
+         */
         public beginSession(config?:SessionConfiguration):Session
         {
-            if (Session.current === undefined)
+            if (!Session.current)
             {
+                config = config || {};
+                config.defaultDomain = config.defaultDomain || this.defaultDomainModel;
                 Session.current = new Session(this, config);
             }
             else
@@ -197,12 +306,12 @@ module Hyperstore
             if (schemaInfo.kind === SchemaKind.Relationship)
             {
                 var rel = <SchemaRelationship>schemaInfo;
-                if (rel.startProperty !== undefined)
+                if (rel.startProperty)
                 {
                     var source = <SchemaElement>this.getSchemaElement(rel.startSchemaId);
                     source.__defineReferenceProperty(rel, false);
                 }
-                if (rel.endProperty !== undefined)
+                if (rel.endProperty)
                 {
                     var source = <SchemaElement>this.getSchemaElement(rel.endSchemaId);
                     source.__defineReferenceProperty(rel, true);
@@ -237,6 +346,12 @@ module Hyperstore
             return schemaElement;
         }
 
+        /**
+         *
+         * @param start
+         * @param end
+         * @returns {Hyperstore.Queryable<SchemaRelationship>}
+         */
         public getSchemaRelationships(start?:any, end?:any):Queryable<SchemaRelationship>
         {
             if (typeof (start) === "string")
@@ -329,20 +444,30 @@ module Hyperstore
         // ------------------------------------------------------------------------------------------------------
         getElement(id:string):ModelElement
         {
+            var domainName = id.substr(0, id.indexOf(':'));
             for (var i = 0; i < this._domains.length; i++)
             {
-                var mel = this._domains[i].getElement(id);
-                if (!mel)
+                var domain = this._domains[i];
+                if( domain.name !== domainName)
+                    continue;
+
+                var mel = domain.getElement(id);
+                if (mel)
                 {
                     return mel;
                 }
+                break;
             }
+
             return undefined;
         }
 
-        // ------------------------------------------------------------------------------------------------------
-        // get a list of elements
-        // ------------------------------------------------------------------------------------------------------
+        /**
+         * Get a list of elements
+         * @param schemaElement
+         * @param kind
+         * @returns {Hyperstore.Queryable<ModelElement>}
+         */
         getElements(schemaElement?:SchemaElement, kind:NodeType = NodeType.EdgeOrNode):Queryable<ModelElement>
         {
             return new Queryable<ModelElement>(this.domains.selectMany(function (domain)
@@ -414,7 +539,7 @@ module Hyperstore
             return this.name + ":" + (id || ++this._sequence).toString();
         }
 
-        addAdapterAsync(adapter:Adapter):JQueryPromise<any>
+        addAdapterAsync(adapter:Adapter):Promise
         {
             var self = this;
             return adapter.initAsync(this).then(function (a)
@@ -432,7 +557,7 @@ module Hyperstore
          */
         private findSchemaId(schemas, id):string
         {
-            if (schemas != undefined)
+            if (schemas)
             {
                 for (var k in schemas)
                 {
@@ -589,13 +714,13 @@ module Hyperstore
                         list.push(elem = this.createEntity(schema, entityId));
                     }
 
-                    if (entity.properties != undefined)
+                    if (entity.properties)
                     {
                         for (var kprop in entity.properties)
                         {
                             var prop = entity.properties[kprop];
                             var propDef = schema.getProperty(<string>prop.name, true);
-                            if (propDef != null)
+                            if (propDef)
                             {
                                 var v = prop.value;
                                 this.setPropertyValue(entityId, propDef, v);
@@ -604,7 +729,7 @@ module Hyperstore
                     }
                 }
 
-                if (def.relationships != undefined)
+                if (def.relationships)
                 {
                     for (var k = 0; k < def.relationships.length; k++)
                     {
@@ -625,13 +750,13 @@ module Hyperstore
                             this.createRelationship(<SchemaRelationship>schema, start, this.createId(relationship.endId), this.findSchemaId(def.schemas, relationship.endSchemaId), entityId);
                         }
 
-                        if (relationship.properties != undefined)
+                        if (relationship.properties)
                         {
                             for (var kprop in relationship.properties)
                             {
                                 var prop = relationship.properties[kprop];
                                 var propDef = schema.getProperty(<string>prop.name, true);
-                                if (propDef != null)
+                                if (propDef)
                                 {
                                     var v = prop.value;
                                     this.setPropertyValue(entityId, propDef, v);
@@ -662,10 +787,10 @@ module Hyperstore
             var currentSchema = <SchemaElement>schemaElement;
             var tmpSchema = currentSchema;
 
-            if (start != undefined)
+            if (start)
             {
                 var node = this._graph.getNode(start.id);
-                if (node != undefined)
+                if (node)
                 {
                     for (var relid in node.outgoings)
                     {
@@ -690,10 +815,10 @@ module Hyperstore
                 }
                 return new Queryable<ModelElement>(list);
             }
-            else if (end != undefined)
+            else if (end)
             {
                 var node = this._graph.getNode(end.id);
-                if (node != undefined)
+                if (node)
                 {
                     for (var relid in node.incomings)
                     {
@@ -812,7 +937,7 @@ module Hyperstore
             }
             var key = id.substr(this.name.length + 1);
             var n = parseInt(key);
-            if (n != NaN && n > this._sequence)
+            if (!isNaN(n) && n > this._sequence)
             {
                 this._sequence = n;
             }
@@ -869,7 +994,7 @@ module Hyperstore
         // ------------------------------------------------------------------------------------------------------
         elementExists(id:string):boolean
         {
-            return this._graph.getNode(id) != undefined;
+            return !!this._graph.getNode(id);
         }
 
         // ------------------------------------------------------------------------------------------------------
@@ -910,7 +1035,7 @@ module Hyperstore
         private getFromCache(schemaElement:SchemaElement, startId?:string, startSchemaId?:string, endId?:string, endSchemaId?:string, id?:string)
         {
             var mel = this._cache[id];
-            if (mel != undefined)
+            if (mel)
             {
                 return mel;
             }
@@ -943,7 +1068,7 @@ module Hyperstore
                 if (p.substr(0, 5) === "__ref")
                 {
                     var prop = this[p];
-                    if (prop != undefined && prop.dispose)
+                    if (prop && prop.dispose)
                     {
                         prop.dispose();
                     }
@@ -1028,7 +1153,7 @@ module Hyperstore
 
             if (!this._end)
             {
-                this._end = this.domain.getElement(this.endId);
+                this._end = this.domain.store.getElement(this.endId);
             }
             return this._end;
         }
@@ -1112,11 +1237,11 @@ module Hyperstore
         getRelationships(schemaElement?:SchemaRelationship, direction:Direction = Direction.Outgoing):Queryable<ModelElement>
         {
             var list:Queryable<ModelElement>;
-            if ((direction & Direction.Outgoing) != 0)
+            if ((direction & Direction.Outgoing) !== 0)
             {
                 list = this.domain.getRelationships(schemaElement, this);
             }
-            if ((direction & Direction.Incoming) != 0)
+            if ((direction & Direction.Incoming) !== 0)
             {
                 var list2 = this.domain.getRelationships(schemaElement, undefined, this);
                 if (list && list.any())
@@ -1137,9 +1262,9 @@ module Hyperstore
         private _end:ModelElement;
         private _schemaRelationship:SchemaRelationship;
         private _domain:DomainModel;
-        private addSubscription;
         private _filter:(mel:ModelElement) => boolean;
         private _count:number;
+        private _sessionCompletedCookie;
 
         // ------------------------------------------------------------------------------------------------------
         // add a filter used to filter elements
@@ -1191,65 +1316,65 @@ module Hyperstore
             this._domain = source.domain;
 
             this._filter = filter;
-            var self = this;
-            var cookie = this._domain.events.subscribeSessionCompleted(function (s)
+
+            this._sessionCompletedCookie = this._domain.events.on(EventManager.SessionCompleted, this.onSessionCompleted);
+
+            this._count = 0;
+            this.loadItems();
+        }
+
+        private onSessionCompleted(s)
+        {
+            if (s.aborted)
             {
-                if (s.aborted)
+                return;
+            }
+
+            Utils.forEach(s.events, function (e)
+            {
+                if (e.eventName !== "AddRelationshipEvent" && e.eventName !== "RemoveRelationshipEvent")
                 {
                     return;
                 }
 
-                Utils.forEach(s.events, function (e)
+                if (e.schemaId === this._schemaRelationship.id
+                    && (this._source && e.startId === this._source.id)
+                    || (this._end && e.endId === this._end.id))
                 {
-                    if (e.eventName !== "AddRelationshipEvent" && e.eventName !== "RemoveRelationshipEvent")
+                    if (e.eventName === "AddRelationshipEvent")
                     {
-                        return;
-                    }
+                        var rel = this._domain.store.getElement(e.id);
+                        var mel = this._source
+                            ? rel.end
+                            : rel.start;
 
-                    if (e.schemaId === self._schemaRelationship.id
-                        && (self._source && e.startId === self._source.id)
-                        || (self._end && e.endId === self._end.id))
-                    {
-                        if (e.eventName === "AddRelationshipEvent")
+                        if (!this._filter  || this._filter(mel))
                         {
-                            var rel = self._domain.store.getElement(e.id);
-                            var mel = self._source != undefined
-                                ? rel.end
-                                : rel.start;
-
-                            if (!self._filter  || self._filter(mel))
-                            {
-                                Array.prototype.push.call(self, mel);
-                                self._count++;
-                            }
+                            Array.prototype.push.call(this, mel);
+                            this._count++;
                         }
-                        else
-                        {
-                            var id = self._source != undefined
-                                ? e.endId
-                                : e.startId;
+                    }
+                    else
+                    {
+                        var id = this._source
+                            ? e.endId
+                            : e.startId;
 
-                            // Remove
-                            for (var k = 0; k < self._count; k++)
+                        // Remove
+                        for (var k = 0; k < this._count; k++)
+                        {
+                            if (this[k].id === id)
                             {
-                                if (self[k].id === id)
+                                if (Array.prototype.splice.call(this, k, 1).length === 1)
                                 {
-                                    if (Array.prototype.splice.call(self, k, 1).length === 1)
-                                    {
-                                        self._count--;
-                                    }
-                                    break;
+                                    this._count--;
                                 }
+                                break;
                             }
                         }
                     }
-                });
-
+                }
             });
-            this.addSubscription = cookie;
-
-            this._count = 0;
-            this.loadItems();
         }
 
         count():number
@@ -1262,7 +1387,7 @@ module Hyperstore
         // -------------------------------------------------------------------------------------
         private loadItems()
         {
-            var opposite = this._source != undefined;
+            var opposite = !!this._source;
             var rels = this._domain.getRelationships(this._schemaRelationship, this._source, this._end);
             for (var i = 0; i < rels.count; i++)
             {
@@ -1283,7 +1408,7 @@ module Hyperstore
         // -------------------------------------------------------------------------------------
         dispose()
         {
-            this._domain.events.unsubscribeSessionCompleted(this.addSubscription);
+            this._domain.events.remove(this._sessionCompletedCookie);
             this.clear();
         }
 
@@ -1302,15 +1427,15 @@ module Hyperstore
                 return;
             }
 
-            var source = this._source != undefined
+            var source = this._source
                 ? this._source
                 : mel;
-            var end = this._end != undefined
+            var end = this._end
                 ? this._end
                 : mel;
 
             var rel = <ModelElement>(this._domain.getRelationships(this._schemaRelationship, source, end)).firstOrDefault();
-            if (rel != undefined)
+            if (rel)
             {
                 this._domain.removeElement(rel.id);
             }
@@ -1331,10 +1456,10 @@ module Hyperstore
                 return;
             }
 
-            var source = this._source != undefined
+            var source = this._source
                 ? this._source
                 : mel;
-            var end = this._end != undefined
+            var end = this._end
                 ? this._end
                 : mel;
 
@@ -1349,7 +1474,7 @@ module Hyperstore
 
         selectMany(fn) { return Utils.selectMany(this, fn); }
 
-        any(fn?):boolean { return Utils.firstOrDefault(this, fn) != undefined; }
+        any(fn?):boolean { return !!Utils.firstOrDefault(this, fn); }
 
         where(fn) { return Utils.where(this, fn); }
 
@@ -1542,7 +1667,7 @@ module Hyperstore
         addNode(id:string, schemaId:string, version:number):GraphNode
         {
             var node = new GraphNode(id, schemaId, NodeType.Node, version);
-            if (this.nodes[id] != undefined)
+            if (this.nodes[id])
             {
                 throw "Duplicate element";
             }
@@ -1555,7 +1680,7 @@ module Hyperstore
         // -------------------------------------------------------------------------------------
         addPropertyNode(id:string, schemaId:string, value:any, version:number):GraphNode
         {
-            if (this.nodes[id] != undefined)
+            if (this.nodes[id])
             {
                 throw "Duplicate element";
             }
@@ -1658,7 +1783,7 @@ module Hyperstore
                     }
                 }
 
-                if (node.startId != undefined)
+                if (node.startId)
                 {
                     var schema = this.domain.store.getSchemaRelationship(node.schemaId);
                     if (schema.embedded)
@@ -1702,7 +1827,7 @@ module Hyperstore
                 start.removeEdge(id, Direction.Outgoing);
 
                 var end = this.nodes[node.endId];
-                if (end != undefined)
+                if (end)
                 {
                     end.removeEdge(id, Direction.Incoming);
                 }
@@ -1714,7 +1839,7 @@ module Hyperstore
             {
                 var pid = node.id + p.name;
                 var pnode = self.nodes[pid];
-                if (pnode != undefined)
+                if (pnode)
                 {
                     delete self.nodes[pid];
                     events.push(new RemovePropertyEvent(self.domain.name, node.id, node.schemaId, p.name, pnode.value, Session.current.sessionId, pnode.version));

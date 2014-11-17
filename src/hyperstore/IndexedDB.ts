@@ -33,10 +33,10 @@ module Hyperstore
             (<any>window).msIndexedDB;
         }
 
-        initAsync(domain:DomainModel):JQueryPromise<any>
+        initAsync(domain:DomainModel):Promise
         {
             var self = this;
-            var defer = $.Deferred();
+            var promise = new Promise();
 
             super.initAsync(domain).then(function (_)
             {
@@ -51,7 +51,7 @@ module Hyperstore
                     // https://groups.google.com/a/chromium.org/forum/?fromgroups=#!topic/chromium-html5/VlWI87JFKMk[1-25-false]
                     e.target.transaction.oncomplete = function (e)
                     {
-                        defer.resolve(self);
+                        promise.resolve(self);
                     };
                 };
                 request.onsuccess = function (e)
@@ -62,21 +62,21 @@ module Hyperstore
                         var trx = self.db.transaction([IndexedDbAdapter.DB_NAME], "readwrite");
                         var ostore = trx.objectStore(IndexedDbAdapter.DB_NAME);
                         var rq = ostore.clear();
-                        rq.onsuccess = e => defer.resolve(self);
-                        rq.onerror = e => defer.reject(e);
+                        rq.onsuccess = e => promise.resolve(self);
+                        rq.onerror = e => promise.reject(e);
                     }
                     else
                     {
-                        defer.resolve(self);
+                        promise.resolve(self);
                     }
                 };
                 request.onerror = function (e)
                 {
-                    defer.reject(e);
+                    promise.reject(e);
                 }
 
             });
-            return defer.promise();
+            return promise;
         }
 
         persistElements(s:Session, elements:Queryable < ITrackedElement>)
@@ -135,7 +135,12 @@ module Hyperstore
         // -------------------------------------------------------------------------------------
         //
         // -------------------------------------------------------------------------------------
-        loadElementsAsync(filter?:(id, schemaId) => boolean):JQueryPromise<SessionResult>
+        /**
+         *
+         * @param filter
+         * @returns {Promise<SessionResult> }
+         */
+        loadElementsAsync(filter?:(id, schemaId) => boolean):Promise
         {
             if (!this.db) return;
             var self = this;
@@ -146,7 +151,7 @@ module Hyperstore
             var relationships = [];
 
             var dl = this.domain.name.length;
-            var defer = $.Deferred();
+            var promise = new Promise();
 
             ostore.openCursor().onsuccess = function (e)
             {
@@ -201,11 +206,11 @@ module Hyperstore
                     }
                     finally
                     {
-                        defer.resolve(session.close());
+                        promise.resolve(session.close());
                     }
                 }
             }
-            return defer.promise();
+            return promise;
         }
 
         private loadProperties(id, schema:SchemaElement, ostore:IDBObjectStore)

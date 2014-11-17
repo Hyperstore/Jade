@@ -16,7 +16,6 @@
 
 module Hyperstore
 {
-
     export interface IEventDispatcher
     {
         handleEvent(event:Event);
@@ -137,11 +136,16 @@ module Hyperstore
     export class EventManager
     {
         private _subscriptions;
-        static _counter = 0;
+        static AddEntityEvent = "AddEntityEvent";
+        static RemoveEntityEvent = "RemoveEntityEvent";
+        static AddRelationshipEvent = "AddRelationshipEvent";
+        static ChangePropertyValueEvent = "ChangePropertyValueEvent";
+        static RemoveRelationshipEvent = "RemoveRelationshipEvent";
+        static RemovePropertyEvent = "RemovePropertyEvent";
+        static SessionCompleted = "SessionCompleted";
 
         constructor(private domain:string)
         {
-            this._subscriptions = [];
         }
 
         dispose()
@@ -153,46 +157,106 @@ module Hyperstore
         {
             switch (eventName)
             {
-                case "AddEntityEvent":
+                case EventManager.AddEntityEvent:
                     return Object.create(AddEntityEvent);
-                case "RemoveEntityEvent":
+                case EventManager.RemoveEntityEvent:
                     return Object.create(RemoveEntityEvent);
-                case "AddRelationshipEvent":
+                case EventManager.AddRelationshipEvent:
                     return Object.create(AddRelationshipEvent);
-                case "ChangePropertyValueEvent":
+                case EventManager.ChangePropertyValueEvent:
                     return Object.create(ChangePropertyValueEvent);
-                case "RemoveRelationshipEvent":
+                case EventManager.RemoveRelationshipEvent:
                     return Object.create(RemoveRelationshipEvent);
-                case "RemovePropertyEvent":
+                case EventManager.RemovePropertyEvent:
                     return Object.create(RemovePropertyEvent);
                 default:
                     return undefined;
             }
         }
 
-        public subscribeSessionCompleted(action:(s:SessionInfo) => any):number
-        {
-            var cookie = EventManager._counter++;
-            this._subscriptions.push({cookie: cookie, action: action});
-            return cookie;
+        public onAddEntity(callback: (s:SessionInfo, e:AddEntityEvent)=>void): any {
+            return this.on(EventManager.AddEntityEvent, callback);
         }
 
-        public unsubscribeSessionCompleted(cookie:number)
-        {
-            this._subscriptions.splice(cookie);
+        public onRemoveEntity(callback: (s:SessionInfo, e:AddEntityEvent)=>void): any {
+            return this.on(EventManager.RemoveEntityEvent, callback);
         }
 
-        __onSessionCompleted(session:Session)
-        {
-            Utils.forEach(this._subscriptions,
-                    info => info.action({
-                    aborted:   session.aborted,
-                    mode:      session.mode,
-                    sessionId: session.sessionId,
-                    events:    Utils.where(session.events, e=> e.domain === this.domain)
-                })
-            );
+        public onAddRelationship(callback: (s:SessionInfo, e:AddEntityEvent)=>void): any {
+            return this.on(EventManager.AddRelationshipEvent, callback);
         }
 
+        public onRemoveRelationship(callback: (s:SessionInfo, e:AddEntityEvent)=>void): any {
+            return this.on(EventManager.RemoveRelationshipEvent, callback);
+        }
+
+        public onChangeProperty(callback: (s:SessionInfo, e:AddEntityEvent)=>void): any {
+            return this.on(EventManager.ChangePropertyValueEvent, callback);
+        }
+
+        public onSessionCompleted(callback: (s:SessionInfo, e:AddEntityEvent)=>void): any {
+            return this.on(EventManager.SessionCompleted, callback);
+        }
+
+        public on(eventName:string, callback) : any {
+            if( !eventName || !callback)
+                return;
+
+            if(!this._subscriptions)
+                this._subscriptions = {};
+
+            var list = this._subscriptions[eventName];
+            if(!list)
+                this._subscriptions[eventName] = list = [];
+
+            var ix = list.length;
+            list.push({ix:ix, fn:callback});
+            return {e:eventName, ix:ix};
+        }
+
+        public remove(cookie):EventManager {
+            if( !cookie || !cookie.ix)
+                return this;
+
+            var list = this._subscriptions[cookie.e];
+            if( !list)
+                return this;
+            var pos = Utils.indexOf(this._subscriptions, s=> s.ix===cookie);
+            if( pos >= 0)
+            {
+                list.splice(cookie.ix, 1);
+                if (list.length === 0)
+                    delete this._subscriptions[cookie.e];
+            }
+            return this;
+        }
+
+        __notifySessionCompleted(session:Session)
+        {
+            if(!this._subscriptions)
+                return;
+
+            var si = {
+                aborted:   session.aborted,
+                mode:      session.mode,
+                sessionId: session.sessionId,
+                events:    Utils.where(session.events, e=> e.domain === this.domain)
+            };
+
+            for(var i=0;i<si.events.length;i++)
+            {
+                var evt = si.events[i];
+                var list = this._subscriptions[evt.eventName];
+                if( !list)
+                    continue;
+
+                Utils.forEach(list, s => s.fn(si, evt));
+            }
+
+            var list = this._subscriptions[EventManager.SessionCompleted];
+            if( !list)
+                return;
+            Utils.forEach(list, s => s.fn(si));
+        }
     }
 }

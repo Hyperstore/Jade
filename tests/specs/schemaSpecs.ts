@@ -4,46 +4,44 @@
 describe('Schema tests', function () {
     'use strict';
 
-    var store = new Hyperstore.Store();
-    var schema = new Hyperstore.Schema(store, 'Test');
-    var librarySchema = new Hyperstore.SchemaEntity(schema, 'Library');
+    var store;
+    var schema;
+    var librarySchema;
 
-    it('create schema element', function () {
+    beforeEach( function() {
+         store = new Hyperstore.Store();
+         schema = new Hyperstore.Schema(store, 'Test');
+         librarySchema = new Hyperstore.SchemaEntity(schema, 'Library');
+    });
 
-        expect(librarySchema).not.toBeNull();
+    it('should exists', function ()
+    {
+        expect(librarySchema).not.toBeUndefined();
+    });
+
+    it('should have a valid id', function()
+    {
         expect(librarySchema.id).toEqual('Test:Library');
+    });
 
-        expect(store.getSchemaEntity('Library')).not.toBeNull();
-        expect(store.getSchemaElement('Library')).not.toBeNull();
-        expect(store.getSchemaElement('Test:Library')).not.toBeNull();
+    it('can be found with its simple name', function()
+    {
+        expect(store.getSchemaEntity('Library')).not.toBeUndefined();
+        expect(store.getSchemaElement('Library')).not.toBeUndefined();
+        expect(store.getSchemaElement('Test:Library')).not.toBeUndefined();
+    });
 
+    it('assert is library', function()
+    {
         expect(librarySchema.isA('Library')).toBeTruthy();
     });
 
     it('define schema properties', function() {
-
         librarySchema.defineProperty('Name', 'string', 'abcd');
-        expect(librarySchema.getProperty('Name', true)).not.toBeNull();
-        expect(librarySchema.getProperties(false).some(p=>p.name==='Name')).toBeTruthy();
+
+        expect(librarySchema.getProperty('Name', true)).not.toBeUndefined();
+        expect(librarySchema.getProperties(false).some(function(p) {return p.name==='Name';})).toBeTruthy();
         expect(librarySchema.getProperties(false).length).toEqual(1);
+        expect(librarySchema.getProperty('Name', true).defaultValue).toEqual('abcd');
     });
-
-    it('Schema inheritance', function() {
-
-        var librarySchemaEx = new Hyperstore.SchemaEntity(schema, 'LibraryEx', librarySchema );
-
-        librarySchemaEx.defineProperty('Address', 'string', 'xxxxx');
-        expect(librarySchema.getProperty('Name', true)).not.toBeNull();
-        expect(librarySchema.getProperty('Name', false)).toBeNull();
-        expect(librarySchema.getProperty('Address', true)).not.toBeNull();
-
-        expect(librarySchema.getProperties(true).some(p=>p.name==='Name')).toBeTruthy();
-        expect(librarySchema.getProperties(true).some(p=>p.name==='Address')).toBeTruthy();
-        expect(librarySchema.getProperties(false).length).toEqual(1);
-        expect(librarySchema.getProperties(true).length).toEqual(2);
-
-        expect(librarySchemaEx.isA('LibraryEx')).toBeTruthy();
-        expect(librarySchemaEx.isA('Library')).toBeTruthy();
-    });
-
 });

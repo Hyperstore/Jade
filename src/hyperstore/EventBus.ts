@@ -62,7 +62,7 @@ module Hyperstore
         _sendEvents(session:Session)
         {
 
-            if (session.originStoreId != this.domain.store.storeId)
+            if (session.originStoreId !== this.domain.store.storeId)
             {
                 return;
             }
@@ -113,14 +113,14 @@ module Hyperstore
 
         constructor(private store:Store, eventDispatcher?:IEventDispatcher)
         {
-            this.cookie = store.subscribeSessionCompleted(s=> this.sendEvents(s));
+            this.cookie = store.onSessionCompleted(s=> this.sendEvents(s));
             this._channels = [];
             this.defaultEventDispatcher = eventDispatcher || new EventDispatcher(store);
         }
 
         dispose()
         {
-            this.store.unsubscribeSessionCompleted(this.cookie);
+            this.store.removeSessionCompleted(this.cookie);
             Utils.forEach(this._channels, c=> c.close());
             this._channels = undefined;
         }
@@ -142,7 +142,7 @@ module Hyperstore
 
         private sendEvents(s:Session)
         {
-            if (s.aborted || s.originStoreId != this.store.storeId || s.result.hasErrorsOrWarnings)
+            if (s.aborted || s.originStoreId !== this.store.storeId || s.result.hasErrorsOrWarnings)
             {
                 return;
             }

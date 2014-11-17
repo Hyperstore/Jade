@@ -22,7 +22,7 @@ angular.module("hyperstore", [])
 
     var unsubscribe = function (store) {
         if (cookie) {
-            store.unsubscribeSessionCompleted(cookie);
+            store.removeSessionCompleted(cookie);
         }
         cookie = undefined;
     };
@@ -47,7 +47,7 @@ angular.module("hyperstore", [])
                     }
                     var list = domain.loadFromJson(data, schema);
 
-                    cookie = domain.store.subscribeSessionCompleted(function () {
+                    cookie = domain.store.onSessionCompleted(function () {
                         if (!$scope.$$phase)
                             $scope.$digest();
                     });

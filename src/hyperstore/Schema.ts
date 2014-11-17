@@ -144,7 +144,7 @@ module Hyperstore
         constructor(public store:Store, public name?:string, def?:ISchemaDefinition)
         {
             this.constraints = new ConstraintsManager(this);
-            if (def != undefined)
+            if (def)
             {
                 def.defineSchema(this);
             }
@@ -174,9 +174,14 @@ module Hyperstore
         {
             if (schema.name)
             {
-                this.id = schema.name + ":" + (id.substr(0, schema.name.length) === schema.name
-                    ? id.substr(schema.name.length + 1)
-                    : id);
+                if( id.indexOf('.') <= 0 || id.substr(0, schema.name.length) !== schema.name)
+                {
+                    this.id = schema.name + ":" + id;
+                }
+                else
+                {
+                    this.id = schema.name + ":"  + id.substr(schema.name.length + 1);
+                }
             }
         }
 
@@ -209,7 +214,7 @@ module Hyperstore
         constructor(schema:Schema, id:string, validate:(newValue, oldValue, ctx:ConstraintContext) => void, checkConstraint:boolean = true)
         {
             super(schema, SchemaKind.ValueObject, id);
-            if (validate != undefined)
+            if (validate)
             {
                 if (checkConstraint)
                 {
@@ -256,7 +261,7 @@ module Hyperstore
             super(schema, kind, id);
             this._properties = {};
             this._references = {};
-            this.proto = Object.create(baseElement != undefined
+            this.proto = Object.create(baseElement
                 ? baseElement.proto
                 : ModelElement.prototype);
         }
@@ -267,7 +272,7 @@ module Hyperstore
         getProperties(recursive:boolean):SchemaProperty[]
         {
             var list = [];
-            this._properties.forEach(function (v) { list.push(v) });
+            Utils.forEach(this._properties, function (v) { list.push(v) });
             if (recursive && this.baseElement)
             {
                 list = list.concat(this.baseElement.getProperties(true));
@@ -281,7 +286,7 @@ module Hyperstore
         private _getReferences(recursive:boolean):IReference[]
         {
             var list = [];
-            this._references.forEach(function (v) { list.push(v) });
+            Utils.forEach(this._references, function (v) { list.push(v) });
             if (recursive && this.baseElement)
             {
                 list = list.concat(this.baseElement._getReferences(true));
@@ -473,7 +478,7 @@ module Hyperstore
 
             mel.__initialize(ctx.domain, ctx.id, this, ctx.startId, ctx.startSchemaId, ctx.endId, ctx.endSchemaId);
 
-            this._references.forEach(info =>
+            Utils.forEach(this._references, info =>
             {
                 var refName = "__ref" + info.name + "__";
                 if (!info.isCollection)
