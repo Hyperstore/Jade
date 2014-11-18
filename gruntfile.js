@@ -23,7 +23,7 @@ module.exports = function (grunt) {
                 banner : "/// <reference path='../../scripts/typings/jquery/jquery.d.ts' />\r\n" +
                          "/// <reference path='../../scripts/typings/signalr/signalr.d.ts' />\r\n",
                 process : function(src, filepath) {
-                    var re = /(\/\/\/\s*<reference\s*path="\S*"\s*\/>)\s*/gi;
+                    var re = /(\s*\/\/.*)/gm;
                     return src.replace(/module\s*\bHyperstore\b\s*\{([\s\S]*)}/i, '$1')
                               .replace(re, '');
                 }
@@ -85,17 +85,16 @@ module.exports = function (grunt) {
                 src: "src/hyperstore/**/*.ts",
                 outDir: ".built/src/hyperstore",
                 options : {
-                    comments: true,
-                    sourceMap: true
                 }
             },
 
             dcl : {
-                src: "src/hyperstore/**/*.ts",
-                out: ".built/<%= pkg.name %>.js",
+                src: "src/hyperstore/*.ts",
+                out: ".built/src/hyperstore.js",
                 options : {
                     declaration:true,
-                    module : 'amd'
+                    comments: true,
+                    sourceMap: true
                 }
             },
 

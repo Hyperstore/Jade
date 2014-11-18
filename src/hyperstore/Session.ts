@@ -35,6 +35,9 @@ module Hyperstore
         origin?: string;
     }
 
+    /**
+     *
+     */
     export class SessionResult
     {
         public aborted:boolean;
@@ -44,6 +47,10 @@ module Hyperstore
         public involvedElements:ModelElement[];
         public maxVersionNumber:number;
 
+        /**
+         *
+         * @returns {boolean}
+         */
         get hasErrorsOrWarnings()
         {
             return this.hasErrors || this.hasWarnings;
@@ -58,6 +65,10 @@ module Hyperstore
             }
         }
 
+        /**
+         *
+         * @param message
+         */
         log(message:DiagnosticMessage)
         {
             if (message.messageType === MessageType.Error)
@@ -87,6 +98,11 @@ module Hyperstore
         public trackingData:TrackingData;
         public result:SessionResult;
 
+        /**
+         * @constructor
+         * @param store
+         * @param config
+         */
         constructor(public store:Store, private config?:SessionConfiguration)
         {
             this.events = new Array<Event>();
@@ -134,6 +150,9 @@ module Hyperstore
             this._committed = false;
         }
 
+        /**
+         *
+         */
         acceptChanges()
         {
             if (this.closed)
@@ -143,6 +162,10 @@ module Hyperstore
             this._committed = true;
         }
 
+        /**
+         *
+         * @returns {*}
+         */
         close():SessionResult
         {
             if (this.closed)
@@ -206,6 +229,10 @@ module Hyperstore
             return messages;
         }
 
+        /**
+         *
+         * @param evt
+         */
         addEvent(evt:Event)
         {
             if (this.closed)
@@ -248,6 +275,10 @@ module Hyperstore
     {
         private _trackings = {};
 
+        /**
+         *
+         * @returns {Array}
+         */
         get involvedTrackedElements():ITrackedElement[]
         {
             return Utils.select(this._trackings, t=> t);
@@ -320,6 +351,11 @@ module Hyperstore
             return Utils.select(list, kv=> kv);
         }
 
+        /**
+         *
+         * @param state
+         * @returns {Array}
+         */
         getTrackedElementsByState(state:TrackingState):ITrackedElement[]
         {
             return Utils.select(this._trackings, t=> t=> t.state === state
@@ -327,6 +363,11 @@ module Hyperstore
                 : undefined);
         }
 
+        /**
+         *
+         * @param id
+         * @returns {*}
+         */
         getTrackedElementState(id:string):TrackingState
         {
             var info = this._trackings[id];

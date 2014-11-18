@@ -141,6 +141,7 @@ module Hyperstore
 
                     var def = config.domains[domainName];
                     var domain = new DomainModel(this, domainName);
+                    config.domains[domainName] = domain;
 
                     if (def.adapters)
                     {
@@ -160,31 +161,30 @@ module Hyperstore
                     p.then(
                         function ()
                         {
-                            if (def.seed && (def.seed.always || !domain.getElements().any()))
-                            {
-                                if (typeof def.seed.resource === 'function')
-                                {
-                                    var session = self.beginSession();
-                                    try
-                                    {
-                                        def.seed.resource(domain);
-                                        session.acceptChanges();
-                                    }
-                                    finally
-                                    {
-                                        session.close();
+                            if (def.seed ) {
+                                if (def.seed.always || !domain.getElements().any()) {
+                                    if (typeof def.seed.resource === 'function') {
+                                        var session = self.beginSession();
+                                        try {
+                                            def.seed.resource(domain);
+                                            session.acceptChanges();
+                                        }
+                                        finally {
+                                            session.close();
+                                        }
                                     }
                                 }
+                                delete def.seed;
                             }
-
-                            config.domains[domainName] = domain;
-                            self.defaultDomainModel = self.getDomain(config.defaultDomainModel);
                         }
                     );
                 }
+
+                self.defaultDomainModel = self.getDomain(config.defaultDomainModel);
             }
             else
                 p.resolve(this);
+
             return p;
         }
 
@@ -229,10 +229,11 @@ module Hyperstore
             return ix;
         }
 
-        // ------------------------------------------------------------------------------------------------------
-        // Unsubscribe to session completed event. Cookie is provided by the subscribe function.
-        // ------------------------------------------------------------------------------------------------------
-        removeSessionCompleted(cookie:number)
+        /**
+         * Unsubscribe to session completed event. Cookie is provided by the subscribe function.
+         * @param cookie
+         */
+         removeSessionCompleted(cookie:number)
         {
             var pos = Utils.indexOf(this._subscriptions, s=> s.ix===cookie);
             if( pos >= 0)
@@ -241,9 +242,6 @@ module Hyperstore
             }
         }
 
-        // ------------------------------------------------------------------------------------------------------
-        // internal use only
-        // ------------------------------------------------------------------------------------------------------
         __sendSessionCompletedEvent(session:Session)
         {
             this._subscriptions.forEach(s=> s.fn(session));
@@ -262,9 +260,11 @@ module Hyperstore
             };
         }
 
-        // ------------------------------------------------------------------------------------------------------
-        // get a loaded domain by name or undefined if not exists
-        // ------------------------------------------------------------------------------------------------------
+        /**
+         * get a loaded domain by name or undefined if not exists
+         * @param name
+         * @returns {*}
+         */
         getDomain(name:string):DomainModel
         {
             for (var i = 0; i < this._domains.length; i++)
@@ -306,10 +306,6 @@ module Hyperstore
 
             return Session.current;
         }
-
-        // ------------------------------------------------------------------------------------------------------
-        // internal use only
-        // ------------------------------------------------------------------------------------------------------
         public __addSchemaElement(schemaInfo:SchemaInfo)
         {
             var id = schemaInfo.id.toLowerCase();
@@ -347,9 +343,12 @@ module Hyperstore
             }
         }
 
-        // ------------------------------------------------------------------------------------------------------
-        // get a schema info by name. By default, an exception is thrown if no schema exists
-        // ------------------------------------------------------------------------------------------------------
+        /**
+         * get a schema info by name. By default, an exception is thrown if no schema exists
+         * @param schemaName
+         * @param throwException
+         * @returns {*}
+         */
         public getSchemaInfo(schemaName:string, throwException:boolean = true):SchemaInfo
         {
             if( !schemaName)
@@ -410,10 +409,13 @@ module Hyperstore
             return new Queryable<SchemaRelationship>(list);
         }
 
-        // ------------------------------------------------------------------------------------------------------
-        // get a schema element by name. A schema element can be a schemaEntity or a schemaRelationship
-        // By default, an exception is thrown if no schema exists
-        // ------------------------------------------------------------------------------------------------------
+        /**
+         * get a schema element by name. A schema element can be a schemaEntity or a schemaRelationship
+         * By default, an exception is thrown if no schema exists
+         * @param schemaName
+         * @param throwException
+         * @returns {SchemaElement}
+         */
         public getSchemaElement(schemaName:string, throwException:boolean = true):SchemaElement
         {
             var schemaElement = this.getSchemaInfo(schemaName, throwException);
@@ -425,9 +427,12 @@ module Hyperstore
             return <SchemaElement>schemaElement;
         }
 
-        // ------------------------------------------------------------------------------------------------------
-        // get a schema relationship by name. By default, an exception is thrown if no schema exists
-        // ------------------------------------------------------------------------------------------------------
+        /**
+         * get a schema relationship by name. By default, an exception is thrown if no schema exists
+         * @param schemaName
+         * @param throwException
+         * @returns {SchemaRelationship}
+         */
         public getSchemaRelationship(schemaName:string, throwException:boolean = true):SchemaRelationship
         {
             var schemaElement = this.getSchemaInfo(schemaName, throwException);
@@ -439,9 +444,12 @@ module Hyperstore
             return <SchemaRelationship>schemaElement;
         }
 
-        // ------------------------------------------------------------------------------------------------------
-        // get a schema entity by name. By default, an exception is thrown if no schema exists
-        // ------------------------------------------------------------------------------------------------------
+        /**
+         * get a schema entity by name. By default, an exception is thrown if no schema exists
+         * @param schemaName
+         * @param throwException
+         * @returns {SchemaEntity}
+         */
         public getSchemaEntity(schemaName:string, throwException:boolean = true):SchemaEntity
         {
             var schemaElement = this.getSchemaInfo(schemaName, throwException);
@@ -453,9 +461,10 @@ module Hyperstore
             return <SchemaEntity>schemaElement;
         }
 
-        // ------------------------------------------------------------------------------------------------------
-        // shortcut to execute an action in a session
-        // ------------------------------------------------------------------------------------------------------
+        /**
+         * shortcut to execute an action in a session
+         * @param action
+         */
         public runInSession(action:() => void)
         {
             var session = this.beginSession();
@@ -470,9 +479,11 @@ module Hyperstore
             }
         }
 
-        // ------------------------------------------------------------------------------------------------------
-        // get an element by id 
-        // ------------------------------------------------------------------------------------------------------
+        /**
+         * get an element by id
+         * @param id
+         * @returns {*}
+         */
         getElement(id:string):ModelElement
         {
             var domainName = id.substr(0, id.indexOf(':'));
@@ -507,10 +518,6 @@ module Hyperstore
             }));
         }
     }
-
-    // =============================================
-    // Domain model
-    // =============================================
 
     /**
      * Represents a domain model
@@ -616,11 +623,14 @@ module Hyperstore
             return id;
         }
 
-        // ------------------------------------------------------------------------------------------------------
-        // Load a domain from a json object. This object can have two specific format:
-        //   - hyperstore format. (generated by the hyperstore serializer)
-        //   - a poco object. For circular references, the newtonwsoft format is used ($id and $ref) (http://james.newtonking.com/json/help/html/T_Newtonsoft_Json_PreserveReferencesHandling.htm)
-        // ------------------------------------------------------------------------------------------------------
+        /**
+         * Load a domain from a json object. This object can have two specific format:
+         * - hyperstore format. (generated by the hyperstore serializer)
+         * - a poco object. For circular references, the newtonwsoft format is used ($id and $ref) (http://james.newtonking.com/json/help/html/T_Newtonsoft_Json_PreserveReferencesHandling.htm)
+         * @param def
+         * @param rootSchema
+         * @returns {Hyperstore.Queryable<ModelElement>}
+         */
         loadFromJson(def:any, rootSchema?:SchemaElement):Queryable<ModelElement>
         {
             if (!def)
@@ -805,13 +815,14 @@ module Hyperstore
             return list;
         }
 
-        // ------------------------------------------------------------------------------------------------------
-        // Get relationships of the domain filtered by schema or terminal elements.
-        //  schemaElement : Select only relationships of this schema (including inheritance)  
-        //  start : Select outgoing relationships of 'start'
-        //  end : Select incoming relationships of 'end'
-        // Filters can be combined.
-        // ------------------------------------------------------------------------------------------------------
+        /**
+         * Get relationships of the domain filtered by schema or terminal elements.
+         * Filters can be combined.
+         * @param schemaElement: Select only relationships of this schema (including inheritance)
+         * @param start: Select outgoing relationships of 'start'
+         * @param end : Select incoming relationships of 'end'
+         * @returns {Hyperstore.Queryable<ModelElement>}
+         */
         getRelationships(schemaElement?:SchemaRelationship, start?:ModelElement, end?:ModelElement):Queryable<ModelElement>
         {
             var list = [];
@@ -888,11 +899,14 @@ module Hyperstore
             }
         }
 
-        // ------------------------------------------------------------------------------------------------------
-        // get value of an element property in the underlying hypergraph.
-        // Returns 'undefined' if the value doesn't exist and no defaultValue is set in the property schema.
-        // Otherwise, returns a PropertyValue {value, version}
-        // ------------------------------------------------------------------------------------------------------
+        /**
+         * get value of an element property in the underlying hypergraph.
+         * Returns 'undefined' if the value doesn't exist and no defaultValue is set in the property schema.
+         * Otherwise, returns a PropertyValue {value, version}
+         * @param ownerId
+         * @param property
+         * @returns {*}
+         */
         getPropertyValue(ownerId:string, property:SchemaProperty):PropertyValue
         {
             if (!this._graph.getNode(ownerId))
@@ -919,10 +933,14 @@ module Hyperstore
             return new PropertyValue(node.value, undefined, node.version);
         }
 
-        // ------------------------------------------------------------------------------------------------------
-        // set value of an element property
-        // Returns a PropertyValue {value, oldValue, version}
-        // ------------------------------------------------------------------------------------------------------
+        /**
+         * set value of an element property
+         * @param ownerId
+         * @param property
+         * @param value
+         * @param version
+         * @returns {Hyperstore.PropertyValue} {value, oldValue, version}
+         */
         setPropertyValue(ownerId:string, property:SchemaProperty, value:any, version?:number):PropertyValue
         {
             var ownerNode = this._graph.getNode(ownerId);
@@ -974,12 +992,19 @@ module Hyperstore
             }
         }
 
-        // ------------------------------------------------------------------------------------------------------
-        // create a new domain entity using the specified schema
-        // ------------------------------------------------------------------------------------------------------
+        /**
+         * create a new domain entity using the specified schema
+         * @param schemaElement
+         * @param id
+         * @param version
+         * @returns {Hyperstore.ModelElement}
+         */
         createEntity(schemaElement:SchemaElement, id?:string, version?:number):ModelElement
         {
             Utils.Requires(schemaElement, "schemaElement");
+            if( typeof(schemaElement) == "string")
+                schemaElement = this.store.getSchemaEntity(<any>schemaElement);
+
             var mel = schemaElement.deserialize(new SerializationContext(this, id));
             this.updateSequence(id);
             var node = this._graph.addNode(mel.id, schemaElement.id, version);
@@ -988,14 +1013,23 @@ module Hyperstore
             return mel;
         }
 
-        // ------------------------------------------------------------------------------------------------------
-        // create a new domain relationship using the specified schema
-        // ------------------------------------------------------------------------------------------------------
+        /**
+         * create a new domain relationship using the specified schema
+         * @param schemaRelationship
+         * @param start
+         * @param endId
+         * @param endSchemaId
+         * @param id
+         * @param version
+         * @returns {Hyperstore.ModelElement}
+         */
         createRelationship(schemaRelationship:SchemaRelationship, start:ModelElement, endId:string, endSchemaId:string, id?:string, version?:number):ModelElement
         {
             Utils.Requires(schemaRelationship, "schemaRelationship");
             Utils.Requires(start, "start");
             Utils.Requires(endId, "endId");
+            if( typeof(schemaRelationship) == "string")
+                schemaRelationship = this.store.getSchemaRelationship(<any>schemaRelationship);
 
             this.updateSequence(id);
             var mel = schemaRelationship.deserialize(new SerializationContext(this, id, start.id, start.schemaElement.id, endId, endSchemaId));
@@ -1005,9 +1039,11 @@ module Hyperstore
             return mel;
         }
 
-        // ------------------------------------------------------------------------------------------------------
-        // remove an element (entity or relationship)
-        // ------------------------------------------------------------------------------------------------------
+        /**
+         * remove an element (entity or relationship)
+         * @param id
+         * @param version
+         */
         removeElement(id:string, version?:number)
         {
             var events;
@@ -1025,17 +1061,21 @@ module Hyperstore
             });
         }
 
-        // ------------------------------------------------------------------------------------------------------
-        // check if an element (entity or relationship) exists
-        // ------------------------------------------------------------------------------------------------------
+        /**
+         * check if an element (entity or relationship) exists
+         * @param id
+         * @returns {boolean}
+         */
         elementExists(id:string):boolean
         {
             return !!this._graph.getNode(id);
         }
 
-        // ------------------------------------------------------------------------------------------------------
-        // get an element (entity or relationship) by its id
-        // ------------------------------------------------------------------------------------------------------
+        /**
+         * get an element (entity or relationship) by its id
+         * @param id
+         * @returns {*}
+         */
         getElement(id:string):ModelElement
         {
             var node = this._graph.getNode(id);
@@ -1048,9 +1088,12 @@ module Hyperstore
             return this.getFromCache(schemaElement, node.startId, node.startSchemaId, node.endId, node.endSchemaId, node.id);
         }
 
-        // ------------------------------------------------------------------------------------------------------
-        // get a list of elements
-        // ------------------------------------------------------------------------------------------------------
+        /**
+         * get a list of elements
+         * @param schemaElement
+         * @param kind
+         * @returns {Hyperstore.Queryable<ModelElement>}
+         */
         getElements(schemaElement?:SchemaElement, kind:NodeType = NodeType.EdgeOrNode):Queryable<ModelElement>
         {
             if (typeof (schemaElement) === "string")
@@ -1081,9 +1124,9 @@ module Hyperstore
         }
     }
 
-    // =============================================
-    // Domain element
-    // =============================================
+    /**
+     * Domain element
+     */
     export class ModelElement
     {
         id:string;
@@ -1097,6 +1140,9 @@ module Hyperstore
         private _end:ModelElement;
         public disposed:boolean;
 
+        /**
+         *
+         */
         dispose()
         {
             for (var p in this)
@@ -1112,9 +1158,11 @@ module Hyperstore
             }
         }
 
-        // -------------------------------------------------------------------------------------
-        //
-        // -------------------------------------------------------------------------------------
+        /**
+         *
+         * @param property
+         * @returns {*}
+         */
         getPropertyValue(property:SchemaProperty):any
         {
             if (this.disposed)
@@ -1129,9 +1177,12 @@ module Hyperstore
             return pv.value;
         }
 
-        // -------------------------------------------------------------------------------------
-        //
-        // -------------------------------------------------------------------------------------
+        /**
+         *
+         * @param property
+         * @param value
+         * @returns {PropertyValue}
+         */
         setPropertyValue(property:SchemaProperty, value:any)
         {
             if (this.disposed)
@@ -1142,9 +1193,17 @@ module Hyperstore
             return this.domain.setPropertyValue(this.id, property, value);
         }
 
-        // -------------------------------------------------------------------------------------
-        //
-        // -------------------------------------------------------------------------------------
+        /**
+         *
+         * @param domain
+         * @param id
+         * @param schemaElement
+         * @param startId
+         * @param startSchemaId
+         * @param endId
+         * @param endSchemaId
+         * @private
+         */
         __initialize(domain:DomainModel, id:string, schemaElement:SchemaElement, startId?:string, startSchemaId?:string, endId?:string, endSchemaId?:string)
         {
             this.domain = domain;
@@ -1160,9 +1219,10 @@ module Hyperstore
             this.endSchemaId = endSchemaId;
         }
 
-        // -------------------------------------------------------------------------------------
-        //
-        // -------------------------------------------------------------------------------------
+        /**
+         *
+         * @returns {ModelElement}
+         */
         get start():ModelElement
         {
             if (this.disposed)
@@ -1177,9 +1237,10 @@ module Hyperstore
             return this._start;
         }
 
-        // -------------------------------------------------------------------------------------
-        //
-        // -------------------------------------------------------------------------------------
+        /**
+         *
+         * @returns {ModelElement}
+         */
         get end():ModelElement
         {
             if (this.disposed)
@@ -1194,9 +1255,10 @@ module Hyperstore
             return this._end;
         }
 
-        // -------------------------------------------------------------------------------------
-        //
-        // -------------------------------------------------------------------------------------
+        /**
+         *
+         * @returns {string}
+         */
         stringify():string
         {
             if (this.disposed)
@@ -1266,9 +1328,12 @@ module Hyperstore
             return json;
         }
 
-        // -------------------------------------------------------------------------------------
-        //
-        // -------------------------------------------------------------------------------------
+        /**
+         *
+         * @param schemaElement
+         * @param direction
+         * @returns {Queryable<ModelElement>}
+         */
         getRelationships(schemaElement?:SchemaRelationship, direction:Direction = Direction.Outgoing):Queryable<ModelElement>
         {
             var list:Queryable<ModelElement>;
@@ -1288,9 +1353,9 @@ module Hyperstore
         }
     }
 
-    // ------------------------------------------------------------------------------------------------------
-    // encapsulates collection (many references)
-    // ------------------------------------------------------------------------------------------------------
+    /**
+     * encapsulates collection (many references)
+     */
     export class ModelElementCollection
     {
         private _source:ModelElement;
@@ -1300,10 +1365,6 @@ module Hyperstore
         private _filter:(mel:ModelElement) => boolean;
         private _count:number;
         private _sessionCompletedCookie;
-
-        // ------------------------------------------------------------------------------------------------------
-        // add a filter used to filter elements
-        // ------------------------------------------------------------------------------------------------------
         public setFilter(where:(mel:ModelElement) => boolean)
         {
             this._filter = where;
@@ -1321,10 +1382,14 @@ module Hyperstore
             }
         }
 
-        // ------------------------------------------------------------------------------------------------------
-        //  create a collection where the source element is a terminal of a relationships depending of the opposite value
-        //    if opposite is false source is the start element otherwise the end element.
-        // ------------------------------------------------------------------------------------------------------
+        /**
+         * create a collection where the source element is a terminal of a relationships depending of the opposite value
+         * if opposite is false source is the start element otherwise the end element.
+         * @param source
+         * @param schemaRelationship
+         * @param opposite
+         * @param filter
+         */
         constructor(source:ModelElement, schemaRelationship:SchemaRelationship, opposite:boolean = false, filter?:(mel:ModelElement) => boolean)
         {
             if (schemaRelationship.cardinality === Cardinality.OneToOne)
@@ -1341,85 +1406,76 @@ module Hyperstore
                 throw "Invalid end type";
             }
 
-            this._source = opposite
-                ? undefined
-                : source;
-            this._end = opposite
-                ? source
-                : undefined;
+            this._source = opposite ? undefined : source;
+            this._end = opposite ? source : undefined;
             this._schemaRelationship = schemaRelationship;
             this._domain = source.domain;
 
             this._filter = filter;
+            var self = this;
 
-            this._sessionCompletedCookie = this._domain.events.on(EventManager.SessionCompleted, this.onSessionCompleted);
+            this._sessionCompletedCookie = this._domain.events.on(EventManager.SessionCompleted, function(s)
+            {
+                if (s.aborted)
+                {
+                    return;
+                }
+
+                Utils.forEach(s.events, function(e)
+                {
+                    if (e.eventName !== "AddRelationshipEvent" && e.eventName !== "RemoveRelationshipEvent")
+                    {
+                        return;
+                    }
+
+                    if (e.schemaId === self._schemaRelationship.id && (self._source && e.startId === self._source.id)
+                        || (self._end && e.endId === self._end.id))
+                    {
+                        if (e.eventName === "AddRelationshipEvent")
+                        {
+                            var rel = self._domain.store.getElement(e.id);
+                            var mel = self._source ? rel.end : rel.start;
+
+                            if (!self._filter  || self._filter(mel))
+                            {
+                                Array.prototype.push.call(self, mel);
+                                self._count++;
+                            }
+                        }
+                        else
+                        {
+                            var id = self._source ? e.endId : e.startId;
+
+                            // Remove
+                            for (var k = 0; k < self._count; k++)
+                            {
+                                if (self[k].id === id)
+                                {
+                                    if (Array.prototype.splice.call(self, k, 1).length === 1)
+                                    {
+                                        self._count--;
+                                    }
+                                    break;
+                                }
+                            }
+                        }
+                    }
+                });
+            });
 
             this._count = 0;
             this.loadItems();
         }
 
-        private onSessionCompleted(s)
-        {
-            if (s.aborted)
-            {
-                return;
-            }
-
-            Utils.forEach(s.events, function (e)
-            {
-                if (e.eventName !== "AddRelationshipEvent" && e.eventName !== "RemoveRelationshipEvent")
-                {
-                    return;
-                }
-
-                if (e.schemaId === this._schemaRelationship.id
-                    && (this._source && e.startId === this._source.id)
-                    || (this._end && e.endId === this._end.id))
-                {
-                    if (e.eventName === "AddRelationshipEvent")
-                    {
-                        var rel = this._domain.store.getElement(e.id);
-                        var mel = this._source
-                            ? rel.end
-                            : rel.start;
-
-                        if (!this._filter  || this._filter(mel))
-                        {
-                            Array.prototype.push.call(this, mel);
-                            this._count++;
-                        }
-                    }
-                    else
-                    {
-                        var id = this._source
-                            ? e.endId
-                            : e.startId;
-
-                        // Remove
-                        for (var k = 0; k < this._count; k++)
-                        {
-                            if (this[k].id === id)
-                            {
-                                if (Array.prototype.splice.call(this, k, 1).length === 1)
-                                {
-                                    this._count--;
-                                }
-                                break;
-                            }
-                        }
-                    }
-                }
-            });
-        }
-
+        /**
+         *
+         * @returns {number}
+         */
         count():number
         {
             return this._count;
         }
 
-        // -------------------------------------------------------------------------------------
-        //
-        // -------------------------------------------------------------------------------------
         private loadItems()
         {
             var opposite = !!this._source;
@@ -1427,9 +1483,7 @@ module Hyperstore
             for (var i = 0; i < rels.count; i++)
             {
                 var rel = rels[i];
-                var elem = opposite
-                    ? rel.end
-                    : rel.start;
+                var elem = opposite ? rel.end : rel.start;
                 if (!this._filter || this._filter(elem))
                 {
                     Array.prototype.push.call(this, elem);
@@ -1438,18 +1492,19 @@ module Hyperstore
             }
         }
 
-        // -------------------------------------------------------------------------------------
-        //
-        // -------------------------------------------------------------------------------------
+        /**
+         *
+         */
         dispose()
         {
             this._domain.events.remove(this._sessionCompletedCookie);
             this.clear();
         }
 
-        // -------------------------------------------------------------------------------------
-        //
-        // -------------------------------------------------------------------------------------
+        /**
+         *
+         * @param mel
+         */
         remove(mel:ModelElement)
         {
             if ((this._source || this._end).disposed)
@@ -1476,9 +1531,10 @@ module Hyperstore
             }
         }
 
-        // -------------------------------------------------------------------------------------
-        //
-        // -------------------------------------------------------------------------------------
+        /**
+         *
+         * @param mel
+         */
         add(mel:ModelElement)
         {
             if ((this._source || this._end).disposed)
@@ -1501,6 +1557,10 @@ module Hyperstore
             var rel = this._source.domain.createRelationship(this._schemaRelationship, source, end.id, end.schemaElement.id);
         }
 
+        /**
+         *
+         * @param fn
+         */
         forEach(fn) { Utils.forEach(this, fn); }
 
         firstOrDefault(fn?) { return Utils.firstOrDefault(this, fn); }
@@ -1518,34 +1578,37 @@ module Hyperstore
         reverse() { return Utils.reverse(this); }
     }
 
-    // -------------------------------------------------------------------------------------
-    //
-    // -------------------------------------------------------------------------------------
+    /**
+     *
+     */
     export class PropertyValue
     {
+        /**
+         *
+         * @param value
+         * @param oldValue
+         * @param version
+         */
         constructor(public value:any, public oldValue:any, public version:number)
         { }
     }
-
-    // -------------------------------------------------------------------------------------
-    //
-    // -------------------------------------------------------------------------------------
     interface handlerInfo
     {
         domain: string;
         handler: IEventHandler;
     }
 
-    // -------------------------------------------------------------------------------------
-    //
-    // -------------------------------------------------------------------------------------
+    /**
+     *
+     */
     export class EventDispatcher implements IEventDispatcher
     {
         private _handlers;
 
-        // -------------------------------------------------------------------------------------
-        //
-        // -------------------------------------------------------------------------------------
+        /**
+         *
+         * @param store
+         */
         constructor(public store:Store)
         {
             this._handlers = {};
@@ -1607,9 +1670,11 @@ module Hyperstore
             });
         }
 
-        // -------------------------------------------------------------------------------------
-        //
-        // -------------------------------------------------------------------------------------
+        /**
+         *
+         * @param handler
+         * @param domain
+         */
         registerHandler(handler:IEventHandler, domain?:string)
         {
             var key = handler.eventName || "*";
@@ -1622,9 +1687,6 @@ module Hyperstore
             handlers.push({domain: domain, handler: handler});
         }
 
-        // -------------------------------------------------------------------------------------
-        //
-        // -------------------------------------------------------------------------------------
         handleEvent(event:Event)
         {
             if (!Session.current)
@@ -1644,10 +1706,6 @@ module Hyperstore
                 Session.current.addEvent(event);
             }
         }
-
-        // -------------------------------------------------------------------------------------
-        //
-        // -------------------------------------------------------------------------------------
         private executeHandlers(key:string, event:Event):boolean
         {
             var handlers = this._handlers[key];
@@ -1673,32 +1731,20 @@ module Hyperstore
         }
     }
 
-    // -------------------------------------------------------------------------------------
-    //
-    // -------------------------------------------------------------------------------------
     class Hypergraph
     {
         private nodes;
 
-        // -------------------------------------------------------------------------------------
-        //
-        // -------------------------------------------------------------------------------------
         constructor(public domain:DomainModel)
         {
             this.nodes = {};
         }
 
-        // -------------------------------------------------------------------------------------
-        //
-        // -------------------------------------------------------------------------------------
         dispose()
         {
             this.nodes = undefined;
         }
 
-        // -------------------------------------------------------------------------------------
-        //
-        // -------------------------------------------------------------------------------------
         addNode(id:string, schemaId:string, version:number):GraphNode
         {
             var node = new GraphNode(id, schemaId, NodeType.Node, version);
@@ -1710,9 +1756,6 @@ module Hyperstore
             return node;
         }
 
-        // -------------------------------------------------------------------------------------
-        //
-        // -------------------------------------------------------------------------------------
         addPropertyNode(id:string, schemaId:string, value:any, version:number):GraphNode
         {
             if (this.nodes[id])
@@ -1725,9 +1768,6 @@ module Hyperstore
             return node;
         }
 
-        // -------------------------------------------------------------------------------------
-        //
-        // -------------------------------------------------------------------------------------
         addRelationship(id:string, schemaId:string, startId:string, startSchemaId:string, endId:string, endSchemaId:string, version:number):GraphNode
         {
 
@@ -1755,17 +1795,11 @@ module Hyperstore
             return node;
         }
 
-        // -------------------------------------------------------------------------------------
-        //
-        // -------------------------------------------------------------------------------------
         getNode(id:string):GraphNode
         {
             return this.nodes[id];
         }
 
-        // -------------------------------------------------------------------------------------
-        //
-        // -------------------------------------------------------------------------------------
         removeNode(id:string, version:number):Event[]
         {
             var events = [];
@@ -1840,9 +1874,6 @@ module Hyperstore
             return pevents.concat(events);
         }
 
-        // -------------------------------------------------------------------------------------
-        //
-        // -------------------------------------------------------------------------------------
         private removeNodeInternal(node:GraphNode, sawNodes, events:Event[])
         {
             if (!node)
@@ -1884,9 +1915,6 @@ module Hyperstore
             delete this.nodes[id];
         }
 
-        // -------------------------------------------------------------------------------------
-        //
-        // -------------------------------------------------------------------------------------
         traverseNodes(startNode:GraphNode, visit:(node:GraphNode) => GraphNode[])
         {
             var queue = [];
@@ -1914,9 +1942,6 @@ module Hyperstore
             }
         }
 
-        // -------------------------------------------------------------------------------------
-        //
-        // -------------------------------------------------------------------------------------
         getNodes(kind:NodeType, schema?:SchemaElement):GraphNode[]
         {
             var list = [];
@@ -1933,9 +1958,9 @@ module Hyperstore
 
     }
 
-    // -------------------------------------------------------------------------------------
-    //
-    // -------------------------------------------------------------------------------------
+    /**
+     *
+     */
     export enum Direction
     {
         Incoming = 1,
@@ -1943,9 +1968,9 @@ module Hyperstore
         Both = 3
     }
 
-    // -------------------------------------------------------------------------------------
-    //
-    // -------------------------------------------------------------------------------------
+    /**
+     *
+     */
     export enum NodeType
     {
         Node = 1,
@@ -1954,9 +1979,6 @@ module Hyperstore
         Property = 4
     }
 
-    // -------------------------------------------------------------------------------------
-    //
-    // -------------------------------------------------------------------------------------
     class NodeInfo
     {
         constructor(public id:string, public schemaId:string, public version:number)
@@ -1968,9 +1990,6 @@ module Hyperstore
         }
     }
 
-    // -------------------------------------------------------------------------------------
-    //
-    // -------------------------------------------------------------------------------------
     class EdgeInfo extends NodeInfo
     {
         constructor(id:string, schemaId:string, version:number, public endId?:string, public endSchemaId?:string)
@@ -1979,9 +1998,6 @@ module Hyperstore
         }
     }
 
-    // -------------------------------------------------------------------------------------
-    //
-    // -------------------------------------------------------------------------------------
     class GraphNode extends EdgeInfo
     {
         public outgoings;
@@ -2021,11 +2037,11 @@ module Hyperstore
         {
             if ((direction & Direction.Incoming) === Direction.Incoming)
             {
-                this.incomings.delete(id);
+                delete this.incomings[id];
             }
             if ((direction & Direction.Outgoing) === Direction.Outgoing)
             {
-                this.outgoings.delete(id);
+                delete this.outgoings[id];
             }
         }
     }

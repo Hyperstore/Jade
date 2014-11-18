@@ -705,9 +705,7 @@ module Hyperstore
                 if( o.$type)
                 {
                     var p = entity.defineProperty(name, this.schema.store.getSchemaInfo(o.$type), o.$default);
-                        this.parseConstraints(o.$constraints,
-                        c => p.addConstraint(c.message, c.condition, c.error, c.kind)
-                    );
+                    this.parseConstraints(o.$constraints,c => p.addConstraint(c.message, c.condition, c.error, c.kind));
                 }
                 else {
                     if( o.$source )
@@ -715,7 +713,8 @@ module Hyperstore
                         this.pendings.push({src:     o.$source,
                                                end:  o.$end,
                                                type: o.$kind,
-                                               name: o.$name
+                                               name: o.$name,
+                                               const:  o.$constraints
                                            }
                         );
                         return;
@@ -747,6 +746,8 @@ module Hyperstore
                 if( t === "string" && o.length > 0)
                 {
                     t = this.schema.store.getSchemaInfo(o);
+                    if( t.kind !== SchemaKind.ValueObject || t.kind !== SchemaKind.Primitive)
+                        throw "Only value object or primitive is allowed for property " + name + ". Use reference instead."
                     o = undefined;
                 }
                 entity.defineProperty(name, t, o);
@@ -783,7 +784,7 @@ module Hyperstore
                     throw "Unknown extended relationship " + o.$extend;
             }
 
-            this.pendings.push({src: o.$source, end: o.$end, type: o.$kind, obj:o, base:base, name: o.$name});
+            this.pendings.push({src: o.$source, end: o.$end, type: o.$kind, obj:o, base:base, name: o.$name, const:o.$constraints});
         }
 
         private createRelationship(def)
@@ -813,6 +814,8 @@ module Hyperstore
                 );
                 this.def[name + "Schema"] = rel;
             }
+
+            this.parseConstraints(def.const,c => rel.addConstraint(c.message, c.condition, c.error, c.kind));
 
             if( def.property) {
                 rel[c.opposite ? "endProperty" : "startProperty" ] = def.property;
