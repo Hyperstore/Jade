@@ -92,7 +92,7 @@ module Hyperstore
         addPropertyConstraint(property:SchemaProperty, condition?:(value, oldValue, ctx:ConstraintContext) => boolean, message?:string, asError:boolean = true, kind:ConstraintKind = ConstraintKind.Validate)
         {
             var fn = condition;
-            if (!fn)
+            if (!fn && property.schemaProperty)
             {
                 if ((<any>property.schemaProperty).check)
                 {

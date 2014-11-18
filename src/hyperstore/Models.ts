@@ -86,18 +86,25 @@ module Hyperstore
          *    })();
          *
          */
-        constructor(config?:any)
-        {
+        constructor() {
             this._subscriptions = [];
             this.eventBus = new EventBus(this);
             this.schemas = {};
             this.schemasBySimpleName = {};
             this._domains = new Array<DomainModel>();
-
             new Schema(this, "$", this.primitiveSchemaDefinition());
+        }
+
+        initAsync(config?:any) : Promise
+        {
+            var p = new Promise();
+
             this.storeId = Utils.newGuid();
             if (!config)
-                return;
+            {
+                p.resolve(this);
+                return p;
+            }
 
             if (typeof config === 'function')
                 config = config();
@@ -105,8 +112,11 @@ module Hyperstore
             if (!config.schemas)
             {
                 this.storeId = config;
-                return;
+                p.resolve(this);
+                return p;
             }
+
+            this["config"] = config;
 
             if( config.storeId)
                 this.storeId = config.storeId;
@@ -133,31 +143,49 @@ module Hyperstore
                     var domain = new DomainModel(this, domainName);
 
                     if (def.adapters)
-                        def.adapters.forEach(a=> domain.addAdapterAsync(a));
-
-                    if (def.seed && (
-                        def.seed.always || !domain.getElements().any()))
                     {
-                        if (typeof def.seed.resource === 'function')
-                        {
-                            var session = this.beginSession();
-                            try
+                        var _p = p;
+                        def.adapters.forEach(a=>
                             {
-                                def.seed.resource(domain);
-                                session.acceptChanges();
+                                var _ = domain.addAdapterAsync(a);
+                                _.then(function () {_p.resolve();});
+                                _p = _;
                             }
-                            finally
-                            {
-                                session.close();
-                            }
-                        }
-
-                        config.domains[domainName] = domain;
+                        );
                     }
-                }
+                    else
+                        p.resolve(this);
 
-                this.defaultDomainModel = this.getDomain(config.defaultDomainModel);
+                    var self = this;
+                    p.then(
+                        function ()
+                        {
+                            if (def.seed && (def.seed.always || !domain.getElements().any()))
+                            {
+                                if (typeof def.seed.resource === 'function')
+                                {
+                                    var session = self.beginSession();
+                                    try
+                                    {
+                                        def.seed.resource(domain);
+                                        session.acceptChanges();
+                                    }
+                                    finally
+                                    {
+                                        session.close();
+                                    }
+                                }
+                            }
+
+                            config.domains[domainName] = domain;
+                            self.defaultDomainModel = self.getDomain(config.defaultDomainModel);
+                        }
+                    );
+                }
             }
+            else
+                p.resolve(this);
+            return p;
         }
 
         dispose()
@@ -324,6 +352,9 @@ module Hyperstore
         // ------------------------------------------------------------------------------------------------------
         public getSchemaInfo(schemaName:string, throwException:boolean = true):SchemaInfo
         {
+            if( !schemaName)
+                return undefined;
+
             var schemaElement;
             if (schemaName.indexOf(':') < 0)
             {
@@ -386,7 +417,7 @@ module Hyperstore
         public getSchemaElement(schemaName:string, throwException:boolean = true):SchemaElement
         {
             var schemaElement = this.getSchemaInfo(schemaName, throwException);
-            if ((schemaElement.kind !== SchemaKind.Relationship && schemaElement.kind !== SchemaKind.Entity) && throwException)
+            if ((!schemaElement || (schemaElement.kind !== SchemaKind.Relationship && schemaElement.kind !== SchemaKind.Entity)) && throwException)
             {
                 throw "Unknown schema " + schemaName;
             }
@@ -400,7 +431,7 @@ module Hyperstore
         public getSchemaRelationship(schemaName:string, throwException:boolean = true):SchemaRelationship
         {
             var schemaElement = this.getSchemaInfo(schemaName, throwException);
-            if ((schemaElement.kind !== SchemaKind.Relationship) && throwException)
+            if ((!schemaElement || (schemaElement.kind !== SchemaKind.Relationship)) && throwException)
             {
                 throw "Unknown schema " + schemaName;
             }
@@ -414,7 +445,7 @@ module Hyperstore
         public getSchemaEntity(schemaName:string, throwException:boolean = true):SchemaEntity
         {
             var schemaElement = this.getSchemaInfo(schemaName, throwException);
-            if ((schemaElement.kind !== SchemaKind.Entity) && throwException)
+            if ((!schemaElement || (schemaElement.kind !== SchemaKind.Entity)) && throwException)
             {
                 throw "Unknown schema " + schemaName;
             }
@@ -948,6 +979,7 @@ module Hyperstore
         // ------------------------------------------------------------------------------------------------------
         createEntity(schemaElement:SchemaElement, id?:string, version?:number):ModelElement
         {
+            Utils.Requires(schemaElement, "schemaElement");
             var mel = schemaElement.deserialize(new SerializationContext(this, id));
             this.updateSequence(id);
             var node = this._graph.addNode(mel.id, schemaElement.id, version);
@@ -959,12 +991,16 @@ module Hyperstore
         // ------------------------------------------------------------------------------------------------------
         // create a new domain relationship using the specified schema
         // ------------------------------------------------------------------------------------------------------
-        createRelationship(schemaElement:SchemaRelationship, start:ModelElement, endId:string, endSchemaId:string, id?:string, version?:number):ModelElement
+        createRelationship(schemaRelationship:SchemaRelationship, start:ModelElement, endId:string, endSchemaId:string, id?:string, version?:number):ModelElement
         {
+            Utils.Requires(schemaRelationship, "schemaRelationship");
+            Utils.Requires(start, "start");
+            Utils.Requires(endId, "endId");
+
             this.updateSequence(id);
-            var mel = schemaElement.deserialize(new SerializationContext(this, id, start.id, start.schemaElement.id, endId, endSchemaId));
-            var node = this._graph.addRelationship(mel.id, schemaElement.id, start.id, start.schemaElement.id, endId, endSchemaId, version);
-            this.store.runInSession(() => Session.current.addEvent(new AddRelationshipEvent(this.name, mel.id, schemaElement.id, start.id, start.schemaElement.id, endId, endSchemaId, Session.current.sessionId, node.version)));
+            var mel = schemaRelationship.deserialize(new SerializationContext(this, id, start.id, start.schemaElement.id, endId, endSchemaId));
+            var node = this._graph.addRelationship(mel.id, schemaRelationship.id, start.id, start.schemaElement.id, endId, endSchemaId, version);
+            this.store.runInSession(() => Session.current.addEvent(new AddRelationshipEvent(this.name, mel.id, schemaRelationship.id, start.id, start.schemaElement.id, endId, endSchemaId, Session.current.sessionId, node.version)));
             this._cache[mel.id] = mel;
             return mel;
         }
@@ -1224,8 +1260,7 @@ module Hyperstore
 
                     return undefined;
                 }
-
-                return p.serialize(v);
+                return p.kind === PropertyKind.Calculated ? undefined : p.serialize(v);
             });
 
             return json;

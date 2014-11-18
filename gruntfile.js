@@ -24,7 +24,7 @@ module.exports = function (grunt) {
                          "/// <reference path='../../scripts/typings/signalr/signalr.d.ts' />\r\n",
                 process : function(src, filepath) {
                     var re = /(\/\/\/\s*<reference\s*path="\S*"\s*\/>)\s*/gi;
-                    return src.replace(/module\s*\bHyperstore\b\s*{([\s\S]*)}/i, '$1')
+                    return src.replace(/module\s*\bHyperstore\b\s*\{([\s\S]*)}/i, '$1')
                               .replace(re, '');
                 }
             },
@@ -38,7 +38,9 @@ module.exports = function (grunt) {
         // for more detailed code coverage reports
         jasmine : {
             src : ".built/src/**/*.js",
+
             options: {
+                errorReporting:true,
                 //keepRunner:true,
                 //vendor: '<%= jasmine.all.options.vendor %>',
                 specs:'.built/specs/*.js',

@@ -21,6 +21,11 @@ module Hyperstore
         private static date = new Date();
         private static sequence;
 
+        static Requires(val, name) {
+            if( !val)
+                throw name + " is required.";
+        }
+
         // http://stackoverflow.com/questions/7966559/how-to-convert-javascript-date-object-to-ticks
         static getUtcNow():number
         {

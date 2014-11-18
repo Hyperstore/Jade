@@ -1,0 +1,24 @@
+{
+  "name": "hyperstore",
+  "version": "0.1.0",
+  "main": [
+    ".built/amd/hyperstore.js",
+    ".built/amd/hyperstore.min.js"
+  ],
+  "ignore": [
+    ".*",
+    "**/.*",
+    "node_modules",
+    "bower_components",
+    "tests"
+  ],
+  "homepage": "http://www.hyperstore.org",
+  "authors": [
+    "Alain Metge"
+  ],
+  "description": "Hyperstore for Javascript",
+  "moduleType": [
+    "amd"
+  ],
+  "license": "Apache 2.0"
+}
