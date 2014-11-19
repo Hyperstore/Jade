@@ -29,12 +29,16 @@ module Hyperstore
         events: AbstractEvent[];       // list of events
     }
 
+    export interface ChannelPipe
+    {
+        transform(msg:Message) : Message;
+    }
+
     // ---------------------------------------------------------------------------------------
     // abstract Channel - 
     // ---------------------------------------------------------------------------------------
     export class Channel
     {
-
         public eventBus:EventBus;
         public dispatcher:IEventDispatcher;
 
@@ -61,7 +65,6 @@ module Hyperstore
         // ---------------------------------------------------------------------------------------
         _sendEvents(session:Session)
         {
-
             if (session.originStoreId !== this.domain.store.storeId)
             {
                 return;
@@ -93,12 +96,12 @@ module Hyperstore
         }
 
         // ---------------------------------------------------------------------------------------
-        // Filter - Send only events impacting the current domain.
+        // Filter - Send only top level events impacting the current domain.
         // Override it to filter events
         // ---------------------------------------------------------------------------------------
         _shouldBePropagated(evt:AbstractEvent):boolean
         {
-            return evt.domain === this.domain.name;
+            return evt.domain === this.domain.name && evt.TL;
         }
     }
 
@@ -175,7 +178,7 @@ module Hyperstore
                 var session = self.domain.store.beginSession({origin: env.origin});
                 try
                 {
-                    Utils.forEach(env.events, function (e)
+                    env.events.forEach(function (e)
                     {
                         var evt = EventManager.createEvent(e.eventName);
                         if (!evt)

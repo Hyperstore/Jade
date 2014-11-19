@@ -39,7 +39,7 @@ module Hyperstore
 
         constructor(public kind:ConstraintKind) { }
 
-        log(msg:string, messageType:MessageType = MessageType.Error, propertyName?:string)
+        log(msg:string, messageType:MessageType = MessageType.Warning, propertyName?:string)
         {
             var diag = new DiagnosticMessage(messageType, msg, this.element, this.propertyName || propertyName);
             this.messages.push(diag);
@@ -47,8 +47,8 @@ module Hyperstore
     }
 
     export enum MessageType {
-        Error,
-        Warning
+        Warning,
+        Error
     }
 
     export class DiagnosticMessage
@@ -89,7 +89,7 @@ module Hyperstore
             this._constraints = {};
         }
 
-        addPropertyConstraint(property:SchemaProperty, condition?:(value, oldValue, ctx:ConstraintContext) => boolean, message?:string, asError:boolean = true, kind:ConstraintKind = ConstraintKind.Validate)
+        addPropertyConstraint(property:SchemaProperty, condition?:(value, oldValue, ctx:ConstraintContext) => boolean, message?:string, asError:boolean = false, kind:ConstraintKind = ConstraintKind.Check)
         {
             var fn = condition;
             if (!fn && property.schemaProperty)

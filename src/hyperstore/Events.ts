@@ -34,6 +34,8 @@ module Hyperstore
 
     export class AbstractEvent
     {
+        public TL:boolean = true; // Top Level event (see remove element)
+
         constructor(public eventName:string, public domain:string, public correlationId:number, public version:number) { }
 
         toString():string
@@ -117,6 +119,7 @@ module Hyperstore
                     correlationId:number, version:number)
         {
             super("RemovePropertyEvent", domain, correlationId, version);
+            this.TL = false;
         }
 
         getReverseEvent(correlationId:number)

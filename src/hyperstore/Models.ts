@@ -533,12 +533,12 @@ module Hyperstore
          */
         constructor(public store:Store, public name:string, public extension?:string)
         {
+            this.name = this.name.toLowerCase();
             this._graph = new Hypergraph(this);
             store.__addDomain(this);
             this.events = new EventManager(this.name);
             this._cache = {};
             this._adapters = [];
-            this.name = this.name.toLowerCase();
         }
 
         dispose()
@@ -1800,18 +1800,21 @@ module Hyperstore
 
             var sawNodes = {};
 
+            // Cascading
             this.traverseNodes(node, node=>
             {
                 sawNodes[node.id] = true;
-
+                var evt;
                 if (!node.startId)
                 {
-                    events.push(new RemoveEntityEvent(this.domain.name, node.id, node.schemaId, Session.current.sessionId, version));
+                    evt = new RemoveEntityEvent(this.domain.name, node.id, node.schemaId, Session.current.sessionId, version);
                 }
                 else
                 {
-                    revents.push(new RemoveRelationshipEvent(this.domain.name, node.id, node.schemaId, node.startId, node.startSchemaId, node.endId, node.endSchemaId, Session.current.sessionId, version));
+                    evt = new RemoveRelationshipEvent(this.domain.name, node.id, node.schemaId, node.startId, node.startSchemaId, node.endId, node.endSchemaId, Session.current.sessionId, version);
                 }
+                evt.TL=node.id === id; // top level event
+                events.push(evt);
 
                 var nodes = [];
                 for (var k in node.outgoings)

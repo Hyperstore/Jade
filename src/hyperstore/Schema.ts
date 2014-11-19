@@ -790,9 +790,9 @@ module Hyperstore
                     callback(
                         {
                             message:   msg,
-                            kind:      c.kind || def.kind,
+                            kind:      (c.kind || def.kind) === "check" ? ConstraintKind.Check : ConstraintKind.Validate,
                             error:     c.error || def.error,
-                            condition: c.condition
+                            condition: c.condition || c
                         }
                     );
                 }
