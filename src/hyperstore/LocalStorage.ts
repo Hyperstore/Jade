@@ -26,7 +26,7 @@ module Hyperstore
 
         clearAsync()
         {
-            var defer = $.Deferred();
+            var promise = new Promise();
 
             var dl = this.domain.name.length;
             for (var i = 0; i < localStorage.length; i++)
@@ -44,14 +44,14 @@ module Hyperstore
                 localStorage.removeItem(key);
             }
 
-            defer.resolve();
-            return defer.promise();
+            promise.resolve();
+            return promise;
         }
 
         // -------------------------------------------------------------------------------------
         //
         // -------------------------------------------------------------------------------------
-        persistElements(s:Session, elements:Queryable<ITrackedElement>)
+        persistElements(s:Session, elements:ITrackedElement[])
         {
             if (!localStorage) return;
             var self = this;
@@ -189,7 +189,7 @@ module Hyperstore
         {
             var self = this;
             var ctx = new SerializationContext(self.domain, id);
-            Utils.forEach(schema.getProperties(true), function (p:SchemaProperty)
+            schema.getProperties(true).forEach( function (p:SchemaProperty)
             {
                 var data = localStorage.getItem(id + p.name);
                 if (data)

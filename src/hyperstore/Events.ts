@@ -18,7 +18,7 @@ module Hyperstore
 {
     export interface IEventDispatcher
     {
-        handleEvent(event:Event);
+        handleEvent(event:AbstractEvent);
     }
 
     export interface IEventHandler
@@ -29,10 +29,10 @@ module Hyperstore
 
     export interface IUndoableEvent
     {
-        getReverseEvent(correlationId:number): Event;
+        getReverseEvent(correlationId:number): AbstractEvent;
     }
 
-    export class Event
+    export class AbstractEvent
     {
         constructor(public eventName:string, public domain:string, public correlationId:number, public version:number) { }
 
@@ -42,7 +42,7 @@ module Hyperstore
         }
     }
 
-    export class AddEntityEvent extends Event implements IUndoableEvent
+    export class AddEntityEvent extends AbstractEvent implements IUndoableEvent
     {
         constructor(domain:string, public id:string, public schemaId:string, correlationId:number, version:number)
         {
@@ -55,7 +55,7 @@ module Hyperstore
         }
     }
 
-    export class RemoveEntityEvent extends Event implements IUndoableEvent
+    export class RemoveEntityEvent extends AbstractEvent implements IUndoableEvent
     {
         constructor(domain:string, public id:string, public schemaId:string, correlationId:number, version:number)
         {
@@ -68,7 +68,7 @@ module Hyperstore
         }
     }
 
-    export class AddRelationshipEvent extends Event implements IUndoableEvent
+    export class AddRelationshipEvent extends AbstractEvent implements IUndoableEvent
     {
         constructor(domain:string, public id:string, public schemaId:string, public startId:string, public startSchemaId:string, public endId:string, public endSchemaId:string,
                     correlationId:number, version:number)
@@ -82,7 +82,7 @@ module Hyperstore
         }
     }
 
-    export class RemoveRelationshipEvent extends Event implements IUndoableEvent
+    export class RemoveRelationshipEvent extends AbstractEvent implements IUndoableEvent
     {
         constructor(domain:string, public id:string, public schemaId:string, public startId:string, public startSchemaId:string, public endId:string, public endSchemaId:string,
                     correlationId:number, version:number)
@@ -96,7 +96,7 @@ module Hyperstore
         }
     }
 
-    export class ChangePropertyValueEvent extends Event implements IUndoableEvent
+    export class ChangePropertyValueEvent extends AbstractEvent implements IUndoableEvent
     {
         constructor(domain:string, public id:string, public schemaId:string, public propertyName:string, public value:any, public oldValue:any,
                     correlationId:number, version:number)
@@ -111,7 +111,7 @@ module Hyperstore
         }
     }
 
-    export class RemovePropertyEvent extends Event implements IUndoableEvent
+    export class RemovePropertyEvent extends AbstractEvent implements IUndoableEvent
     {
         constructor(domain:string, public id:string, public schemaId:string, public propertyName:string, public value:any,
                     correlationId:number, version:number)
@@ -129,7 +129,7 @@ module Hyperstore
     {
         aborted: boolean;
         sessionId: number;
-        events: Array<Event>;
+        events: Array<AbstractEvent>;
         mode: SessionMode;
     }
 
@@ -240,7 +240,7 @@ module Hyperstore
                 aborted:   session.aborted,
                 mode:      session.mode,
                 sessionId: session.sessionId,
-                events:    Utils.where(session.events, e=> e.domain === this.domain)
+                events:    session.events.filter(e=> e.domain === this.domain)
             };
 
             for(var i=0;i<si.events.length;i++)

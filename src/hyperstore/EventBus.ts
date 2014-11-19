@@ -26,7 +26,7 @@ module Hyperstore
         origin: string;             // store id initiating the change
         sessionId: number;
         sessionMode: SessionMode;
-        events: Array<Event>;       // list of events
+        events: AbstractEvent[];       // list of events
     }
 
     // ---------------------------------------------------------------------------------------
@@ -42,7 +42,7 @@ module Hyperstore
         {
         }
 
-        start()
+        start(callback?:(channel) => any)
         {
             this.dispatcher = this.domain.eventDispatcher || this.eventBus.defaultEventDispatcher;
         }
@@ -72,7 +72,7 @@ module Hyperstore
                 origin:      self.domain.store.storeId,
                 sessionId:   session.sessionId,
                 sessionMode: session.mode,
-                events:      Utils.select(session.events, function (e:Event)
+                events:      Utils.select(session.events, function (e:AbstractEvent)
                 {
                     if (self._shouldBePropagated(e))
                     {
@@ -96,14 +96,14 @@ module Hyperstore
         // Filter - Send only events impacting the current domain.
         // Override it to filter events
         // ---------------------------------------------------------------------------------------
-        _shouldBePropagated(evt:Event):boolean
+        _shouldBePropagated(evt:AbstractEvent):boolean
         {
             return evt.domain === this.domain.name;
         }
     }
 
     // ---------------------------------------------------------------------------------------
-    // Event bus - You must add a channel to define the protocol used to communicate
+    // AbstractEvent bus - You must add a channel to define the protocol used to communicate
     // ---------------------------------------------------------------------------------------
     export class EventBus
     {
@@ -121,7 +121,7 @@ module Hyperstore
         dispose()
         {
             this.store.removeSessionCompleted(this.cookie);
-            Utils.forEach(this._channels, c=> c.close());
+            this._channels.forEach(c=> c.close());
             this._channels = undefined;
         }
 
@@ -133,9 +133,10 @@ module Hyperstore
 
         start(callback?:(channel) => any)
         {
-            Utils.forEach(this._channels, c =>
+            var self=this;
+            this._channels.forEach(function(c)
             {
-                c.eventBus = this;
+                c.eventBus = self;
                 c.start(callback);
             });
         }
@@ -147,7 +148,7 @@ module Hyperstore
                 return;
             }
 
-            Utils.forEach(this._channels, c=> c._sendEvents(s));
+            this._channels.forEach( c=> c._sendEvents(s));
         }
     }
 

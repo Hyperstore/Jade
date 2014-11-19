@@ -79,7 +79,7 @@ module Hyperstore
             return promise;
         }
 
-        persistElements(s:Session, elements:Queryable < ITrackedElement>)
+        persistElements(s:Session, elements: ITrackedElement[])
         {
             if (!this.db) return;
             var self = this;
@@ -217,7 +217,7 @@ module Hyperstore
         {
             var self = this;
             var ctx = new SerializationContext(self.domain, id);
-            Utils.forEach(schema.getProperties(true), function (p:SchemaProperty)
+            schema.getProperties(true).forEach( function (p:SchemaProperty)
             {
                 var rq = ostore.get(id + p.name);
                 rq.onsuccess = r =>

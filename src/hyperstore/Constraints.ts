@@ -112,10 +112,8 @@ module Hyperstore
 
             this.addConstraint(property.owner,
                 {
-                    propertyName:      property.name,
-                    messageType: asError
-                        ? MessageType.Error
-                        : MessageType.Warning,
+                    propertyName: property.name,
+                    messageType: asError ? MessageType.Error : MessageType.Warning,
                     executeConstraint: function (self, ctx)
                     {
                         var pv = ctx.element.domain.getPropertyValue(self.id, property);

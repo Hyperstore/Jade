@@ -45,11 +45,12 @@ module Hyperstore
                     return;
                 }
 
-                var elements = new Queryable<ITrackedElement>(Utils.select(s.trackingData.involvedTrackedElements, (e:ITrackedElement) => (e.domain === this.domain.name /*&& e.extension == this.domain.extension*/)
-                    ? e
-                    : undefined));
+                var elements = Utils.select(s.trackingData.involvedTrackedElements,
+                               (e:ITrackedElement) => (e.domain === this.domain.name /*&& e.extension == this.domain.extension*/)
+                                ? e
+                                : undefined);
 
-                if (!elements.any())
+                if (elements.length ===0)
                 {
                     return;
                 }
@@ -72,7 +73,7 @@ module Hyperstore
         // -------------------------------------------------------------------------------------
         //
         // -------------------------------------------------------------------------------------
-        persistElements(s:Session, elements:Queryable<ITrackedElement>)
+        persistElements(s:Session, elements:ITrackedElement[])
         {
         }
 

@@ -534,13 +534,42 @@ module Hyperstore
     // -------------------------------------------------------------------------------------
     export class SchemaRelationship extends SchemaElement
     {
+        private _startProperty:string;
+        private _endProperty:string;
+
         // -------------------------------------------------------------------------------------
         //
         // -------------------------------------------------------------------------------------
-        constructor(schema:Schema, id:string, public startSchemaId:string, public endSchemaId:string, public embedded:boolean, public cardinality:Cardinality, public startProperty?:string, public endProperty?:string, public baseElement?:SchemaElement)
+        constructor(schema:Schema, id:string, public startSchemaId:string, public endSchemaId:string, public embedded:boolean, public cardinality:Cardinality, startProperty?:string, endProperty?:string, public baseElement?:SchemaElement)
         {
             super(schema, SchemaKind.Relationship, id, baseElement);
             schema.__addSchemaElement(this);
+            this.startProperty = startProperty;
+            this.endProperty = endProperty;
+        }
+
+        set startProperty(name:string) {
+            if (name)
+            {
+                this._startProperty = name;
+                var source = <SchemaElement>this.schema.store.getSchemaElement(this.startSchemaId);
+                source.__defineReferenceProperty(this, false);
+            }
+        }
+        get startProperty() {
+            return this._startProperty;
+        }
+
+        set endProperty(name:string) {
+            if (name)
+            {
+                this._endProperty = name;
+                var source = <SchemaElement>this.schema.store.getSchemaElement(this.endSchemaId);
+                source.__defineReferenceProperty(this, true);
+            }
+        }
+        get endProperty() {
+            return this._endProperty;
         }
     }
 
@@ -586,14 +615,10 @@ module Hyperstore
 
             if (!this.relationship)
             {
-                var start = this._opposite
-                    ? undefined
-                    : this._source;
-                var end = this._opposite
-                    ? this._source
-                    : undefined;
+                var start = this._opposite ? undefined : this._source;
+                var end = this._opposite ? this._source : undefined;
                 var rels = this._source.domain.getRelationships(this._schemaRelationship, start, end);
-                this.relationship = rels.firstOrDefault();
+                this.relationship =  rels.length > 0 ? rels[0] : undefined;
             }
 
             if (!this.relationship)
@@ -624,7 +649,7 @@ module Hyperstore
             if (this.relationship)
             {
                 var rels = this._source.domain.getRelationships(this._schemaRelationship, start, end);
-                this.relationship = rels.firstOrDefault();
+                this.relationship = rels.length > 0 ? rels[0] : undefined;
             }
             start = this._opposite ? other : this._source;
             end = this._opposite   ? this._source : other;
@@ -673,7 +698,7 @@ module Hyperstore
                 delete dsl[name];
             }
 
-            Utils.forEach(this.pendings, p=>this.createRelationship(p));
+            this.pendings.forEach( p=>this.createRelationship(p));
         }
 
         private parseEntity(o, name:string) {

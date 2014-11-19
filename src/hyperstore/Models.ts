@@ -54,10 +54,19 @@ module Hyperstore
          */
         public eventBus:EventBus;
 
+        constructor() {
+            this._subscriptions = [];
+            this.eventBus = new EventBus(this);
+            this.schemas = {};
+            this.schemasBySimpleName = {};
+            this._domains = new Array<DomainModel>();
+            new Schema(this, "$", this.primitiveSchemaDefinition());
+        }
+
         /**
          * create a new store. You can create many independent store. They can communicate between them with the eventBus.
          * @param config - Contains all informations to initialize a new store.
-         *
+         * @example
          * Sample to define a new config object
          *
          *    var hyperstore = require('hyperstore');
@@ -86,15 +95,6 @@ module Hyperstore
          *    })();
          *
          */
-        constructor() {
-            this._subscriptions = [];
-            this.eventBus = new EventBus(this);
-            this.schemas = {};
-            this.schemasBySimpleName = {};
-            this._domains = new Array<DomainModel>();
-            new Schema(this, "$", this.primitiveSchemaDefinition());
-        }
-
         initAsync(config?:any) : Promise
         {
             var p = new Promise();
@@ -162,7 +162,7 @@ module Hyperstore
                         function ()
                         {
                             if (def.seed ) {
-                                if (def.seed.always || !domain.getElements().any()) {
+                                if (def.seed.always || domain.getElements().length === 0) {
                                     if (typeof def.seed.resource === 'function') {
                                         var session = self.beginSession();
                                         try {
@@ -188,6 +188,9 @@ module Hyperstore
             return p;
         }
 
+        /**
+         *
+         */
         dispose()
         {
             this.eventBus.dispose();
@@ -199,6 +202,10 @@ module Hyperstore
             this._subscriptions = undefined;
         }
 
+        /**
+         *
+         * @param domain
+         */
         public unloadDomain(domain:DomainModel)
         {
             domain.dispose();
@@ -208,11 +215,11 @@ module Hyperstore
 
         /**
          * Get the list of loaded domains
-         * @returns {Hyperstore.Queryable<DomainModel>}
+         * @returns {DomainModel[]}
          */
-        public get domains():Queryable<DomainModel>
+        public get domains(): DomainModel[]
         {
-            return new Queryable<DomainModel>(this._domains);
+            return this._domains;
         }
 
         /**
@@ -306,6 +313,7 @@ module Hyperstore
 
             return Session.current;
         }
+
         public __addSchemaElement(schemaInfo:SchemaInfo)
         {
             var id = schemaInfo.id.toLowerCase();
@@ -325,21 +333,6 @@ module Hyperstore
             else
             {
                 this.schemasBySimpleName[simpleName] = null; // duplicate
-            }
-
-            if (schemaInfo.kind === SchemaKind.Relationship)
-            {
-                var rel = <SchemaRelationship>schemaInfo;
-                if (rel.startProperty)
-                {
-                    var source = <SchemaElement>this.getSchemaElement(rel.startSchemaId);
-                    source.__defineReferenceProperty(rel, false);
-                }
-                if (rel.endProperty)
-                {
-                    var source = <SchemaElement>this.getSchemaElement(rel.endSchemaId);
-                    source.__defineReferenceProperty(rel, true);
-                }
             }
         }
 
@@ -377,12 +370,12 @@ module Hyperstore
         }
 
         /**
-         *
-         * @param start
-         * @param end
-         * @returns {Hyperstore.Queryable<SchemaRelationship>}
+         * get schemaRelationship list
+         * @param start : (optional) filter relationship starting from this element
+         * @param end : (optional) filter relationship ending on this element.
+         * @returns {SchemaRelationship[]}
          */
-        public getSchemaRelationships(start?:any, end?:any):Queryable<SchemaRelationship>
+        public getSchemaRelationships(start?:any, end?:any): SchemaRelationship[]
         {
             if (typeof (start) === "string")
             {
@@ -406,7 +399,7 @@ module Hyperstore
                 }
             });
 
-            return new Queryable<SchemaRelationship>(list);
+            return list;
         }
 
         /**
@@ -508,14 +501,14 @@ module Hyperstore
          * Get a list of elements
          * @param schemaElement
          * @param kind
-         * @returns {Hyperstore.Queryable<ModelElement>}
+         * @returns {ModelElement[]}
          */
-        getElements(schemaElement?:SchemaElement, kind:NodeType = NodeType.EdgeOrNode):Queryable<ModelElement>
+        getElements(schemaElement?:SchemaElement, kind:NodeType = NodeType.EdgeOrNode): ModelElement[]
         {
-            return new Queryable<ModelElement>(this.domains.selectMany(function (domain)
+            return Utils.selectMany(this.domains, function (domain)
             {
                 return domain.GetElements(schemaElement, kind);
-            }));
+            });
         }
     }
 
@@ -629,9 +622,9 @@ module Hyperstore
          * - a poco object. For circular references, the newtonwsoft format is used ($id and $ref) (http://james.newtonking.com/json/help/html/T_Newtonsoft_Json_PreserveReferencesHandling.htm)
          * @param def
          * @param rootSchema
-         * @returns {Hyperstore.Queryable<ModelElement>}
+         * @returns {ModelElement[]}
          */
-        loadFromJson(def:any, rootSchema?:SchemaElement):Queryable<ModelElement>
+        loadFromJson(def:any, rootSchema?:SchemaElement): ModelElement[]
         {
             if (!def)
             {
@@ -653,11 +646,11 @@ module Hyperstore
             {
                 var list = [];
                 Utils.forEach(def, e => list.push(this.parseJson(e, rootSchema, refs)));
-                return new Queryable<ModelElement>(list);
+                return list;
             }
             else
             {
-                return new Queryable<ModelElement>(this.parseJson(def, rootSchema, refs));
+                return [this.parseJson(def, rootSchema, refs)];
             }
         }
 
@@ -715,7 +708,7 @@ module Hyperstore
                             ? mel
                             : elem;
 
-                        if (src.domain.getRelationships(rel.schemaRelationship, src, end).count === 0)
+                        if (src.domain.getRelationships(rel.schemaRelationship, src, end).length === 0)
                         {
                             src.domain.createRelationship(rel.schemaRelationship, src, end.id, end.schemaElement.id);
                         }
@@ -821,9 +814,9 @@ module Hyperstore
          * @param schemaElement: Select only relationships of this schema (including inheritance)
          * @param start: Select outgoing relationships of 'start'
          * @param end : Select incoming relationships of 'end'
-         * @returns {Hyperstore.Queryable<ModelElement>}
+         * @returns {ModelElement[]}
          */
-        getRelationships(schemaElement?:SchemaRelationship, start?:ModelElement, end?:ModelElement):Queryable<ModelElement>
+        getRelationships(schemaElement?:SchemaRelationship, start?:ModelElement, end?:ModelElement): ModelElement[]
         {
             var list = [];
             var currentSchema = <SchemaElement>schemaElement;
@@ -855,7 +848,7 @@ module Hyperstore
                         list.push(rel);
                     }
                 }
-                return new Queryable<ModelElement>(list);
+                return list;
             }
             else if (end)
             {
@@ -878,11 +871,11 @@ module Hyperstore
                         list.push(rel);
                     }
                 }
-                return new Queryable<ModelElement>(list);
+                return list;
             }
             else
             {
-                return new Queryable<ModelElement>(Utils.select(this._graph.getNodes(NodeType.Edge, schemaElement),
+                return Utils.select(this._graph.getNodes(NodeType.Edge, schemaElement),
                         n=>
                     {
                         tmpSchema = currentSchema;
@@ -895,7 +888,7 @@ module Hyperstore
                             }
                         }
                         return undefined;
-                    }));
+                    });
             }
         }
 
@@ -1092,9 +1085,9 @@ module Hyperstore
          * get a list of elements
          * @param schemaElement
          * @param kind
-         * @returns {Hyperstore.Queryable<ModelElement>}
+         * @returns {ModelElement[]}
          */
-        getElements(schemaElement?:SchemaElement, kind:NodeType = NodeType.EdgeOrNode):Queryable<ModelElement>
+        getElements(schemaElement?:SchemaElement, kind:NodeType = NodeType.EdgeOrNode): ModelElement[]
         {
             if (typeof (schemaElement) === "string")
             {
@@ -1102,13 +1095,12 @@ module Hyperstore
             }
             var _this = this;
 
-            return new Queryable<ModelElement>(
-                Utils.select(this._graph.getNodes(kind, schemaElement), function (node)
+            return Utils.select(this._graph.getNodes(kind, schemaElement), function (node)
                     {
                         var schemaElement = _this.store.getSchemaElement(node.schemaId);
                         return _this.getFromCache(schemaElement, node.startId, node.startSchemaId, node.endId, node.endSchemaId, node.id);
                     }
-                ));
+                );
         }
 
         private getFromCache(schemaElement:SchemaElement, startId?:string, startSchemaId?:string, endId?:string, endSchemaId?:string, id?:string)
@@ -1332,11 +1324,11 @@ module Hyperstore
          *
          * @param schemaElement
          * @param direction
-         * @returns {Queryable<ModelElement>}
+         * @returns {ModelElement[]}
          */
-        getRelationships(schemaElement?:SchemaRelationship, direction:Direction = Direction.Outgoing):Queryable<ModelElement>
+        getRelationships(schemaElement?:SchemaRelationship, direction:Direction = Direction.Outgoing): ModelElement[]
         {
-            var list:Queryable<ModelElement>;
+            var list;
             if ((direction & Direction.Outgoing) !== 0)
             {
                 list = this.domain.getRelationships(schemaElement, this);
@@ -1346,7 +1338,7 @@ module Hyperstore
                 var list2 = this.domain.getRelationships(schemaElement, undefined, this);
                 if (list && list.any())
                 {
-                    list = list.concat(list2);
+                    list = list.concat( list2);
                 }
             }
             return list;
@@ -1365,6 +1357,7 @@ module Hyperstore
         private _filter:(mel:ModelElement) => boolean;
         private _count:number;
         private _sessionCompletedCookie;
+
         public setFilter(where:(mel:ModelElement) => boolean)
         {
             this._filter = where;
@@ -1463,6 +1456,14 @@ module Hyperstore
                 });
             });
 
+            for(var p in this) {
+                if( this.hasOwnProperty(p)) {
+                    var desc = Object.getOwnPropertyDescriptor(this, p);
+                    desc.configurable = false;
+                    Object.defineProperty(this, p, desc);
+                }
+            }
+
             this._count = 0;
             this.loadItems();
         }
@@ -1480,7 +1481,7 @@ module Hyperstore
         {
             var opposite = !!this._source;
             var rels = this._domain.getRelationships(this._schemaRelationship, this._source, this._end);
-            for (var i = 0; i < rels.count; i++)
+            for (var i = 0; i < rels.length; i++)
             {
                 var rel = rels[i];
                 var elem = opposite ? rel.end : rel.start;
@@ -1524,7 +1525,8 @@ module Hyperstore
                 ? this._end
                 : mel;
 
-            var rel = <ModelElement>(this._domain.getRelationships(this._schemaRelationship, source, end)).firstOrDefault();
+            var rels = this._domain.getRelationships(this._schemaRelationship, source, end);
+            var rel = rels.length > 0 ? rels[0] : null;
             if (rel)
             {
                 this._domain.removeElement(rel.id);
@@ -1556,26 +1558,6 @@ module Hyperstore
 
             var rel = this._source.domain.createRelationship(this._schemaRelationship, source, end.id, end.schemaElement.id);
         }
-
-        /**
-         *
-         * @param fn
-         */
-        forEach(fn) { Utils.forEach(this, fn); }
-
-        firstOrDefault(fn?) { return Utils.firstOrDefault(this, fn); }
-
-        select(fn) { return Utils.select(this, fn); }
-
-        selectMany(fn) { return Utils.selectMany(this, fn); }
-
-        any(fn?):boolean { return !!Utils.firstOrDefault(this, fn); }
-
-        where(fn) { return Utils.where(this, fn); }
-
-        groupBy(fn) { return Utils.groupBy(this, fn); }
-
-        reverse() { return Utils.reverse(this); }
     }
 
     /**
@@ -1687,7 +1669,7 @@ module Hyperstore
             handlers.push({domain: domain, handler: handler});
         }
 
-        handleEvent(event:Event)
+        handleEvent(event:AbstractEvent)
         {
             if (!Session.current)
             {
@@ -1706,7 +1688,7 @@ module Hyperstore
                 Session.current.addEvent(event);
             }
         }
-        private executeHandlers(key:string, event:Event):boolean
+        private executeHandlers(key:string, event:AbstractEvent):boolean
         {
             var handlers = this._handlers[key];
             if (!handlers)
@@ -1800,7 +1782,7 @@ module Hyperstore
             return this.nodes[id];
         }
 
-        removeNode(id:string, version:number):Event[]
+        removeNode(id:string, version:number):AbstractEvent[]
         {
             var events = [];
             var revents = [];
@@ -1870,11 +1852,11 @@ module Hyperstore
 
             var events = revents.concat(events);
             var pevents = [];
-            Utils.forEach(events, e=> this.removeNodeInternal(this.nodes[e.id], sawNodes, pevents));
+            events.forEach( e=> this.removeNodeInternal(this.nodes[e.id], sawNodes, pevents));
             return pevents.concat(events);
         }
 
-        private removeNodeInternal(node:GraphNode, sawNodes, events:Event[])
+        private removeNodeInternal(node:GraphNode, sawNodes, events:AbstractEvent[])
         {
             if (!node)
             {

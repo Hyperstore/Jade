@@ -85,7 +85,7 @@ module Hyperstore
 
     export class Session
     {
-        public events:Array<Event>;
+        public events:Array<AbstractEvent>;
         private static _sequence:number = 0;
         public aborted:boolean;
         private _depth:number;
@@ -105,7 +105,7 @@ module Hyperstore
          */
         constructor(public store:Store, private config?:SessionConfiguration)
         {
-            this.events = new Array<Event>();
+            this.events = new Array<AbstractEvent>();
             this.aborted = false;
             this._depth = 0;
             this.closed = false;
@@ -233,7 +233,7 @@ module Hyperstore
          *
          * @param evt
          */
-        addEvent(evt:Event)
+        addEvent(evt:AbstractEvent)
         {
             if (this.closed)
             {
