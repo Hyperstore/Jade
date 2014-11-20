@@ -17,33 +17,49 @@
 module Hyperstore
 {
 
-    // -------------------------------------------------------------------------------------
-    //
-    // -------------------------------------------------------------------------------------
+    /**
+     * interface for schema definition
+     */
     export interface ISchemaDefinition
     {
+        /**
+         * create all schema elements with theirs constraints
+         * @param schema - current schema
+         */
         defineSchema(schema:Schema);
     }
 
-    // -------------------------------------------------------------------------------------
-    //
-    // -------------------------------------------------------------------------------------
+    /**
+     * Property constraint condition signature
+     */
     export interface ICheckValueObjectConstraint
     {
+        /**
+         *
+         * @param value - new value
+         * @param oldValue - old value
+         * @param ctx - [[ConstraintContext]]
+         */
         check(value, oldValue, ctx:ConstraintContext);
     }
 
-    // -------------------------------------------------------------------------------------
-    //
-    // -------------------------------------------------------------------------------------
+    /**
+     * Property constraint condition signature
+     */
     export interface IValidateValueObjectConstraint
     {
+        /**
+         *
+         * @param value - new value
+         * @param oldValue - old value
+         * @param ctx - [[ConstraintContext]]
+         */
         validate(value, oldValue, ctx:ConstraintContext);
     }
 
-    // -------------------------------------------------------------------------------------
-    //
-    // -------------------------------------------------------------------------------------
+    /**
+     * Kind of schema element
+     */
     export enum SchemaKind
     {
         Entity,
@@ -52,9 +68,9 @@ module Hyperstore
         Primitive
     }
 
-    // -------------------------------------------------------------------------------------
-    //
-    // -------------------------------------------------------------------------------------
+    /**
+     * Relationship cardinality
+     */
     export enum Cardinality
     {
         OneToOne = 0,
@@ -63,59 +79,76 @@ module Hyperstore
         ManyToMany = 3
     }
 
-    // -------------------------------------------------------------------------------------
-    //
-    // -------------------------------------------------------------------------------------
+    /**
+     * Serialization context
+     */
     export class SerializationContext
     {
-        constructor(public domain:DomainModel, public id:string, public startId?:string, public startSchemaId?:string, public endId?:string, public endSchemaId?:string, public value?:any)
+        /**
+         *
+         * @param domain
+         * @param id
+         * @param startId
+         * @param startSchemaId
+         * @param endId
+         * @param endSchemaId
+         * @param value
+         */
+        constructor(public domain:DomainModel, public id:string, public startId?:string, public startSchemaId?:string,
+                    public endId?:string, public endSchemaId?:string, public value?:any)
         {
         }
 
     }
 
-    // -------------------------------------------------------------------------------------
-    //
-    // -------------------------------------------------------------------------------------
+    /**
+     * Property kind. See [[SchemaElement.defineProperty]]
+     */
     export enum PropertyKind
     {
         Normal,
         Calculated
     }
 
-    // -------------------------------------------------------------------------------------
-    //
-    // -------------------------------------------------------------------------------------
+    /**
+     * Describe a property
+     */
     export class SchemaProperty
     {
+        /**
+         * Schema element owner
+         */
         public owner:SchemaElement;
 
+        /**
+         *
+         * @param name
+         * @param schemaProperty
+         * @param defaultValue
+         * @param kind
+         */
         constructor(public name:string, public schemaProperty:SchemaInfo, public defaultValue?:any, public kind:PropertyKind = PropertyKind.Normal)
-        // -------------------------------------------------------------------------------------
-        //
-        // -------------------------------------------------------------------------------------
         {
         }
 
-        // -------------------------------------------------------------------------------------
-        //
-        // -------------------------------------------------------------------------------------
         deserialize(ctx:SerializationContext):any
         {
             return ctx.value && this.schemaProperty.deserialize(ctx);
         }
 
-        // -------------------------------------------------------------------------------------
-        //
-        // -------------------------------------------------------------------------------------
         serialize(value:string):any
         {
             return value && this.schemaProperty.serialize(value);
         }
 
-        // -------------------------------------------------------------------------------------
-        //
-        // -------------------------------------------------------------------------------------
+        /**
+         * Add a property constraint. See [IConstraint]]
+         * @param message - message if the condition is not true. See [[DiagnosticMessage]] for advanced format behavior.
+         * @param condition - condition to validate
+         * @param asError - error or warning
+         * @param kind - Specify when the constraint is executed (check = on every change, validate = manually). See [IConstraint]]
+         * @returns {Hyperstore.SchemaProperty}
+         */
         addConstraint(message:string, condition:(val, old, ctx:ConstraintContext) => boolean, asError:boolean, kind:ConstraintKind = ConstraintKind.Validate):SchemaProperty
         {
             this.owner.schema.constraints.addPropertyConstraint(this, condition, message, asError, kind);
@@ -134,9 +167,9 @@ module Hyperstore
         isCollection: boolean;
     }
 
-    // -------------------------------------------------------------------------------------
-    //
-    // -------------------------------------------------------------------------------------
+    /**
+     *
+     */
     export class Schema
     {
         public constraints:ConstraintsManager;
@@ -167,11 +200,6 @@ module Hyperstore
         __addSchemaElement(schemaInfo:SchemaInfo)
         {
             this.store.__addSchemaElement(schemaInfo);
-        }
-
-        dispose()
-        {
-
         }
     }
 
@@ -231,7 +259,7 @@ module Hyperstore
                 }
                 else
                 {
-                    this["validate"] = validate;
+                    this["validateElement"] = validate;
                 }
             }
             schema.__addSchemaElement(this);
@@ -482,9 +510,12 @@ module Hyperstore
             return false;
         }
 
-        // -------------------------------------------------------------------------------------
-        //
-        // -------------------------------------------------------------------------------------
+        /**
+         * deserialize is called when an element is created. This method is used when an element is deserializing
+         * from an external source (channel or persistence)
+         * @param ctx - [[SerializationContext]] contains model element informations
+         * @returns [[Hyperstore.ModelElement]] - return an initialized model element
+         */
         deserialize(ctx:SerializationContext)
         {
             var mel = <ModelElement>Object.create(this.proto);
@@ -511,10 +542,16 @@ module Hyperstore
             return mel;
         }
 
-        // -------------------------------------------------------------------------------------
-        //
-        // -------------------------------------------------------------------------------------
-        addConstraint(message:string, constraint:(self:ModelElement, ctx:ConstraintContext) => boolean, asError:boolean = true, kind:ConstraintKind = ConstraintKind.Validate, propertyName?:string)
+        /**
+         * add a constraint ([[IConstraint]]) on a schema element.
+         * @param message - message when the constraint failed.
+         * @param constraint - function to evaluate the constraint. Must returns true if the constraint is  satisfied.
+         * @param asError - indicate if the constraint must be considered as an error (true) or a warning
+         * @param kind - [[ConstraintKind]]
+         * @param propertyName - if the constraint target a specific property, the propertyName diagnostic message property will be set with this value.
+         */
+        addConstraint(message:string, constraint:(self:ModelElement, ctx:ConstraintContext) => boolean, asError:boolean = true,
+                      kind:ConstraintKind = ConstraintKind.Validate, propertyName?:string)
         {
             this.schema.constraints.addConstraint(this,
                 {

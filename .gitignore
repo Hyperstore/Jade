@@ -4,3 +4,4 @@ node_modules/
 .idea/
 .tscache/
 .baseDir.ts
+.doc

@@ -16,21 +16,34 @@
 
 module Hyperstore
 {
-    // -------------------------------------------------------------------------------------
-    //
-    // -------------------------------------------------------------------------------------
+    /**
+     * Abstract adapter do not use directly.
+     * An adapter is used to persist model element. It must be enable by domain with the [[DomainModel.addAdapter]] method.
+     * Loading elements with an adapter must be made manually by calling the [[Adapter.loadElementsAsync]].
+     * Elements are persisted when a session is completed, with no errors or warnings.
+     */
     export class Adapter
     {
         private _cookie;
+        /**
+         * The associated domain model
+         */
         public domain:DomainModel;
 
+        /**
+         * @private - abstract constructor
+         * @param reset
+         */
         constructor(public reset:boolean = false)
         {
         }
 
-        // -------------------------------------------------------------------------------------
-        //
-        // -------------------------------------------------------------------------------------
+        /**
+         * must be called by the concrete class.
+         * Subscribe to the [[Store.onSessionCompleted]]
+         * @param domain - domain to persist
+         * @returns {Hyperstore.Promise} - the promise returns the current adapter
+         */
         initAsync(domain:DomainModel): Promise
         {
             var promise = new Promise();
@@ -40,7 +53,7 @@ module Hyperstore
             {
                 var storeId = this.domain.store.storeId;
                 var originId = s.originStoreId;
-                if (s.aborted || !s.events || (originId && originId !== storeId) || (s.mode & SessionMode.Loading) === SessionMode.Loading)
+                if (s.aborted  || s.result.hasErrorsOrWarnings || !s.events || (originId && originId !== storeId) || (s.mode & SessionMode.Loading) === SessionMode.Loading)
                 {
                     return;
                 }
@@ -62,21 +75,30 @@ module Hyperstore
             return promise;
         }
 
-        // -------------------------------------------------------------------------------------
-        //
-        // -------------------------------------------------------------------------------------
+        /**
+         * dispose the adapter. In this method, you can close properly external resources.
+         * This method is always called when a domain is unloaded or when the store is closed.
+         * You must always call this method if you override it.
+         */
         dispose()
         {
             this.domain.store.removeSessionCompleted(this._cookie);
         }
 
-        // -------------------------------------------------------------------------------------
-        //
-        // -------------------------------------------------------------------------------------
-        persistElements(s:Session, elements:ITrackedElement[])
+        /**
+         * Persistence implementation. Do not call this method directly
+         * @param session - current session
+         * @param elements - elements to persist [[ItrackedElement]] list
+         */
+        persistElements(session:Session, elements:ITrackedElement[])
         {
         }
 
+        /**
+         * load elements in the domain. Must be called manually.
+         * @param filter - a function callback allowing to filter element before loading it in the domain.
+         * @returns a promise with no special value.
+         */
         loadElementsAsync(filter?:(id, schemaId) => boolean): Promise
         {
             return undefined;

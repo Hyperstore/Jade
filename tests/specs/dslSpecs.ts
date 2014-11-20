@@ -19,7 +19,7 @@ describe('Schema tests', function ()
                                 condition: function(value, oldValue) {
                                     return value != null;
                                 },
-                                type : "validate",
+                                type : "validateElement",
                                 error : false
                             }
                         }
@@ -37,14 +37,14 @@ describe('Schema tests', function ()
                         $default : undefined,
                         $constraints : {
                             $default : {
-                                type:"validate",
+                                type:"validateElement",
                                 error:false
                             },
                             "Title is required": {
                                 condition: function(value, oldValue) {
                                     return value != null;
                                 },
-                                type : "validate",
+                                type : "validateElement",
                                 error : false
                             }
                         }

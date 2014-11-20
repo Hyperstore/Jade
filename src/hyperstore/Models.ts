@@ -14,6 +14,17 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
+/**
+ * Hyperstore is a domain model oriented database. It can be used in web or nodejs context.
+ *
+ * A domain model database is a database with a meta model (or schema) allowing to specify more informations on an element
+ * than only its type.
+ * A schema can contains element, properties and relationship definitions each with theirs own constraints (simple or complex).
+ *
+ * A domain model is instanciate in a store (Hyperstore) and raises event every time something change (Property, new
+ * element, deleting element, new relationship...).
+ *
+ */
 module Hyperstore
 {
     export interface IStoreConfiguration {
@@ -143,13 +154,14 @@ module Hyperstore
                     var domain = new DomainModel(this, domainName);
                     config.domains[domainName] = domain;
 
-                    if (def.adapters)
+                    if (typeof(def.adapters) === "function")
                     {
                         var _p = p;
-                        def.adapters.forEach(a=>
+                        def.adapters().forEach(a=>
                             {
+                                var tmp = _p;
                                 var _ = domain.addAdapterAsync(a);
-                                _.then(function () {_p.resolve();});
+                                _.then(function () {tmp.resolve();});
                                 _p = _;
                             }
                         );

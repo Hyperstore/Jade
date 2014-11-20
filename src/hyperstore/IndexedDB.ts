@@ -17,6 +17,10 @@
 /// <reference path="Adapters.ts" />
 module Hyperstore
 {
+    /**
+     * Persistence adapter for IndexedDb.
+     *
+     */
     export class IndexedDbAdapter extends Adapter
     {
         private db:IDBDatabase;
@@ -24,6 +28,9 @@ module Hyperstore
         private static DB_NAME = "HY$DB";
         private indexedDB;
 
+        /**
+         * Create a new instance of IndexedDbAdapter
+         */
         constructor()
         {
             super();
@@ -132,13 +139,10 @@ module Hyperstore
 
         }
 
-        // -------------------------------------------------------------------------------------
-        //
-        // -------------------------------------------------------------------------------------
         /**
-         *
-         * @param filter
-         * @returns {Promise<SessionResult> }
+         * load elements from the IndexedDb database
+         * @param filter - function to filter element
+         * @returns - a promise returning a [[SessionResult]]
          */
         loadElementsAsync(filter?:(id, schemaId) => boolean):Promise
         {

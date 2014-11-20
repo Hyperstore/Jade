@@ -199,6 +199,7 @@ module Hyperstore
                 }
             }
 
+            this.aborted = this.aborted || this.result.hasErrors;
             if (this.aborted)
             {
                 // Rollback
@@ -223,7 +224,7 @@ module Hyperstore
             Utils.forEach(constraintsManager, m =>
                 {
                     var manager = m.key;
-                    messages = messages.concat(manager.checkElements(m.value));
+                    messages = messages.concat(manager.__checkElements(m.value));
                 }
             );
             return messages;

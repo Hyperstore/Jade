@@ -17,13 +17,17 @@
 /// <reference path="Adapters.ts" />
 module Hyperstore
 {
-    // -------------------------------------------------------------------------------------
-    //
-    // -------------------------------------------------------------------------------------
+    /**
+     * A local storage adapter
+     */
     export class LocalStorageAdapter extends Adapter
     {
         private static PREFIX = "HY$:";
 
+        /**
+         * clear all domain elements
+         * @returns {Hyperstore.Promise}
+         */
         clearAsync()
         {
             var promise = new Promise();
@@ -48,9 +52,6 @@ module Hyperstore
             return promise;
         }
 
-        // -------------------------------------------------------------------------------------
-        //
-        // -------------------------------------------------------------------------------------
         persistElements(s:Session, elements:ITrackedElement[])
         {
             if (!localStorage) return;
@@ -108,9 +109,9 @@ module Hyperstore
         }
 
         /**
-         *
-         * @param filter
-         * @returns {Promise<SessionResult>}
+         * load elements from the local storage database
+         * @param filter - function to filter element
+         * @returns - a promise returning a [[SessionResult]]
          */
         loadElementsAsync(filter?:(id, schemaId) => boolean):Promise
         {

@@ -18,51 +18,74 @@
 
 module Hyperstore
 {
-    // ---------------------------------------------------------------------------------------
-    // Share message sending over the event bus. There is one message by session
-    // ---------------------------------------------------------------------------------------
+    /**
+     * Share message sending over the event bus with all session events.
+     * There is one message by session
+     */
     export interface Message
     {
-        origin: string;             // store id initiating the change
+        /**
+         * store id initiating the change - UUID
+         */
+        origin: string;
+        /**
+         * session id - local sequential id
+         */
         sessionId: number;
+        /**
+         * initial session mode
+         */
         sessionMode: SessionMode;
-        events: AbstractEvent[];       // list of events
+        /**
+         * session events
+         */
+        events: AbstractEvent[];
     }
 
-    export interface ChannelPipe
-    {
-        transform(msg:Message) : Message;
-    }
-
-    // ---------------------------------------------------------------------------------------
-    // abstract Channel - 
-    // ---------------------------------------------------------------------------------------
-    export class Channel
+    /**
+     * abstract channel.
+     *
+     * A channel is always associated with a domain and only send or receive events
+     * involving this domain.
+     */
+    export class AbstractChannel
     {
         public eventBus:EventBus;
+
+        /**
+         * Event dispatcher. See [[IEventHandler]].
+         *
+         * Initialized from [[EventBus.defaultEventDispatcher]]
+         */
         public dispatcher:IEventDispatcher;
 
         constructor(public domain:DomainModel)
         {
         }
 
+        /**
+         * open channel
+         * @param callback
+         */
         start(callback?:(channel) => any)
         {
             this.dispatcher = this.domain.eventDispatcher || this.eventBus.defaultEventDispatcher;
         }
 
-        // ---------------------------------------------------------------------------------------
-        // close channel
-        // ---------------------------------------------------------------------------------------
+        /**
+         * close channel
+         */
         close()
         {
             this.eventBus = null;
             this.dispatcher = null;
         }
 
-        // ---------------------------------------------------------------------------------------
-        // send events (internal use only) - Prepare the message from a session state
-        // ---------------------------------------------------------------------------------------
+        /**
+         * send events (internal use only) - Prepare the message from a session state
+         * @param session
+         * @private
+         */
         _sendEvents(session:Session)
         {
             if (session.originStoreId !== this.domain.store.storeId)
@@ -87,33 +110,49 @@ module Hyperstore
             this.sendMessage(message);
         }
 
-        // ---------------------------------------------------------------------------------------
-        // override this function to send message over your custom channel
-        // ---------------------------------------------------------------------------------------
+        /**
+         * override this function to send message over your custom channel
+         * @param message
+         */
         sendMessage(message:Message)
         {
             console.log("Message " + JSON.stringify(message));
         }
 
-        // ---------------------------------------------------------------------------------------
-        // Filter - Send only top level events impacting the current domain.
-        // Override it to filter events
-        // ---------------------------------------------------------------------------------------
+        /**
+         * Filter - Send only top level events impacting the current domain.
+         * Override it to filter events
+         * @param evt - event to filter
+         * @returns {boolean} - false to ignore this event
+         * @private
+         */
         _shouldBePropagated(evt:AbstractEvent):boolean
         {
             return evt.domain === this.domain.name && evt.TL;
         }
     }
 
-    // ---------------------------------------------------------------------------------------
-    // AbstractEvent bus - You must add a channel to define the protocol used to communicate
-    // ---------------------------------------------------------------------------------------
+    /**
+     * Event bus - You must add a channel to define the protocol used to communicate between store
+     *
+     * Every time a session is completed with no errors or warnings, a message is send by channels. If no channels
+     * are configured nothing happens.
+     */
     export class EventBus
     {
-        private _channels:Array<Channel>;
+        private _channels:Array<AbstractChannel>;
+        /**
+         * Event dispatcher. See [[IEventHandler]]
+         */
         public defaultEventDispatcher:IEventDispatcher;
         private cookie;
 
+        /**
+         * dot not call this constructor
+         * @private
+         * @param store
+         * @param eventDispatcher
+         */
         constructor(private store:Store, eventDispatcher?:IEventDispatcher)
         {
             this.cookie = store.onSessionCompleted(s=> this.sendEvents(s));
@@ -121,6 +160,9 @@ module Hyperstore
             this.defaultEventDispatcher = eventDispatcher || new EventDispatcher(store);
         }
 
+        /**
+         * close all channels when the store is disposed
+         */
         dispose()
         {
             this.store.removeSessionCompleted(this.cookie);
@@ -128,13 +170,22 @@ module Hyperstore
             this._channels = undefined;
         }
 
-        addChannel(channel:Channel)
+        /**
+         * add a new [[AbstractChannel]] to the event bus. AbstractChannel are not enabled until [[EventBus.start]] is called.
+         * @param channel - a channel instance
+         */
+        addChannel(channel:AbstractChannel)
         {
             this._channels.push(channel);
 
         }
 
-        start(callback?:(channel) => any)
+        /**
+         * start all registered channels. This is a async method, the callback function is called when all channels
+         * are open.
+         * @param callback
+         */
+        start(callback?:(channel) => any) // TODO Promise when all channels are opened
         {
             var self=this;
             this._channels.forEach(function(c)
@@ -155,10 +206,31 @@ module Hyperstore
         }
     }
 
-    export class SignalRChannel extends Channel
+    /**
+     * SignalR channel - By default, connection is open on the context server.
+     * the server hub must be named 'hyperstore' with the following interface :
+     *
+     * ~~~
+     *  public void Send(Message msg)
+     * {
+     *     Clients.All.onEvents(msg);
+     * }
+     *
+     * public void notify(Message msg)
+     * {
+     *    Clients.Others.onEvents(msg);
+     * }
+     * ~~~
+     */
+    export class SignalRChannel extends AbstractChannel
     {
         private proxy:HubProxy;
 
+        /**
+         * create a new SignalRChannel instance.
+         * @param domain - associated domain. See [[AbstractChannel]]
+         * @param hub - signalr hub if you want override default connection configuration.
+         */
         constructor(domain:DomainModel, public hub?)
         {
             super(domain);
@@ -208,11 +280,23 @@ module Hyperstore
             });
         }
 
+        /**
+         * send message over the channel
+         * @private
+         * @param message
+         */
         sendMessage(message:Message)
         {
             this.proxy.invoke('notify', message);
         }
 
+        /**
+         * open the signalr connection
+         *
+         * Do not call directly - used [[EventBus.start]]
+         *
+         * @param callback - callback called when the channel is open
+         */
         start(callback?:(channel) => any)
         {
             super.start();
@@ -226,6 +310,11 @@ module Hyperstore
             });
         }
 
+        /**
+         * Do not call directly.
+         *
+         * close when [[EventBus]] is closed
+         */
         close()
         {
             super.close();
