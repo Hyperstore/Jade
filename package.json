@@ -5,13 +5,15 @@
   "description": "Domain Model Oriented Database",
   "main": ".built/commonjs/hyperstore.js",
   "scripts": {
-    "test": "test"
   },
   "keywords": [
     "database",
     "domain",
     "modeling",
-    "dsl"
+    "dsl",
+    "validation",
+    "mvc",
+    "event"
   ],
   "author": "Alain Metge",
   "license": "Apache-2.0",

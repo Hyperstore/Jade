@@ -93,7 +93,7 @@ module Hyperstore
          */
         constructor(domain:string, public id:string, public schemaId:string, correlationId:number, version:number)
         {
-            super("AddEntityEvent", domain, correlationId, version);
+            super(EventManager.AddEntityEvent, domain, correlationId, version);
         }
 
         getReverseEvent(correlationId:number)
@@ -117,7 +117,7 @@ module Hyperstore
          */
         constructor(domain:string, public id:string, public schemaId:string, correlationId:number, version:number)
         {
-            super("RemoveEntityEvent", domain, correlationId, version);
+            super(EventManager.RemoveEntityEvent, domain, correlationId, version);
         }
 
         getReverseEvent(correlationId:number)
@@ -146,7 +146,7 @@ module Hyperstore
         constructor(domain:string, public id:string, public schemaId:string, public startId:string, public startSchemaId:string, public endId:string, public endSchemaId:string,
                     correlationId:number, version:number)
         {
-            super("AddRelationshipEvent", domain, correlationId, version);
+            super(EventManager.AddRelationshipEvent, domain, correlationId, version);
         }
 
         getReverseEvent(correlationId:number)
@@ -175,7 +175,7 @@ module Hyperstore
         constructor(domain:string, public id:string, public schemaId:string, public startId:string, public startSchemaId:string, public endId:string, public endSchemaId:string,
                     correlationId:number, version:number)
         {
-            super("RemoveRelationshipEvent", domain, correlationId, version);
+            super(EventManager.RemoveRelationshipEvent, domain, correlationId, version);
         }
 
         getReverseEvent(correlationId:number)
@@ -203,7 +203,7 @@ module Hyperstore
         constructor(domain:string, public id:string, public schemaId:string, public propertyName:string, public value:any, public oldValue:any,
                     correlationId:number, version:number)
         {
-            super("ChangePropertyValueEvent", domain, correlationId, version);
+            super(EventManager.ChangePropertyValueEvent, domain, correlationId, version);
 
         }
 
@@ -231,7 +231,7 @@ module Hyperstore
         constructor(domain:string, public id:string, public schemaId:string, public propertyName:string, public value:any,
                     correlationId:number, version:number)
         {
-            super("RemovePropertyEvent", domain, correlationId, version);
+            super(EventManager.RemovePropertyEvent, domain, correlationId, version);
             this.TL = false;
         }
 
@@ -253,18 +253,18 @@ module Hyperstore
      * Event manager manage all events from a domain. You can subscribe to domain events with
      * the [[EventManager.on]] method or dedicated method like [[EventManager.onEntityAdded]].
      *
-     * You can un susbcribe to event whith the [[EventManager.remove]] method.
+     * You can un subscribe to event with the [[EventManager.remove]] method.
      */
     export class EventManager
     {
         private _subscriptions;
-        static AddEntityEvent = "AddEntityEvent";
-        static RemoveEntityEvent = "RemoveEntityEvent";
-        static AddRelationshipEvent = "AddRelationshipEvent";
-        static ChangePropertyValueEvent = "ChangePropertyValueEvent";
-        static RemoveRelationshipEvent = "RemoveRelationshipEvent";
-        static RemovePropertyEvent = "RemovePropertyEvent";
-        static SessionCompleted = "SessionCompleted";
+        static AddEntityEvent = "addEntity";
+        static RemoveEntityEvent = "removeEntity";
+        static AddRelationshipEvent = "addRelationship";
+        static ChangePropertyValueEvent = "change";
+        static RemoveRelationshipEvent = "removeRelationship";
+        static RemovePropertyEvent = "removeProperty";
+        static SessionCompleted = "sessionCompleted";
 
         /**
          * create a new instance
@@ -304,7 +304,7 @@ module Hyperstore
         }
 
         /**
-         * subscribe to 'AddEntityEvent' same as *on('AddEntityEvent')*.
+         * subscribe to 'addEntity' same as *on('addEntity')*.
          *
          * @param callback - function called when event is emitted.
          * @returns a cookie used to un subscribe to this event (see [[EventManager.remove]]).
@@ -314,7 +314,7 @@ module Hyperstore
         }
 
         /**
-         * subscribe to 'RemoveEntityEvent' same as *on('RemoveEntityEvent')*.
+         * subscribe to 'removeEntity' same as *on('removeEntity')*.
          *
          * @param callback - function called when event is emitted.
          * @returns a cookie used to un subscribe to this event (see [[EventManager.remove]]).
@@ -324,7 +324,7 @@ module Hyperstore
         }
 
         /**
-         * subscribe to 'AddRelationshipEvent' same as *on('AddRelationshipEvent')*.
+         * subscribe to 'addRelationship' same as *on('addRelationship')*.
          *
          * @param callback - function called when event is emitted.
          * @returns a cookie used to un subscribe to this event (see [[EventManager.remove]]).
@@ -334,7 +334,7 @@ module Hyperstore
         }
 
         /**
-         * subscribe to 'AddEntityEvent' same as *on('AddEntityEvent')*.
+         * subscribe to 'removeRelationship' same as *on('removeRelationship')*.
          *
          * @param callback - function called when event is emitted.
          * @returns a cookie used to un subscribe to this event (see [[EventManager.remove]]).
@@ -344,7 +344,7 @@ module Hyperstore
         }
 
         /**
-         * subscribe to 'ChangePropertyValueEvent' same as *on('ChangePropertyValueEvent')*.
+         * subscribe to 'change' same as *on('change')*.
          *
          * @param callback - function called when event is emitted.
          * @returns a cookie used to un subscribe to this event (see [[EventManager.remove]]).
@@ -354,7 +354,7 @@ module Hyperstore
         }
 
         /**
-         * subscribe to session completed event same as *on('SessionCompleted')*.
+         * subscribe to session completed event same as *on('sessionCompleted')*.
          *
          * @param callback - function called when event is emitted.
          * @returns a cookie used to un subscribe to this event (see [[EventManager.remove]]).

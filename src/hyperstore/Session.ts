@@ -25,6 +25,7 @@ module Hyperstore
         UndoOrRedo = 24,
         Serializing = 32,
         SilentMode = 64,
+        Rollback=2048
     }
 
     export interface SessionConfiguration
@@ -141,10 +142,8 @@ module Hyperstore
 
         __nextLevel()
         {
-            if (this.closed)
-            {
-                throw "Can not reused a closed session";
-            }
+            if(this.mode & SessionMode.Rollback) return;
+            if (this.closed)   throw "Can not reused a closed session";
 
             this._depth++;
             this._committed = false;
@@ -155,10 +154,8 @@ module Hyperstore
          */
         acceptChanges()
         {
-            if (this.closed)
-            {
-                throw "Can not reused a closed session";
-            }
+            if(this.mode & SessionMode.Rollback) return;
+            if (this.closed)   throw "Can not reused a closed session";
             this._committed = true;
         }
 
@@ -203,14 +200,20 @@ module Hyperstore
             if (this.aborted)
             {
                 // Rollback
-                //var d = new EventDispatcher(this.store);
-                //Utils.forEach(this.events.reverse(), e=> d.handleEvent(e.getReverseEvent()));
+                this.mode = this.mode | SessionMode.Rollback;
+                var d = this.store.eventBus.defaultEventDispatcher;
+                this.events.reverse().forEach( e =>
+                   {
+                       if((<any>e).getReverseEvent)
+                          d.handleEvent((<any>e).getReverseEvent())
+                   });
             }
 
             Session.current = undefined;
 
             var self = this;
-            this.store.domains.forEach(d=> (<DomainModel>d).events.__notifySessionCompleted(self));
+            if( !this.aborted && !this.result.hasErrorsOrWarnings)
+                this.store.domains.forEach(d=> (<DomainModel>d).events.__notifySessionCompleted(self));
             this.store.__sendSessionCompletedEvent(self);
 
             return this.result;
@@ -236,10 +239,8 @@ module Hyperstore
          */
         addEvent(evt:AbstractEvent)
         {
-            if (this.closed)
-            {
-                throw "Can not reused a closed session";
-            }
+            if(this.mode & SessionMode.Rollback) return;
+            if (this.closed)   throw "Can not reused a closed session";
 
             this.events.push(evt);
             this.trackingData.__onEvent(evt);
@@ -383,7 +384,7 @@ module Hyperstore
         {
             switch (evt.eventName)
             {
-                case "AddEntityEvent":
+                case EventManager.AddEntityEvent:
                     this._trackings[evt.id] = {
                         domain:   evt.domain,
                         state:    TrackingState.Added,
@@ -392,7 +393,7 @@ module Hyperstore
                         version:  evt.version
                     };
                     break;
-                case "RemoveEntityEvent":
+                case EventManager.RemoveEntityEvent:
                     var info = this._trackings[evt.id];
                     if (!info)
                     {
@@ -409,7 +410,7 @@ module Hyperstore
                         };
                     }
                     break;
-                case "AddRelationshipEvent":
+                case EventManager.AddRelationshipEvent:
                     this._trackings[evt.id] = {
                         domain:        evt.domain,
                         state:         TrackingState.Added,
@@ -422,7 +423,7 @@ module Hyperstore
                         endSchemaId:   evt.endSchemaId
                     };
                     break;
-                case "RemoveRelationshipEvent":
+                case EventManager.RemoveRelationshipEvent:
                     var info = this._trackings[evt.id];
                     if (!info)
                     {
@@ -443,7 +444,7 @@ module Hyperstore
                         };
                     }
                     break;
-                case "ChangePropertyValueEvent":
+                case EventManager.ChangePropertyValueEvent:
                     var info = this._trackings[evt.id];
                     if (!info)
                     {

@@ -40,8 +40,9 @@ module.exports = function (grunt) {
             src : ".built/src/**/*.js",
 
             options: {
+                outfile: ".built/_SpecRunner.html",
                 errorReporting:true,
-                //keepRunner:true,
+                keepRunner:true,
                 //vendor: '<%= jasmine.all.options.vendor %>',
                 specs:'.built/specs/*.js',
                 template: require('grunt-template-jasmine-istanbul'),

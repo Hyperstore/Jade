@@ -42,6 +42,7 @@ module Hyperstore
      * Every change made on a domain must be in a session which works like an unit of work. When the session is closed, constraints are check on every
      * involved elements generating potential diagnostic messages. Then events representing all changes made during the session are raised.
      *
+     * ∼∼∼
      *    var session = store.beginSession(); // Start a session
      *    try {
      *      ... adds, removes or changes actions
@@ -50,6 +51,7 @@ module Hyperstore
      *    finally {
      *      session.close();   // abort or commit changes and send events
      *    }
+     * ∼∼∼
      */
     export class Store
     {
@@ -80,6 +82,7 @@ module Hyperstore
          * @example
          * Sample to define a new config object
          *
+         * ∼∼∼
          *    var hyperstore = require('hyperstore');
          *    module.exports = (function() {
          *    "use strict";
@@ -104,7 +107,7 @@ module Hyperstore
          *          }
          *      };
          *    })();
-         *
+         * ∼∼∼
          */
         initAsync(config?:any) : Promise
         {
@@ -201,7 +204,7 @@ module Hyperstore
         }
 
         /**
-         *
+         * unload all domains & close adapters
          */
         dispose()
         {
@@ -215,6 +218,9 @@ module Hyperstore
         }
 
         /**
+         * Unload a domain. All domain elements are unaccessible.
+         *
+         * You can reload the same domain.
          *
          * @param domain
          */
@@ -236,6 +242,7 @@ module Hyperstore
 
         /**
          * Subscribe to session completed event. This event is always raise even if the session is aborted.
+         *
          * Returns a cookie allowing to unsubscribe to this event
          *
          * @param action
@@ -1061,8 +1068,11 @@ module Hyperstore
             events.forEach(e =>
             {
                 var mel = this._cache[e.id];
-                mel.dispose();
-                delete mel;
+                if(mel)
+                {
+                    mel.dispose();
+                    delete mel;
+                }
             });
         }
 
@@ -1149,6 +1159,7 @@ module Hyperstore
          */
         dispose()
         {
+            this.disposed = true;
             for (var p in this)
             {
                 if (p.substr(0, 5) === "__ref")
@@ -1210,6 +1221,7 @@ module Hyperstore
          */
         __initialize(domain:DomainModel, id:string, schemaElement:SchemaElement, startId?:string, startSchemaId?:string, endId?:string, endSchemaId?:string)
         {
+            this.disposed = false;
             this.domain = domain;
             this.schemaElement = schemaElement;
             this.id = id;
@@ -1428,7 +1440,7 @@ module Hyperstore
 
                 Utils.forEach(s.events, function(e)
                 {
-                    if (e.eventName !== "AddRelationshipEvent" && e.eventName !== "RemoveRelationshipEvent")
+                    if (e.eventName !== EventManager.AddRelationshipEvent && e.eventName !== EventManager.RemoveRelationshipEvent)
                     {
                         return;
                     }
@@ -1436,7 +1448,7 @@ module Hyperstore
                     if (e.schemaId === self._schemaRelationship.id && (self._source && e.startId === self._source.id)
                         || (self._end && e.endId === self._end.id))
                     {
-                        if (e.eventName === "AddRelationshipEvent")
+                        if (e.eventName === EventManager.AddRelationshipEvent)
                         {
                             var rel = self._domain.store.getElement(e.id);
                             var mel = self._source ? rel.end : rel.start;
@@ -1484,7 +1496,7 @@ module Hyperstore
          *
          * @returns {number}
          */
-        count():number
+        get count():number
         {
             return this._count;
         }
@@ -1607,7 +1619,7 @@ module Hyperstore
         {
             this._handlers = {};
             this.registerHandler({
-                eventName: "AddEntityEvent", execute: function (d, evt)
+                eventName: EventManager.AddEntityEvent, execute: function (d, evt)
                 {
                     var schema = d.store.getSchemaEntity(evt.schemaId);
                     d.createEntity(schema, evt.id, evt.version);
@@ -1615,7 +1627,7 @@ module Hyperstore
             });
 
             this.registerHandler({
-                eventName: "RemoveEntityEvent", execute: function (d, evt)
+                eventName: EventManager.RemoveEntityEvent, execute: function (d, evt)
                 {
                     var mel = d.getElement(evt.id);
                     if (!mel)
@@ -1627,7 +1639,7 @@ module Hyperstore
             });
 
             this.registerHandler({
-                eventName: "AddRelationshipEvent", execute: function (d, evt)
+                eventName: EventManager.AddRelationshipEvent, execute: function (d, evt)
                 {
                     var schema = d.store.getSchemaRelationship(evt.schemaId);
                     var start = d.getElement(evt.startId);
@@ -1640,7 +1652,7 @@ module Hyperstore
             });
 
             this.registerHandler({
-                eventName: "RemoveRelationshipEvent", execute: function (d, evt)
+                eventName: EventManager.RemoveRelationshipEvent, execute: function (d, evt)
                 {
                     var mel = d.getElement(evt.id);
                     if (!mel)
@@ -1652,7 +1664,7 @@ module Hyperstore
             });
 
             this.registerHandler({
-                eventName: "ChangePropertyValueEvent", execute: function (d, evt)
+                eventName: EventManager.ChangePropertyValueEvent, execute: function (d, evt)
                 {
                     var schema = d.store.getSchemaEntity(evt.schemaId);
                     var property = schema.getProperty(evt.propertyName, true);
@@ -1813,57 +1825,68 @@ module Hyperstore
             var sawNodes = {};
 
             // Cascading
-            this.traverseNodes(node, node=>
-            {
-                sawNodes[node.id] = true;
-                var evt;
-                if (!node.startId)
+            this.traverseNodes(
+                node, node=>
                 {
-                    evt = new RemoveEntityEvent(this.domain.name, node.id, node.schemaId, Session.current.sessionId, version);
-                }
-                else
-                {
-                    evt = new RemoveRelationshipEvent(this.domain.name, node.id, node.schemaId, node.startId, node.startSchemaId, node.endId, node.endSchemaId, Session.current.sessionId, version);
-                }
-                evt.TL=node.id === id; // top level event
-                events.push(evt);
-
-                var nodes = [];
-                for (var k in node.outgoings)
-                {
-                    var edge = node.outgoings[k];
-                    if (!sawNodes[edge.id])
+                    sawNodes[node.id] = true;
+                    var evt;
+                    if (!node.startId)
                     {
-                        sawNodes[edge.id] = true;
-                        nodes.push(this.nodes[edge.id]);
+                        evt = new RemoveEntityEvent(
+                            this.domain.name, node.id, node.schemaId, Session.current.sessionId, version
+                        );
                     }
-                }
-
-                for (var k in node.incomings)
-                {
-                    var edge = node.incomings[k];
-                    if (!sawNodes[edge.id])
+                    else
                     {
-                        sawNodes[edge.id] = true;
-                        nodes.push(this.nodes[edge.id]);
+                        evt = new RemoveRelationshipEvent(
+                            this.domain.name, node.id, node.schemaId, node.startId, node.startSchemaId, node.endId,
+                            node.endSchemaId, Session.current.sessionId, version
+                        );
                     }
-                }
+                    evt.TL = node.id === id; // top level event
+                    events.push(evt)
 
-                if (node.startId)
-                {
-                    var schema = this.domain.store.getSchemaRelationship(node.schemaId);
-                    if (schema.embedded)
+                    // don't replay cascading during rollback or undo/redo
+                    if(Session.current.mode & (SessionMode.Rollback|SessionMode.UndoOrRedo))
+                        return null;
+
+                    var nodes = [];
+                    for (var k in node.outgoings)
                     {
-                        if (!sawNodes[node.endId])
+                        var edge = node.outgoings[k];
+                        if (!sawNodes[edge.id])
                         {
-                            sawNodes[node.endId] = true;
-                            nodes.push(this.nodes[node.endId]);
+                            sawNodes[edge.id] = true;
+                            nodes.push(this.nodes[edge.id]);
                         }
                     }
-                }
 
-                return nodes;
-            });
+                    for (var k in node.incomings)
+                    {
+                        var edge = node.incomings[k];
+                        if (!sawNodes[edge.id])
+                        {
+                            sawNodes[edge.id] = true;
+                            nodes.push(this.nodes[edge.id]);
+                        }
+                    }
+
+                    if (node.startId)
+                    {
+                        var schema = this.domain.store.getSchemaRelationship(node.schemaId);
+                        if (schema.embedded)
+                        {
+                            if (!sawNodes[node.endId])
+                            {
+                                sawNodes[node.endId] = true;
+                                nodes.push(this.nodes[node.endId]);
+                            }
+                        }
+                    }
+
+                    return nodes;
+                }
+            );
 
             var events = revents.concat(events);
             var pevents = [];

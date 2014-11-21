@@ -5,3 +5,4 @@ node_modules/
 .tscache/
 .baseDir.ts
 .doc
+npm_debug.log

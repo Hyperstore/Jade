@@ -143,13 +143,12 @@ module Hyperstore
             }
 
             var self = this;
-            var regex = /{(\S+)}/g;
+            var regex = /{\s*(\S*)\s*}/g;
             return this.rawMessage
-                .replace('{{propertyName}}', this.propertyName)
-                .replace(regex, function(match, propertyName )
-            {
-                return self.element[propertyName];
-            });
+                .replace(regex, function(match, name )
+                {
+                    return name === "propertyName" ? this.propertyName : self.element[name];
+                });
         }
     }
 

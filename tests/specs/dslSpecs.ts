@@ -72,13 +72,14 @@ describe('Schema tests', function ()
 
     var store;
 
- /*   it('should initialize store from the dsl', function(done) {
+    beforeEach(function(done) {
         store = new Hyperstore.Store();
-        store.initAsync(config).then( function()
-            {
-                expect(store.getDomain('test')).not.toBeUndefined();
-                expect(store.getSchemaElement('Library', false)).not.toBeUndefined();
-                done();
-            });
-    });*/
+        store.initAsync(config).then(function() {done()});
+    });
+
+    it('should initialize store from the dsl', function(done) {
+  //      expect(store.getDomain('test')).not.toBeUndefined();
+  //      expect(store.getSchemaElement('Library', false)).not.toBeUndefined();
+        done();
+    });
 });

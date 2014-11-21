@@ -121,11 +121,13 @@ module Hyperstore
         public owner:SchemaElement;
 
         /**
+         * create a new instance.
          *
-         * @param name
+         * @param name Name of the property
          * @param schemaProperty
-         * @param defaultValue
-         * @param kind
+         * @param defaultValue Default value or function representing a calculated value.
+         * @param kind Use [[PropertyKind.CalculatedValue]] for a calculated value. You must provide a function in the
+         * defaultValue argument.
          */
         constructor(public name:string, public schemaProperty:SchemaInfo, public defaultValue?:any, public kind:PropertyKind = PropertyKind.Normal)
         {
@@ -443,7 +445,9 @@ module Hyperstore
                 Object.defineProperty(this.proto, desc.name, {
                     enumerable:   true,
                     configurable: true,
-                    get:          function () { return ModelElement.prototype.getPropertyValue.call(this, desc); },
+                    get:          function () {
+                        return ModelElement.prototype.getPropertyValue.call(this, desc);
+                    },
                     set:          function (value)
                     {
                         ModelElement.prototype.setPropertyValue.call(this, desc, value);
@@ -808,8 +812,11 @@ module Hyperstore
                 if( t === "string" && o.length > 0)
                 {
                     t = this.schema.store.getSchemaInfo(o);
-                    if( t.kind !== SchemaKind.ValueObject || t.kind !== SchemaKind.Primitive)
-                        throw "Only value object or primitive is allowed for property " + name + ". Use reference instead."
+                    if( t.kind !== SchemaKind.ValueObject && t.kind !== SchemaKind.Primitive)
+                    {
+                        throw "Invalid type '" + o + "' Only value object or primitive is allowed for property " +
+                            name + ". Use reference instead.";
+                    }
                     o = undefined;
                 }
                 entity.defineProperty(name, t, o);
