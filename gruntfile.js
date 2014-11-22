@@ -64,10 +64,6 @@ module.exports = function (grunt) {
             amd : {
                 src : ['.built/amd/**/*.js'],
                 dest : ".built/amd/<%= pkg.name %>.min.js"
-            },
-            commonjs : {
-                src : ['.built/commonjs/**/*.js'],
-                dest : ".built/commonjs/<%= pkg.name %>.min.js"
             }
         },
 

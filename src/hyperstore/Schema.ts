@@ -768,24 +768,49 @@ module Hyperstore
             var t = <any>typeof(o);
             if( t === "object")
             {
+                // primitive or default value
+                // ex : { $type: "string", $default? : "xxx", $constraints? : {} }
                 if( o.$type)
                 {
-                    var p = entity.defineProperty(name, this.schema.store.getSchemaInfo(o.$type), o.$default);
+                    t = this.schema.store.getSchemaInfo(o.$type);
+                    if( t.kind !== SchemaKind.ValueObject && t.kind !== SchemaKind.Primitive)
+                    {
+                        throw "Invalid type '" + o + "' Only value object or primitive is allowed for property " +
+                        name + ". Use reference instead.";
+                    }
+                    var p = entity.defineProperty(name, t, o.$default);
                     this.parseConstraints(o.$constraints,c => p.addConstraint(c.message, c.condition, c.error, c.kind));
                 }
                 else {
-                    if( o.$source )
+                    // relationship
+                    // ex : { $end : "Book", $kind : "1=>*", name?: "libHasBooks", $constraints?: {} }
+                    if( o.$end )
                     {
-                        this.pendings.push({src:     o.$source,
+                        this.pendings.push({src:     entity.id,
                                                end:  o.$end,
                                                type: o.$kind,
                                                name: o.$name,
+                                               property:name,
                                                const:  o.$constraints
                                            }
                         );
                         return;
                     }
 
+                    // One to many reference
+                    if( Utils.isArray(o)) {
+                        // ex : ["Book"]
+                        this.pendings.push({src: entity.id,
+                                end:  o[0],
+                                property:name,
+                                type: "1=>*"
+                            }
+                        );
+                        return;
+                    }
+
+                    // specified reference
+                    // ex : { Book : "*=>*"}
                     var cx = 0;
                     for(var key in o)
                     {
@@ -804,18 +829,29 @@ module Hyperstore
                     }
                 }
             }
+            // calculated property
+            // ex : function() {return 1;}
             else if( t === "function")
             {
                 entity.defineProperty(name, null, o, PropertyKind.Calculated);
             }
             else {
+                // specified type
+                // ex : "number" (primitive or valueObject)
+                //      "Book" One to one reference
                 if( t === "string" && o.length > 0)
                 {
                     t = this.schema.store.getSchemaInfo(o);
                     if( t.kind !== SchemaKind.ValueObject && t.kind !== SchemaKind.Primitive)
                     {
-                        throw "Invalid type '" + o + "' Only value object or primitive is allowed for property " +
-                            name + ". Use reference instead.";
+                        // OneToOne
+                        this.pendings.push({src: entity.id,
+                                end:  t.id,
+                                property:name,
+                                type: "1->1"
+                            }
+                        );
+                        return;
                     }
                     o = undefined;
                 }

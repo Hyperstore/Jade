@@ -23,7 +23,20 @@
                     }
                 },
                 domains : {
-                    Test : {}
+                    Test : {
+                        seed : {
+                            resource : {
+                                Library : {
+                                    Name : "Lib 1",
+                                    Books : [
+                                        {
+                                            Title : "Book 1"
+                                        }
+                                    ]
+                                }
+                            }
+                        }
+                    }
                 }
             };
             store = new Hyperstore.Store();
