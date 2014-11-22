@@ -86,7 +86,7 @@ module.exports = function (grunt) {
             },
 
             dcl : {
-                src: "src/hyperstore/*.ts",
+                src: "src/hyperstore/**/*.ts",
                 out: ".built/src/hyperstore.js",
                 options : {
                     declaration:true,
