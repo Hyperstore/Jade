@@ -385,13 +385,16 @@ module Hyperstore
                 throw "Duplicate property " + name;
             }
 
+            var c = schemaRelationship.cardinality;
             var info = {
                 name:               name,
                 opposite:           opposite,
                 schemaRelationship: schemaRelationship,
-                isCollection:       !((schemaRelationship.cardinality === Cardinality.OneToOne ||
-                (schemaRelationship.cardinality === Cardinality.OneToMany) && opposite)
-                || schemaRelationship.cardinality === Cardinality.ManyToOne && !opposite)
+                // !opposite & (1..*|*.*)
+                // opposite & (*.*| *..1)
+                isCollection:  c === Cardinality.ManyToMany ||
+                    (!opposite && c === Cardinality.OneToMany) ||
+                    (opposite && c === Cardinality.ManyToOne)
             };
 
             this._references[name] = info;

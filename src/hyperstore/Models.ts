@@ -947,7 +947,7 @@ module Hyperstore
                 {
                     return undefined;
                 }
-                return new PropertyValue(typeof def == typeof function () { } // TODO revoir test
+                return new PropertyValue(typeof(def) === "function"
                     ? def()
                     : def, undefined, 0);
             }
