@@ -38,15 +38,19 @@ module Hyperstore
     export interface IConstraint
     {
         kind: ConstraintKind
-        executeConstraint: (self:ModelElement, ctx:ConstraintContext) => boolean;
+        verify: (self:ModelElement, ctx:ConstraintContext) => boolean;
         message: string;
         messageType?: MessageType;
         propertyName?: string;
     }
 
+    /**
+     * Constraint kind. See [[IConstraint]]
+     */
     export enum ConstraintKind {
         Check,
-        Validate
+        Validate,
+        Info
     }
 
     /**

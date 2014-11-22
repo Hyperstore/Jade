@@ -172,15 +172,13 @@ module Hyperstore
                 return;
 
             this.pendings = [];
+            // must be process first
+            this.parseValueObjects(dsl.$valueObjects);
             for (var name in dsl)
             {
-                var o = dsl[name];
-                if (name === "valueObjects")
+                if (name[0] !== "$")
                 {
-                    this.parseValueObjects(o);
-                }
-                else
-                {
+                    var o = dsl[name];
                     if (o.$source)
                         this.parseRelationship(o, name);
                     else
@@ -208,12 +206,7 @@ module Hyperstore
                 if (prop[0] == "$")
                 {
                     if (prop === "$constraints")
-                        this.parseConstraints(
-                            o.$constraints, c=>
-                            {
-                                entity.addConstraint(c.message, c.condition, c.error, c.kind);
-                            }
-                        );
+                        this.parseConstraints(o.$constraints, c=> entity.addConstraint(c.message, c.condition, c.error, c.kind));
                     continue;
                 }
                 this.parseProperty(prop, o[prop], entity);
@@ -330,23 +323,21 @@ module Hyperstore
 
         private parseConstraints(constraints, callback)
         {
+            if (!constraints)
+                return;
 
-            if (constraints)
+            var def = constraints.$default || {kind: "check", error: false};
+            for (var msg in constraints)
             {
-                var def = constraints.$default || {kind: "check", error: false};
-                for (var msg in constraints)
-                {
-                    var c = constraints[msg];
-                    callback(
-                        {
-                            message  : msg,
-                            kind     : (
-                                       c.kind || def.kind) === "check" ? ConstraintKind.Check : ConstraintKind.Validate,
-                            error    : c.error || def.error,
-                            condition: c.condition || c
-                        }
-                    );
-                }
+                var c = constraints[msg];
+                var ct =  {
+                    message  : msg,
+                    kind     : c.check ? ConstraintKind.Check : c.validate ? ConstraintKind.Validate : def.kind,
+                    error    : c.error || def.error,
+                    condition: c.validate || c.check || c
+                };
+                // TODO validate constraint
+                callback(ct);
             }
         }
 
@@ -386,8 +377,7 @@ module Hyperstore
                 end = t;
             }
 
-            var name = def.name || src.name + (
-                    c.embedded ? 'Has' : 'References') + end.name;
+            var name = def.name || src.name + (c.embedded ? 'Has' : 'References') + end.name;
             var rel = this.schema.store.getSchemaRelationship(name, false);
             if (rel)
             {
@@ -398,9 +388,7 @@ module Hyperstore
             }
             else
             {
-                rel = new SchemaRelationship(
-                    this.schema, name, src.id, end.id, c.embedded || false, c.type, undefined, undefined, def.base
-                );
+                rel = new SchemaRelationship(this.schema, name, src.id, end.id, c.embedded || false, c.type, undefined, undefined, def.base);
                 this.def[name + "Schema"] = rel;
             }
 
@@ -450,7 +438,16 @@ module Hyperstore
 
         private parseValueObjects(values)
         {
-
+            if(!values)
+                return;
+            for(var name in values) {
+                var val = values[name];
+                var valueObject = new SchemaValueObject(this.schema, name);
+                for(var p in val) {
+                    if( val.hasOwnProperty(p) && p[0] !== "$")
+                        val[p] = val[p];
+                }
+            }
         }
     }
 }

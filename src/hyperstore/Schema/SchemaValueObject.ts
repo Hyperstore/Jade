@@ -23,11 +23,14 @@ module Hyperstore
     // -------------------------------------------------------------------------------------
     export class SchemaValueObject extends SchemaInfo
     {
-
-        // -------------------------------------------------------------------------------------
-        //
-        // -------------------------------------------------------------------------------------
-        constructor(schema:Schema, id:string, validate:(newValue, oldValue, ctx:ConstraintContext) => void, checkConstraint:boolean = true)
+        /**
+         * create a new instance
+         * @param schema
+         * @param id
+         * @param validate
+         * @param checkConstraint
+         */
+        constructor(schema:Schema, id:string, validate?:(newValue, oldValue, ctx:ConstraintContext) => void, checkConstraint:boolean = true)
         {
             super(schema, SchemaKind.ValueObject, id);
             if (validate)
@@ -38,20 +41,25 @@ module Hyperstore
                 }
                 else
                 {
-                    this["validateElement"] = validate;
+                    this["validate"] = validate;
                 }
             }
             schema.__addSchemaElement(this);
         }
     }
-    // -------------------------------------------------------------------------------------
-    //
-    // -------------------------------------------------------------------------------------
+
+    /**
+     * Primitive schema
+     */
     export class Primitive extends SchemaValueObject
     {
-        // -------------------------------------------------------------------------------------
-        //
-        // -------------------------------------------------------------------------------------
+        /**
+         * @private
+         * @param schema
+         * @param id
+         * @param validate
+         * @param checkConstraint
+         */
         constructor(schema:Schema, id:string, validate?:(newValue, oldValue, ctx:ConstraintContext) => void, checkConstraint:boolean = true)
         {
             super(schema, id, validate, checkConstraint);

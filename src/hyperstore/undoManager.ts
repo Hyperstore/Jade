@@ -15,6 +15,7 @@
 // limitations under the License.
 
 /// <reference path="_references.ts" />
+
 module Hyperstore
 {
 
@@ -24,6 +25,14 @@ module Hyperstore
         filter;
     }
 
+    /**
+     * Undo/redo manager works at session level.
+     *
+     * Before using it, you must register one or more domain. Every change on a registered domain may be canceled.
+     *
+     * It's possible to get a save point to redo later until this save point.
+     *
+     */
     export class UndoManager
     {
         private _infos;
@@ -31,6 +40,11 @@ module Hyperstore
         private _undos;
         private _redos;
 
+        /**
+         * Create a new instance - Do nothing until a domain is registered.
+         *
+         * @param store
+         */
         constructor(private store:Store)
         {
             this._infos = {};
@@ -38,16 +52,28 @@ module Hyperstore
             this._redos = [];
         }
 
+        /**
+         * is there something to undo ?
+         * @returns {boolean}
+         */
         get canUndo()
         {
             return this._undos.length > 0;
         }
 
+        /**
+         * is there something to redo
+         * @returns {boolean}
+         */
         get canRedo()
         {
             return this._redos.length > 0;
         }
 
+        /**
+         * get a savepoint
+         * @returns a save point
+         */
         get savePoint():number
         {
             if (this._undos.length === 0)
@@ -57,12 +83,22 @@ module Hyperstore
             return this._undos[this._undos.length - 1].sessionId;
         }
 
+        /**
+         * clear history
+         */
         clear()
         {
             this._undos = [];
             this._redos = [];
         }
 
+        /**
+         * Undo last session or until savepoint.
+         *
+         * If your provide an invalid savePoint, all sessions will be undo.
+         *
+         * @param toSavePoint
+         */
         undo(toSavePoint?:number)
         {
             if (this.canUndo)
@@ -71,6 +107,13 @@ module Hyperstore
             }
         }
 
+        /**
+         * Redo last undoed session or until savepoint.
+         *
+         * If your provide an invalid savePoint, all sessions will be undo.
+         *
+         * @param toSavePoint
+         */
         redo(toSavePoint?:number)
         {
             if (this.canRedo)
@@ -79,6 +122,12 @@ module Hyperstore
             }
         }
 
+        /**
+         * Register a domain. While a domain is registered, all this events will be take into account.
+         *
+         * @param domain - A valid domain
+         * @param dispatcher An optional [[EventDispatcher]] to override the [[EventBus.defaultEventDispatcher]].
+         */
         registerDomain(domain:DomainModel, dispatcher?:IEventDispatcher)
         {
             this._infos[domain.name] = {

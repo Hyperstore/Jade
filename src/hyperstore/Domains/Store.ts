@@ -15,14 +15,15 @@
 // limitations under the License.
 
 /**
- * Hyperstore is a domain model oriented database. It can be used in web or nodejs context.
+ * Hyperstore is a domain model oriented database. It can be used in web or nodejs context.</br>
  *
  * A domain model database is a database with a meta model (or schema) allowing to specify more informations on an element
- * than only its type.
- * A schema can contains element, properties and relationship definitions each with theirs own constraints (simple or complex).
+ * than only its type.</br>
+ *
+ * A schema can contains element, properties and relationship definitions each with theirs own constraints (simple or complex).</br>
  *
  * A domain model is instanciate in a store (Hyperstore) and raises event every time something change (Property, new
- * element, deleting element, new relationship...).
+ * element, deleting element, new relationship...).</br>
  *
  */
 
@@ -42,20 +43,22 @@ export interface IStoreConfiguration
 /**
  *
  * store is the main hyperstore container for domains and schemas.
+ *
  * It can contains many domains and schemas and supports references between domains.
+ *
  * Every change made on a domain must be in a session which works like an unit of work. When the session is closed, constraints are check on every
  * involved elements generating potential diagnostic messages. Then events representing all changes made during the session are raised.
  *
- * ∼∼∼
+ * <code>
  *    var session = store.beginSession(); // Start a session
  *    try {
-     *      ... adds, removes or changes actions
-     *      session.acceptChanges(); // commit all changes
-     *    }
+ *      ... adds, removes or changes actions
+ *      session.acceptChanges(); // commit all changes
+ *    }
  *    finally {
-     *      session.close();   // abort or commit changes and send events
-     *    }
- * ∼∼∼
+ *      session.close();   // abort or commit changes and send events
+ *    }
+ * </code>
  */
 export class Store
 {
@@ -83,36 +86,37 @@ export class Store
 
     /**
      * create a new store. You can create many independent store. They can communicate between them with the eventBus.
+     *
      * @param config - Contains all informations to initialize a new store.
      * @example
      * Sample to define a new config object
      *
-     * ∼∼∼
+     * <code>
      *    var hyperstore = require('hyperstore');
      *    module.exports = (function() {
-         *    "use strict";
-         *
-         *      return {
-         *         defaultDomainModel : 'test',
-         *         // schemas definition
-         *         schemas: {
-         *              // Define a schema named mySchema
-         *   	        mySchema : {
-         *                  defineSchema: function (schema) {
-         *                      this.libSchema = new hyperstore.SchemaEntity(schema, 'Library');
-         *                      this.libSchema.defineProperty('name', 'string');
-         *                  }
-         *              }
-         *          },
-         *          domains : {
-         *              // load a domain named test
-         *              test: {
-         *                  // adapters : [],
-         *              }
-         *          }
-         *      };
-         *    })();
-     * ∼∼∼
+     *    "use strict";
+     *
+     *      return {
+     *         defaultDomainModel : 'test',
+     *         // schemas definition
+     *         schemas: {
+     *              // Define a schema named mySchema
+     *   	        mySchema : {
+     *                  defineSchema: function (schema) {
+     *                      this.libSchema = new hyperstore.SchemaEntity(schema, 'Library');
+     *                      this.libSchema.defineProperty('name', 'string');
+     *                  }
+     *              }
+     *          },
+     *          domains : {
+     *              // load a domain named test
+     *              test: {
+     *                  // adapters : [],
+     *              }
+     *          }
+     *      };
+     *    })();
+     * </code>
      */
     initAsync(config?:any):Promise
     {
@@ -305,7 +309,6 @@ export class Store
             {
                 new Primitive(schema, "string");
                 new Primitive(schema, "number");
-                new Primitive(schema, "date");
                 new Primitive(schema, "bool");
             }
         };

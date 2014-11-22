@@ -51,18 +51,14 @@ module Hyperstore
             var fn = condition;
             if (!fn && property.schemaProperty)
             {
-                if ((
-                        <any>property.schemaProperty).check)
+                if ((<any>property.schemaProperty).check)
                 {
-                    fn = (
-                        <any>property.schemaProperty).check;
+                    fn = (<any>property.schemaProperty).check;
                     kind = ConstraintKind.Check;
                 }
-                else if ((
-                        <any>property.schemaProperty).validateElement)
+                else if ((<any>property.schemaProperty).validate)
                 {
-                    fn = (
-                        <any>property.schemaProperty).validateElement;
+                    fn = (<any>property.schemaProperty).validate;
                     kind = ConstraintKind.Validate;
                 }
             }
@@ -71,12 +67,11 @@ module Hyperstore
                 return;
             }
 
-            this.addConstraint(
-                property.owner,
+            this.addConstraint( property.owner,
                 {
                     propertyName     : property.name,
                     messageType      : asError ? MessageType.Error : MessageType.Warning,
-                    executeConstraint: function (self, ctx)
+                    verify: function (self, ctx)
                     {
                         var pv = ctx.element.domain.getPropertyValue(self.id, property);
                         if (!pv)
@@ -91,11 +86,7 @@ module Hyperstore
                         }
                         catch (e)
                         {
-                            ctx.log(
-                                e, asError
-                                    ? MessageType.Error
-                                    : MessageType.Warning
-                            );
+                            ctx.log(e, asError ? MessageType.Error : MessageType.Warning);
                         }
                         ctx.propertyName = undefined;
                         return result;
@@ -184,7 +175,7 @@ module Hyperstore
                     var constraint = constraints[key];
                     if (constraint.kind === ConstraintKind.Check)
                     {
-                        if (!constraint.executeConstraint(ctx.element, ctx))
+                        if (!constraint.verify(ctx.element, ctx))
                         {
                             ctx.log(constraint.message, constraint.messageType, constraint.propertyName);
                         }
@@ -206,7 +197,7 @@ module Hyperstore
             {
                 for (var constraint in constraints)
                 {
-                    if (!constraint.executeConstraint(ctx.element, ctx))
+                    if (!constraint.verify(ctx.element, ctx))
                     {
                         ctx.log(constraint.message, constraint.messageType, constraint.propertyName);
                     }

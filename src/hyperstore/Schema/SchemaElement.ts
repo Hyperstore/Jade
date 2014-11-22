@@ -317,7 +317,7 @@ export class SchemaElement extends SchemaInfo
             this,
             {
                 kind             : kind,
-                executeConstraint: constraint,
+                verify: constraint,
                 message          : message,
                 messageType      : asError
                     ? MessageType.Error

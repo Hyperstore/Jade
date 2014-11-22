@@ -13,6 +13,7 @@
 /// <reference path="Session/Trackings.ts" />
 /// <reference path="Events/Events.ts" />
 /// <reference path="Events/Dispatcher.ts" />
+/// <reference path="Events/EventDispatcher.ts" />
 /// <reference path="Events/EventManager.ts" />
 /// <reference path="Domains/PropertyValue.ts" />
 /// <reference path="Domains/Store.ts" />

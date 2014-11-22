@@ -17,7 +17,9 @@
 /// <reference path="../_references.ts" />
 module Hyperstore
 {
-
+    /**
+     * tracking state.
+     */
     export enum TrackingState
     {
         Added,
@@ -26,6 +28,9 @@ module Hyperstore
         Unknown
     }
 
+    /**
+     * Tracked element
+     */
     export interface ITrackedElement
     {
         domain: string;
@@ -40,12 +45,15 @@ module Hyperstore
         properties?;
     }
 
+    /**
+     *
+     */
     export class TrackingData
     {
         private _trackings = {};
 
         /**
-         *
+         * list of involved elements during a session
          * @returns {Array}
          */
         get involvedTrackedElements():ITrackedElement[]
@@ -53,6 +61,12 @@ module Hyperstore
             return Utils.select(this._trackings, t=> t);
         }
 
+        /**
+         *
+         * @param store
+         * @returns {Array}
+         * @private
+         */
         __prepareTrackedElements(store:Store):ModelElement[]
         {
             var list = {};
@@ -151,6 +165,11 @@ module Hyperstore
             return info.state;
         }
 
+        /**
+         *
+         * @param evt
+         * @private
+         */
         __onEvent(evt:any)
         {
             switch (evt.eventName)

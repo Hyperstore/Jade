@@ -19,18 +19,45 @@ module Hyperstore
 {
 
     /**
+     * Session result contains finally state of a session.
      *
      */
     export class SessionResult
     {
+        /**
+         * Session has been aborted ?
+         */
         public aborted:boolean;
+        /**
+         * Diagnostic messages emitted during the session from a constraint or by calling [[SessionResult.log]]
+         *
+         * @type {Array} List of messages
+         */
         public messages = [];
+        /**
+         * Is there some error messages ?
+         *
+         * @type {boolean} true if at least one error message exists
+         */
         public hasErrors:boolean = false;
+       /**
+         * Is there some warning messages ?
+         *
+         * @type {boolean} true if at least one warning message exists
+         */
         public hasWarnings:boolean = false;
+        /**
+         * List of elements involved during the current session
+         */
         public involvedElements:ModelElement[];
+        /**
+         * Max version number founded during the session.
+         *
+         */
         public maxVersionNumber:number;
 
         /**
+         * Is there some error or warning messages ?
          *
          * @returns {boolean}
          */
@@ -49,8 +76,9 @@ module Hyperstore
         }
 
         /**
+         * log a new message
          *
-         * @param message
+         * @param message A diagnostic message
          */
         log(message:DiagnosticMessage)
         {
