@@ -14,6 +14,7 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
+/// <reference path="_references.ts" />
 module Hyperstore
 {
 
@@ -82,17 +83,21 @@ module Hyperstore
         {
             this._infos[domain.name] = {
                 dispatcher: dispatcher || this.store.eventBus.defaultEventDispatcher,
-                filter:     undefined
+                filter    : undefined
             };
             this.Enabled = true;
             var self = this;
-            domain.events.on(EventManager.SessionCompleted, function (s:SessionInfo)
-            {
-                if (!s.aborted && self.Enabled && (s.mode & (SessionMode.UndoOrRedo | SessionMode.Loading)) === 0)
+            domain.events.on(
+                EventManager.SessionCompleted, function (s:SessionInfo)
                 {
-                    self.push.call(self, s);
+                    if (!s.aborted && self.Enabled && (
+                        s.mode & (
+                        SessionMode.UndoOrRedo | SessionMode.Loading)) === 0)
+                    {
+                        self.push.call(self, s);
+                    }
                 }
-            });
+            );
         }
 
         private performPop(mainStack, altStack, mode:SessionMode, toSavePoint?:number)
@@ -157,17 +162,19 @@ module Hyperstore
 
         private push(session:SessionInfo)
         {
-            var events = Utils.where(session.events, e =>
-            {
-                var infos = this._infos[e.domain];
-                if (!infos)
+            var events = Utils.where(
+                session.events, e =>
                 {
-                    return false;
+                    var infos = this._infos[e.domain];
+                    if (!infos)
+                    {
+                        return false;
+                    }
+                    return infos.filter
+                        ? infos.filter(e)
+                        : true;
                 }
-                return infos.filter
-                    ? infos.filter(e)
-                    : true;
-            });
+            );
 
             if (events.length === 0)
             {
@@ -189,5 +196,4 @@ module Hyperstore
             this._undos.push({sessionId: session.sessionId, events: events});
         }
     }
-
 }

@@ -14,8 +14,10 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
+/// <reference path="../_references.ts" />
 module Hyperstore
 {
+
     /**
      * Abstract adapter do not use directly.
      * An adapter is used to persist model element. It must be enable by domain with the [[DomainModel.addAdapter]] method.
@@ -44,32 +46,40 @@ module Hyperstore
          * @param domain - domain to persist
          * @returns {Hyperstore.Promise} - the promise returns the current adapter
          */
-        initAsync(domain:DomainModel): Promise
+        initAsync(domain:DomainModel):Promise
         {
             var promise = new Promise();
 
             this.domain = domain;
-            this._cookie = domain.store.onSessionCompleted((s:Session) =>
-            {
-                var storeId = this.domain.store.storeId;
-                var originId = s.originStoreId;
-                if (s.aborted  || s.result.hasErrorsOrWarnings || !s.events || (originId && originId !== storeId) || (s.mode & SessionMode.Loading) === SessionMode.Loading)
+            this._cookie = domain.store.onSessionCompleted(
+                (s:Session) =>
                 {
-                    return;
+                    var storeId = this.domain.store.storeId;
+                    var originId = s.originStoreId;
+                    if (s.aborted || s.result.hasErrorsOrWarnings || !s.events || (
+                        originId && originId !== storeId) || (
+                        s.mode & SessionMode.Loading) === SessionMode.Loading)
+                    {
+                        return;
+                    }
+
+                    var elements = Utils.select(
+                        s.trackingData.involvedTrackedElements,
+                        (e:ITrackedElement) => (
+                                               e.domain ===
+                                               this.domain.name /*&& e.extension == this.domain.extension*/)
+                            ? e
+                            : undefined
+                    );
+
+                    if (elements.length === 0)
+                    {
+                        return;
+                    }
+
+                    this.persistElements(s, elements);
                 }
-
-                var elements = Utils.select(s.trackingData.involvedTrackedElements,
-                               (e:ITrackedElement) => (e.domain === this.domain.name /*&& e.extension == this.domain.extension*/)
-                                ? e
-                                : undefined);
-
-                if (elements.length ===0)
-                {
-                    return;
-                }
-
-                this.persistElements(s, elements);
-            });
+            );
 
             promise.resolve(this);
             return promise;
@@ -99,7 +109,7 @@ module Hyperstore
          * @param filter - a function callback allowing to filter element before loading it in the domain.
          * @returns a promise with no special value.
          */
-        loadElementsAsync(filter?:(id, schemaId) => boolean): Promise
+        loadElementsAsync(filter?:(id, schemaId) => boolean):Promise
         {
             return undefined;
         }

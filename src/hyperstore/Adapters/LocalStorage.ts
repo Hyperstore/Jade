@@ -14,9 +14,10 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-/// <reference path="Adapters.ts" />
+/// <reference path="../_references.ts" />
 module Hyperstore
 {
+
     /**
      * A local storage adapter
      */
@@ -62,50 +63,58 @@ module Hyperstore
                 this.clearAsync();
             }
 
-            elements.forEach(function (element:ITrackedElement)
-            {
-                switch (element.state)
+            elements.forEach(
+                function (element:ITrackedElement)
                 {
-                    case TrackingState.Added:
-                        var data:any = {schema: element.schemaId, version: element.version};
-                        if (element.startId)
-                        {
+                    switch (element.state)
+                    {
+                        case TrackingState.Added:
+                            var data:any = {schema: element.schemaId, version: element.version};
+                            if (element.startId)
+                            {
 
-                            data.startId = element.startId;
-                            data.endId = element.endId;
-                            data.endSchemaId = element.endSchemaId;
-                        }
-                        ;
-                        localStorage.setItem(LocalStorageAdapter.PREFIX + element.id, JSON.stringify(data));
+                                data.startId = element.startId;
+                                data.endId = element.endId;
+                                data.endSchemaId = element.endSchemaId;
+                            }
+                            ;
+                            localStorage.setItem(LocalStorageAdapter.PREFIX + element.id, JSON.stringify(data));
 
-                    case TrackingState.Updated:
-                        if (element.properties)
-                        {
+                        case TrackingState.Updated:
+                            if (element.properties)
+                            {
+                                var schemaElement = self.domain.store.getSchemaElement(element.schemaId);
+
+                                element.properties.forEach(
+                                    function (pv, pn)
+                                    {
+                                        if (pv && pv.value)
+                                        {
+                                            var ps = schemaElement.getProperty(pn, true);
+                                            var data:any = {va: ps.serialize(pv.value), ve: pv.version};
+                                            localStorage.setItem(
+                                                LocalStorageAdapter.PREFIX + element.id + pn, JSON.stringify(data)
+                                            );
+                                        }
+                                    }
+                                );
+                            }
+                            break;
+
+                        case TrackingState.Removed:
+                            localStorage.removeItem(LocalStorageAdapter.PREFIX + element.id);
                             var schemaElement = self.domain.store.getSchemaElement(element.schemaId);
 
-                            element.properties.forEach(function (pv, pn)
-                            {
-                                if (pv && pv.value)
+                            Utils.forEach(
+                                schemaElement.getProperties(true), function (p:SchemaProperty)
                                 {
-                                    var ps = schemaElement.getProperty(pn, true);
-                                    var data:any = {va: ps.serialize(pv.value), ve: pv.version};
-                                    localStorage.setItem(LocalStorageAdapter.PREFIX + element.id + pn, JSON.stringify(data));
+                                    localStorage.removeItem(LocalStorageAdapter.PREFIX + element.id + p.name);
                                 }
-                            });
-                        }
-                        break;
-
-                    case TrackingState.Removed:
-                        localStorage.removeItem(LocalStorageAdapter.PREFIX + element.id);
-                        var schemaElement = self.domain.store.getSchemaElement(element.schemaId);
-
-                        Utils.forEach(schemaElement.getProperties(true), function (p:SchemaProperty)
-                        {
-                            localStorage.removeItem(LocalStorageAdapter.PREFIX + element.id + p.name);
-                        });
-                        break;
+                            );
+                            break;
+                    }
                 }
-            });
+            );
         }
 
         /**
@@ -190,16 +199,18 @@ module Hyperstore
         {
             var self = this;
             var ctx = new SerializationContext(self.domain, id);
-            schema.getProperties(true).forEach( function (p:SchemaProperty)
-            {
-                var data = localStorage.getItem(id + p.name);
-                if (data)
+            schema.getProperties(true).forEach(
+                function (p:SchemaProperty)
                 {
-                    data = JSON.parse(data);
-                    ctx.value = data.va;
-                    self.domain.setPropertyValue(id, p, p.deserialize(ctx), data.ve);
+                    var data = localStorage.getItem(id + p.name);
+                    if (data)
+                    {
+                        data = JSON.parse(data);
+                        ctx.value = data.va;
+                        self.domain.setPropertyValue(id, p, p.deserialize(ctx), data.ve);
+                    }
                 }
-            });
+            );
         }
     }
 }
