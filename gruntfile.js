@@ -5,6 +5,42 @@
 // Preprocess fichiers et copies ds built/src
 
 module.exports = function (grunt) {
+    var sources = [
+        "src/hyperstore/Schema/schema.ts" ,
+        "src/hyperstore/Schema/SchemaInfo.ts" ,
+        "src/hyperstore/Schema/SchemaElement.ts" ,
+        "src/hyperstore/Schema/SchemaEntity.ts" ,
+        "src/hyperstore/Schema/SchemaProperty.ts" ,
+        "src/hyperstore/Schema/SchemaRelationship.ts" ,
+        "src/hyperstore/Schema/SchemaValueObject.ts" ,
+        "src/hyperstore/Util/Promise.ts" ,
+        "src/hyperstore/Util/Utils.ts" ,
+        "src/hyperstore/Session/Session.ts" ,
+        "src/hyperstore/Session/SessionResult.ts" ,
+        "src/hyperstore/Session/Trackings.ts" ,
+        "src/hyperstore/Events/Events.ts" ,
+        "src/hyperstore/Events/Dispatcher.ts" ,
+        "src/hyperstore/Events/EventDispatcher.ts" ,
+        "src/hyperstore/Events/EventManager.ts" ,
+        "src/hyperstore/Domains/PropertyValue.ts" ,
+        "src/hyperstore/Domains/Store.ts" ,
+        "src/hyperstore/Domains/DomainModel.ts" ,
+        "src/hyperstore/Domains/ModelElement.ts" ,
+        "src/hyperstore/Domains/ModelElementCollection.ts" ,
+        "src/hyperstore/Constraints/Constraints.ts" ,
+        "src/hyperstore/Constraints/ConstraintContext.ts" ,
+        "src/hyperstore/Constraints/ConstraintManager.ts" ,
+        "src/hyperstore/Constraints/DiagnosticMessage.ts" ,
+        "src/hyperstore/Bus/Message.ts" ,
+        "src/hyperstore/Bus/EventBus.ts" ,
+        "src/hyperstore/Bus/AbstractChannel.ts" ,
+        "src/hyperstore/Adapters/Adapters.ts" ,
+        "src/hyperstore/Adapters/IndexedDb.ts" ,
+        "src/hyperstore/Adapters/LocalStorage.ts" ,
+        "src/hyperstore/Bus/SignalRChannel.ts" ,
+        "src/hyperstore/undomanager.ts"
+    ];
+
     grunt.initConfig({
         pkg: grunt.file.readJSON('package.json'),
 
@@ -29,41 +65,7 @@ module.exports = function (grunt) {
                 }
             },
             all : {
-                src:[
-                    "src/hyperstore/Schema/Schema.ts" ,
-                    "src/hyperstore/Schema/SchemaInfo.ts" ,
-                    "src/hyperstore/Schema/SchemaElement.ts" ,
-                    "src/hyperstore/Schema/SchemaEntity.ts" ,
-                    "src/hyperstore/Schema/SchemaProperty.ts" ,
-                    "src/hyperstore/Schema/SchemaRelationship.ts" ,
-                    "src/hyperstore/Schema/SchemaValueObject.ts" ,
-                    "src/hyperstore/Util/Promise.ts" ,
-                    "src/hyperstore/Util/Utils.ts" ,
-                    "src/hyperstore/Session/Session.ts" ,
-                    "src/hyperstore/Session/SessionResult.ts" ,
-                    "src/hyperstore/Session/Trackings.ts" ,
-                    "src/hyperstore/Events/Events.ts" ,
-                    "src/hyperstore/Events/Dispatcher.ts" ,
-                    "src/hyperstore/Events/EventDispatcher.ts" ,
-                    "src/hyperstore/Events/EventManager.ts" ,
-                    "src/hyperstore/Domains/PropertyValue.ts" ,
-                    "src/hyperstore/Domains/Store.ts" ,
-                    "src/hyperstore/Domains/DomainModel.ts" ,
-                    "src/hyperstore/Domains/ModelElement.ts" ,
-                    "src/hyperstore/Domains/ModelElementCollection.ts" ,
-                    "src/hyperstore/Constraints/Constraints.ts" ,
-                    "src/hyperstore/Constraints/ConstraintContext.ts" ,
-                    "src/hyperstore/Constraints/ConstraintManager.ts" ,
-                    "src/hyperstore/Constraints/DiagnosticMessage.ts" ,
-                    "src/hyperstore/Bus/Message.ts" ,
-                    "src/hyperstore/Bus/EventBus.ts" ,
-                    "src/hyperstore/Bus/AbstractChannel.ts" ,
-                    "src/hyperstore/Adapters/Adapters.ts" ,
-                    "src/hyperstore/Adapters/IndexedDb.ts" ,
-                    "src/hyperstore/Adapters/LocalStorage.ts" ,
-                    "src/hyperstore/Bus/SignalRChannel.ts" ,
-                    "src/hyperstore/undomanager.ts"
-                ],
+                src: sources,
                 dest:".built/src/<%= pkg.name %>.ts"
             }
         },
@@ -78,7 +80,7 @@ module.exports = function (grunt) {
                 errorReporting:true,
                 keepRunner:true,
                 //vendor: '<%= jasmine.all.options.vendor %>',
-                specs:'.built/specs/*.js',
+                specs:'.built/specs/*.js'/*,
                 template: require('grunt-template-jasmine-istanbul'),
                 templateOptions: {
                     coverage: '.built/coverage/json/coverage.json',
@@ -86,7 +88,7 @@ module.exports = function (grunt) {
                         {type: 'html', options: {dir: '.built/coverage/html'}},
                         {type: 'text-summary'}
                     ]
-                }
+                }*/
             }
         },
 
@@ -120,7 +122,7 @@ module.exports = function (grunt) {
             },
 
             dcl : {
-                src: "src/hyperstore/**/*.ts",
+                src: sources,
                 out: ".built/src/hyperstore.js",
                 options : {
                     declaration:true,

@@ -424,7 +424,7 @@ module Hyperstore
             if (!m)
                 throw "Invalid reference format. Must be [1|*]xx[1|*] with xx = ->, =>, <- or <= .";
 
-            var op = m[2] == "<";
+            var op = m[2] === "<";
             var src = m[op ? 4 : 1];
             var end = m[op ? 1 : 4];
             var type = DslParser.cardinalities[src + end];

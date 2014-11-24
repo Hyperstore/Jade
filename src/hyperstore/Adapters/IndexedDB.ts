@@ -179,7 +179,6 @@ module Hyperstore
                     var data = cursor.value;
                     if (data.schema)
                     {
-
                         if (!filter || filter(data.id, data.schema))
                         {
                             data.id = cursor.key;

@@ -42,7 +42,7 @@ export class ModelElement
         this.disposed = true;
         for (var p in this)
         {
-            if (p.substr(0, 5) === "__ref")
+            if (this.hasOwnProperty(p) && p.substr(0, 5) === "__ref")
             {
                 var prop = this[p];
                 if (prop && prop.dispose)
