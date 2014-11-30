@@ -310,6 +310,7 @@ export class Store
                 new Primitive(schema, "string");
                 new Primitive(schema, "number");
                 new Primitive(schema, "bool");
+                new Primitive(schema, "[]");
             }
         };
     }

@@ -64,6 +64,10 @@ export class ModelElement
         {
             throw "Can not use a disposed element";
         }
+        if(typeof(property) === "string")
+            property = this.schemaElement.getProperty(<any>property, true);
+        if( !property)
+            return undefined;
         var pv = this.domain.getPropertyValue(this.id, property);
         if (!pv)
         {
@@ -84,6 +88,8 @@ export class ModelElement
         {
             throw "Can not use a disposed element";
         }
+        if(typeof(property) === "string")
+            property = this.schemaElement.getProperty(<any>property, true);
 
         return this.domain.setPropertyValue(this.id, property, value);
     }

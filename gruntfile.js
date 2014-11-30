@@ -38,7 +38,8 @@ module.exports = function (grunt) {
         "src/hyperstore/Adapters/IndexedDb.ts" ,
         "src/hyperstore/Adapters/LocalStorage.ts" ,
         "src/hyperstore/Bus/SignalRChannel.ts" ,
-        "src/hyperstore/undomanager.ts"
+        "src/hyperstore/undomanager.ts",
+        "src/hyperstore/Domains/Query.ts"
     ];
 
     grunt.initConfig({
@@ -48,7 +49,7 @@ module.exports = function (grunt) {
         clean: {
             options: { force: true },
             all: {
-                src: ['.built/']
+                src: ['.built/', 'lib']
             }
         },
 
@@ -153,7 +154,7 @@ module.exports = function (grunt) {
             // Commonjs module compilation from the concatenated ts file
             commonjs: {
                 src: ['.built/src/<%= pkg.name %>.ts'],
-                outDir : '.built/commonjs/',
+                outDir : 'lib',
                 options: {
                     module : "commonjs"
                 }

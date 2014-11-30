@@ -135,12 +135,6 @@ module Hyperstore
             this.constraints = new ConstraintsManager(this);
             if (def)
             {
-                for (var p in def)
-                {
-                    if (def.hasOwnProperty(p) && p[0] == "$")
-                        delete def[p]; // remove all "$" properties
-                }
-
                 if (def.defineSchema)
                 {
                     def.defineSchema(this);
@@ -150,6 +144,11 @@ module Hyperstore
                 {
                     var parser = new DslParser(this, def);
                     parser.parse(def);
+                }
+                for (var p in def)
+                {
+                    if (def.hasOwnProperty(p) && p[0] === "$")
+                        delete def[p]; // remove all "$" properties
                 }
             }
         }
@@ -203,7 +202,9 @@ module Hyperstore
             this.def[name + "Schema"] = entity;
             for (var prop in o)
             {
-                if (prop[0] == "$")
+                if( !o.hasOwnProperty(prop))
+                    continue;
+                if (prop[0] === "$")
                 {
                     if (prop === "$constraints")
                         this.parseConstraints(o.$constraints, c=> entity.addConstraint(c.message, c.condition, c.error, c.kind));
@@ -213,26 +214,59 @@ module Hyperstore
             }
         }
 
+        private parsePropertyType(text:string) {
+
+            var t = <any>typeof(text);
+            // specified type
+            // ex : "number" (primitive or valueObject)
+            //      "Book" One to one reference
+            //      "range(min:1, max:2)"
+            if (t === "string" && text.length > 0)
+            {
+                var re = /(.*)\((.*)\)/;
+                var r = re.exec(text);
+                if (r !== null)
+                {
+                    var t2 = this.schema.store.getSchemaInfo(r[1]);
+                    if (t2.kind !== SchemaKind.ValueObject)
+                        throw "Type initializer can ony be used with valueObject. Incorrect type " + t;
+                    var vo = Object.create(t2);
+                    if( r.length === 3 && r[2])
+                    {
+                        // min:1, max:2 => {"min":1, "max":2}
+                        re = /["']?(\w*)["']?\s*:\s*([^,]*)/g;
+                        var init = JSON.parse('{' + r[2].replace(re, '"$1": $2') + '}');
+                        this.extends(vo, init);
+                    }
+
+                    return vo;
+                }
+                t = text;
+            }
+
+            return this.schema.store.getSchemaInfo(t);
+        }
+
         private parseProperty(name:string, o, entity:SchemaElement)
         {
-            var t = <any>typeof(
-                o);
+            var t = <any>typeof(o);
             if (t === "object")
             {
                 // primitive or default value
                 // ex : { $type: "string", $default? : "xxx", $constraints? : {} }
                 if (o.$type)
                 {
-                    t = this.schema.store.getSchemaInfo(o.$type);
+                    t = this.parsePropertyType(o.$type);
+                    if( !t )
+                        throw "Unknown type " + o.$type;
+
                     if (t.kind !== SchemaKind.ValueObject && t.kind !== SchemaKind.Primitive)
                     {
                         throw "Invalid type '" + o + "' Only value object or primitive is allowed for property " +
                         name + ". Use reference instead.";
                     }
                     var p = entity.defineProperty(name, t, o.$default);
-                    this.parseConstraints(
-                        o.$constraints, c => p.addConstraint(c.message, c.condition, c.error, c.kind)
-                    );
+                    this.parseConstraints(o.$constraints, c => p.addConstraint(c.message, c.condition, c.error, c.kind));
                 }
                 else
                 {
@@ -273,6 +307,8 @@ module Hyperstore
                     var cx = 0;
                     for (var key in o)
                     {
+                        if( !o.hasOwnProperty(key))
+                            continue;
                         cx++;
                         if (cx > 1)
                             throw "Invalid reference definition. Object must contain only one field. ex: { Book : '1=>*'} ";
@@ -296,28 +332,24 @@ module Hyperstore
             }
             else
             {
-                // specified type
-                // ex : "number" (primitive or valueObject)
-                //      "Book" One to one reference
-                if (t === "string" && o.length > 0)
+                t = this.parsePropertyType(o);
+                if( !t )
+                    throw "Unknown type " + o;
+
+                if (t.kind !== SchemaKind.ValueObject && t.kind !== SchemaKind.Primitive)
                 {
-                    t = this.schema.store.getSchemaInfo(o);
-                    if (t.kind !== SchemaKind.ValueObject && t.kind !== SchemaKind.Primitive)
-                    {
-                        // OneToOne
-                        this.pendings.push(
-                            {
-                                src     : entity.id,
-                                end     : t.id,
-                                property: name,
-                                type    : "1->1"
-                            }
-                        );
-                        return;
-                    }
-                    o = undefined;
+                    // OneToOne
+                    this.pendings.push(
+                        {
+                            src     : entity.id,
+                            end     : t.id,
+                            property: name,
+                            type    : "1->1"
+                        }
+                    );
+                    return;
                 }
-                entity.defineProperty(name, t, o);
+                entity.defineProperty(name, t, undefined);
             }
         }
 
@@ -329,6 +361,8 @@ module Hyperstore
             var def = constraints.$default || {kind: "check", error: false};
             for (var msg in constraints)
             {
+                if( !constraints.hasOwnProperty(msg))
+                    continue;
                 var c = constraints[msg];
                 var ct =  {
                     message  : msg,
@@ -404,7 +438,7 @@ module Hyperstore
 
             for (var prop in def.obj)
             {
-                if (prop[0] == "$")
+                if (!def.obj.hasOwnProperty(prop) || prop[0] === "$")
                     continue;
                 this.parseProperty(prop, def.obj[prop], rel);
             }
@@ -441,12 +475,20 @@ module Hyperstore
             if(!values)
                 return;
             for(var name in values) {
+                if( !values.hasOwnProperty(name))
+                    continue;
                 var val = values[name];
                 var valueObject = new SchemaValueObject(this.schema, name);
-                for(var p in val) {
-                    if( val.hasOwnProperty(p) && p[0] !== "$")
-                        val[p] = val[p];
-                }
+                this.extends(valueObject, val);
+            }
+        }
+
+        private extends(v, o) {
+            if(!o)
+                return;
+            for(var p in o) {
+                if( o.hasOwnProperty(p) && p[0] !== "$")
+                    v[p] = o[p];
             }
         }
     }

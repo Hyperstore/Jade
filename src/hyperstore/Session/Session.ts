@@ -140,9 +140,7 @@ module Hyperstore
 
             this.result.aborted = this.aborted;
 
-            if (!this.aborted && (
-                this.mode & (
-                SessionMode.Loading | SessionMode.UndoOrRedo)) === 0)
+            if (!this.aborted && (this.mode & (SessionMode.Loading | SessionMode.UndoOrRedo)) === 0)
             {
                 var elements = this.trackingData.__prepareTrackedElements(this.store);
                 this.result.involvedElements = elements;
@@ -159,14 +157,9 @@ module Hyperstore
                 this.mode = this.mode | SessionMode.Rollback;
                 var d = this.store.eventBus.defaultEventDispatcher;
                 this.events.reverse().forEach(
-                        e =>
-                    {
-                        if ((
-                                <any>e).getReverseEvent)
-                            d.handleEvent(
-                                (
-                                    <any>e).getReverseEvent()
-                            )
+                    e => {
+                        if ((<any>e).getReverseEvent)
+                            d.handleEvent((<any>e).getReverseEvent())
                     }
                 );
             }
@@ -175,11 +168,11 @@ module Hyperstore
 
             var self = this;
             if (!this.aborted && !this.result.hasErrorsOrWarnings)
-                this.store.domains.forEach(
-                        d=> (
-                        <DomainModel>d).events.__notifySessionCompleted(self)
-                );
+                this.store.domains.forEach(d=> (<DomainModel>d).events.__notifySessionCompleted(self));
             this.store.__sendSessionCompletedEvent(self);
+
+            if( this.result.hasErrors && !(this.mode & SessionMode.SilentMode))
+                throw {message: "Session failed", result:this.result};
 
             return this.result;
         }

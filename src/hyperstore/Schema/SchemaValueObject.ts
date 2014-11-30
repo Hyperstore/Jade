@@ -24,18 +24,19 @@ module Hyperstore
     export class SchemaValueObject extends SchemaInfo
     {
         /**
-         * create a new instance
+         *
          * @param schema
          * @param id
          * @param validate
-         * @param checkConstraint
+         * @param message
+         * @param kind
          */
-        constructor(schema:Schema, id:string, validate?:(newValue, oldValue, ctx:ConstraintContext) => void, checkConstraint:boolean = true)
+        constructor(schema:Schema, id:string, validate?:(newValue, oldValue, ctx:ConstraintContext) => boolean, public message?:string, kind:ConstraintKind = ConstraintKind.Check)
         {
             super(schema, SchemaKind.ValueObject, id);
             if (validate)
             {
-                if (checkConstraint)
+                if (kind === ConstraintKind.Check)
                 {
                     this["check"] = validate;
                 }
@@ -60,9 +61,9 @@ module Hyperstore
          * @param validate
          * @param checkConstraint
          */
-        constructor(schema:Schema, id:string, validate?:(newValue, oldValue, ctx:ConstraintContext) => void, checkConstraint:boolean = true)
+        constructor(schema:Schema, id:string, validate?:(newValue, oldValue, ctx:ConstraintContext) => boolean, message?:string, checkConstraint:boolean = true)
         {
-            super(schema, id, validate, checkConstraint);
+            super(schema, id, validate, message, checkConstraint ? ConstraintKind.Check : ConstraintKind.Validate);
             this.kind = SchemaKind.Primitive;
         }
     }

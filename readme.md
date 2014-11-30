@@ -1,4 +1,6 @@
 
-# Hyperstore for Javascript
+## Hyperstore for Javascript
 
-This is the Javascript version of *Hyperstore*.
+This is the Javascript version of **Hyperstore**.
+
+See [hyperstore web site](http://www.hyperstore.org) for more details.

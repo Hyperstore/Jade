@@ -1,0 +1,10 @@
+node_modules/
+.*
+npm-debug.log
+src
+T4
+Scripts
+gruntfile.js
+packages.config
+tests
+bower.json

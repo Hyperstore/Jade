@@ -49,8 +49,7 @@ module Hyperstore
      */
     export enum ConstraintKind {
         Check,
-        Validate,
-        Info
+        Validate
     }
 
     /**

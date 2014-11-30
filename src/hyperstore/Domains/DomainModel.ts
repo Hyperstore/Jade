@@ -140,27 +140,32 @@ export class DomainModel
             return;
         }
 
-        if (def.entities || def.relationships)
-        {
-            this.loadFromHyperstoreJson(def);
-            return;
-        }
+            if (def.entities || def.relationships)
+            {
+                this.store.runInSession( () => this.loadFromHyperstoreJson(def));
+                return;
+            }
 
-        if (!rootSchema)
-        {
-            throw "rootSchema is required";
-        }
-        var refs = {};
-        if (Utils.isArray(def))
-        {
-            var list = [];
-            Utils.forEach(def, e => list.push(this.parseJson(e, rootSchema, refs)));
-            return list;
-        }
-        else
-        {
-            return [this.parseJson(def, rootSchema, refs)];
-        }
+            if (!rootSchema)
+            {
+                throw "rootSchema is required";
+            }
+            var refs = {};
+            if (Utils.isArray(def))
+            {
+                var list = [];
+                this.store.runInSession(() =>
+                {
+                    Utils.forEach(def, e => list.push(this.parseJson(e, rootSchema, refs)));
+                });
+                return list;
+            }
+            else
+            {
+                var r;
+                this.store.runInSession(() => r = [this.parseJson(def, rootSchema, refs)]);
+                return r;
+            }
     }
 
     private parseJson(obj:any, schema:SchemaElement, refs):ModelElement
@@ -168,6 +173,8 @@ export class DomainModel
         var mel = this.createEntity(schema);
         for (var member in obj)
         {
+            if(!obj.hasOwnProperty(member))
+                continue;
             var val = obj[member];
             var prop = mel.schemaElement.getProperty(member, true);
             if (prop)
@@ -445,10 +452,9 @@ export class DomainModel
                 return undefined;
             }
             return new PropertyValue(
-                typeof(
-                    def) === "function"
-                    ? def()
-                    : def, undefined, 0
+                typeof(def) === "function" ? def() : def,
+                undefined,
+                0
             );
         }
 
@@ -926,6 +932,8 @@ export class DomainModel
             var list = [];
             for (var key in this.nodes)
             {
+                if(!this.nodes.hasOwnProperty(key))
+                    continue;
                 var node = this.nodes[key];
                 if ((
                     node.kind & kind) !== 0 && (

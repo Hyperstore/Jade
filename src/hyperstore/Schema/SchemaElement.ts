@@ -73,7 +73,7 @@ export class SchemaElement extends SchemaInfo
     // -------------------------------------------------------------------------------------
     //
     // -------------------------------------------------------------------------------------
-    getReference(name:string, recursive:boolean):IReference
+    getReference(name:string, recursive:boolean=true):IReference
     {
         var p = this._references[name];
         if (p)
@@ -92,7 +92,7 @@ export class SchemaElement extends SchemaInfo
     // -------------------------------------------------------------------------------------
     //
     // -------------------------------------------------------------------------------------
-    getProperty(name:string, recursive:boolean):SchemaProperty
+    getProperty(name:string, recursive:boolean=true):SchemaProperty
     {
         var p = this._properties[name];
         if (p)
@@ -114,8 +114,8 @@ export class SchemaElement extends SchemaInfo
     __defineReferenceProperty(schemaRelationship:SchemaRelationship, opposite:boolean)
     {
         var name = opposite
-            ? schemaRelationship.endProperty
-            : schemaRelationship.startProperty;
+                    ? schemaRelationship.endProperty
+                    : schemaRelationship.startProperty;
 
         if (this._references[name])
         {
@@ -130,10 +130,8 @@ export class SchemaElement extends SchemaInfo
             // !opposite & (1..*|*.*)
             // opposite & (*.*| *..1)
             isCollection      : c === Cardinality.ManyToMany ||
-            (
-            !opposite && c === Cardinality.OneToMany) ||
-            (
-            opposite && c === Cardinality.ManyToOne)
+                                (!opposite && c === Cardinality.OneToMany) ||
+                                (opposite && c === Cardinality.ManyToOne)
         };
 
         this._references[name] = info;
@@ -173,8 +171,7 @@ export class SchemaElement extends SchemaInfo
             throw "Duplicate property name " + name;
         }
 
-        if (typeof (
-                desc.schemaProperty) === "string")
+        if (typeof (desc.schemaProperty) === "string")
         {
             desc.schemaProperty = this.schema.store.getSchemaInfo(desc.schemaProperty);
         }

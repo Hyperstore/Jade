@@ -48,21 +48,38 @@ module Hyperstore
             property:SchemaProperty, condition?:(value, oldValue, ctx:ConstraintContext) => boolean,
             message?:string, asError:boolean = false, kind:ConstraintKind = ConstraintKind.Check)
         {
+            var def = {condition:condition, message:message, error:asError, kind:kind};
             var fn = condition;
             if (!fn && property.schemaProperty)
             {
+                var tmp;
                 if ((<any>property.schemaProperty).check)
                 {
-                    fn = (<any>property.schemaProperty).check;
-                    kind = ConstraintKind.Check;
+                    tmp = (<any>property.schemaProperty).check;
+                    def.kind = ConstraintKind.Check;
                 }
                 else if ((<any>property.schemaProperty).validate)
                 {
-                    fn = (<any>property.schemaProperty).validate;
-                    kind = ConstraintKind.Validate;
+                    tmp = (<any>property.schemaProperty).validate;
+                    def.kind = ConstraintKind.Validate;
+                }
+
+                if(tmp) {
+                    if( tmp.condition)
+                    {
+                        def.condition = tmp.condition;
+                        def.condition = def.condition.bind(property.schemaProperty);
+                        def.message = def.message || tmp.message;
+                        def.error = def.error || tmp.error;
+                    }
+                    else if( typeof(tmp) == "function") {
+                        def.condition = tmp;
+                        def.condition = def.condition.bind(property.schemaProperty);
+                    }
                 }
             }
-            if (!fn)
+
+            if (!def.condition)
             {
                 return;
             }
@@ -70,7 +87,7 @@ module Hyperstore
             this.addConstraint( property.owner,
                 {
                     propertyName     : property.name,
-                    messageType      : asError ? MessageType.Error : MessageType.Warning,
+                    messageType      : def.error ? MessageType.Error : MessageType.Warning,
                     verify: function (self, ctx)
                     {
                         var pv = ctx.element.domain.getPropertyValue(self.id, property);
@@ -82,17 +99,17 @@ module Hyperstore
                         ctx.propertyName = property.name;
                         try
                         {
-                            result = fn(pv.value, pv.oldValue, ctx);
+                            result = def.condition(pv.value, pv.oldValue, ctx);
                         }
                         catch (e)
                         {
-                            ctx.log(e, asError ? MessageType.Error : MessageType.Warning);
+                            ctx.log(e, def.error ? MessageType.Error : MessageType.Warning);
                         }
                         ctx.propertyName = undefined;
                         return result;
                     },
-                    message          : message,
-                    kind             : kind
+                    message          : def.message || "Constraint failed for element {id} {propertyName}",
+                    kind             : def.kind
                 }
             );
         }
