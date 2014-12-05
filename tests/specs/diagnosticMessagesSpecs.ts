@@ -14,8 +14,8 @@
         it('Checks message formatting with element properties', function () {
             var mel = <any>domain.createEntity(librarySchema, "Test:1");
             mel.Name = 'test';
-            var msg = new Hyperstore.DiagnosticMessage(Hyperstore.MessageType.Error, "Name prop {Name} Id={ id }", mel);
-            expect(msg.message).toEqual('Name prop test Id=Test:1');
+            var msg = Hyperstore.DiagnosticMessage.__format("Name prop {Name} Id={ id }", mel, null);
+            expect(msg).toEqual('Name prop test Id=Test:1');
         });
 
     });

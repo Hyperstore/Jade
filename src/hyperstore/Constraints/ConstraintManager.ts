@@ -48,67 +48,61 @@ module Hyperstore
             property:SchemaProperty, condition?:(value, oldValue, ctx:ConstraintContext) => boolean,
             message?:string, asError:boolean = false, kind:ConstraintKind = ConstraintKind.Check)
         {
-            var def = {condition:condition, message:message, error:asError, kind:kind};
-            var fn = condition;
-            if (!fn && property.schemaProperty)
+            var def = {condition: condition, message: message, error: asError, kind: kind};
+            this.setPropertyConstraint(def, property);
+
+            var schema = <any>property.schemaProperty;
+            while(schema)
             {
-                var tmp;
-                if ((<any>property.schemaProperty).check)
-                {
-                    tmp = (<any>property.schemaProperty).check;
-                    def.kind = ConstraintKind.Check;
-                }
-                else if ((<any>property.schemaProperty).validate)
-                {
-                    tmp = (<any>property.schemaProperty).validate;
-                    def.kind = ConstraintKind.Validate;
-                }
-
-                if(tmp) {
-                    if( tmp.condition)
-                    {
-                        def.condition = tmp.condition;
-                        def.condition = def.condition.bind(property.schemaProperty);
-                        def.message = def.message || tmp.message;
-                        def.error = def.error || tmp.error;
-                    }
-                    else if( typeof(tmp) == "function") {
-                        def.condition = tmp;
-                        def.condition = def.condition.bind(property.schemaProperty);
-                    }
-                }
+                Utils.forEach(schema.constraints,
+                              c => this.setPropertyConstraint(c, property, schema)
+                );
+                schema = (<any>schema).parent;
             }
+        }
 
+        private setPropertyConstraint(def, property, schema?)
+        {
             if (!def.condition)
             {
                 return;
             }
 
-            this.addConstraint( property.owner,
+            var condition = schema ? def.condition.bind(schema) : def.condition;
+            var message = DiagnosticMessage.__prepareMessage( def.message, schema ) || "Constraint failed for element {id} {propertyName}";
+
+                this.addConstraint( property.owner,
                 {
                     propertyName     : property.name,
-                    messageType      : def.error ? MessageType.Error : MessageType.Warning,
-                    verify: function (self, ctx)
+                    messageType      : def.messageType,
+                    execute : function (self, ctx) : string
                     {
-                        var pv = ctx.element.domain.getPropertyValue(self.id, property);
+                        var pv = <PropertyValue>ctx.element.domain.getPropertyValue(self.id, property);
                         if (!pv)
                         {
-                            return true;
+                            return null;
                         }
-                        var result = false;
+                        var result = <string>null;
                         ctx.propertyName = property.name;
                         try
                         {
-                            result = def.condition(pv.value, pv.oldValue, ctx);
+                            if( !condition(pv.value, pv.oldValue, ctx)) {
+                                result = DiagnosticMessage.__format(
+                                                                  message,
+                                                                  ctx.element,
+                                                                  property.name,
+                                                                  pv.value,
+                                                                  pv.oldValue
+                                );
+                            }
                         }
                         catch (e)
                         {
-                            ctx.log(e, def.error ? MessageType.Error : MessageType.Warning);
+                            ctx.log(e, MessageType.Error );
                         }
                         ctx.propertyName = undefined;
                         return result;
                     },
-                    message          : def.message || "Constraint failed for element {id} {propertyName}",
                     kind             : def.kind
                 }
             );
@@ -119,13 +113,39 @@ module Hyperstore
          * @param schemaElement - schema of the element to validate
          * @param a [[IConstraint]] definition
          */
-        addConstraint(schemaElement:SchemaElement, constraint:IConstraint)
+        addConstraint(schemaElement:SchemaElement, constraint)
         {
             var constraints = this._constraints[schemaElement.id];
             if (!constraints)
             {
                 constraints = [];
                 this._constraints[schemaElement.id] = constraints;
+            }
+
+            if(!constraint.execute)
+            {
+                var message = constraint.message || "Constraint failed for element {id}";
+                constraint.execute = function (self, ctx)
+                {
+                    var result = <string>null;
+                    ctx.propertyName = null;
+                    try
+                    {
+                        if (!constraint.condition(self, ctx))
+                        {
+                            result = DiagnosticMessage.__format(
+                                message,
+                                ctx.element,
+                                constraint.propertyName
+                            );
+                        }
+                    }
+                    catch (e)
+                    {
+                        ctx.log(e, MessageType.Error );
+                    }
+                    return result;
+                };
             }
             constraints.push(constraint);
         }
@@ -164,14 +184,7 @@ module Hyperstore
                 try
                 {
                     ctx.element = mel;
-                    if (kind === ConstraintKind.Check)
-                    {
-                        this.checkElement(ctx, mel.schemaElement);
-                    }
-                    else
-                    {
-                        this.validateElement(ctx, mel.schemaElement);
-                    }
+                    this.checkCondition(ctx, mel.schemaElement);
                 }
                 catch (e)
                 {
@@ -182,7 +195,7 @@ module Hyperstore
             return ctx.messages;
         }
 
-        private checkElement(ctx:ConstraintContext, schemaElement:SchemaElement)
+        private checkCondition(ctx:ConstraintContext, schemaElement:SchemaElement)
         {
             var constraints = this._constraints[schemaElement.id];
             if (constraints)
@@ -190,11 +203,12 @@ module Hyperstore
                 for (var key in constraints)
                 {
                     var constraint = constraints[key];
-                    if (constraint.kind === ConstraintKind.Check)
+                    if (constraint.kind === ctx.kind)
                     {
-                        if (!constraint.verify(ctx.element, ctx))
+                        var msg = constraint.execute(ctx.element, ctx);
+                        if(msg)
                         {
-                            ctx.log(constraint.message, constraint.messageType, constraint.propertyName);
+                            ctx.log(msg, constraint.messageType, constraint.propertyName);
                         }
                     }
                 }
@@ -203,27 +217,7 @@ module Hyperstore
             var parentSchema = schemaElement.baseElement;
             if (parentSchema && parentSchema.kind !== SchemaKind.Primitive)
             {
-                this.checkElement(ctx, parentSchema);
-            }
-        }
-
-        private validateElement(ctx:ConstraintContext, schemaElement:SchemaElement)
-        {
-            var constraints = this._constraints[schemaElement.id];
-            if (constraints)
-            {
-                for (var constraint in constraints)
-                {
-                    if (!constraint.verify(ctx.element, ctx))
-                    {
-                        ctx.log(constraint.message, constraint.messageType, constraint.propertyName);
-                    }
-                }
-            }
-            var parentSchema = schemaElement.baseElement;
-            if (parentSchema && parentSchema.kind !== SchemaKind.Primitive)
-            {
-                this.validateElement(ctx, parentSchema);
+                this.checkCondition(ctx, parentSchema);
             }
         }
     }

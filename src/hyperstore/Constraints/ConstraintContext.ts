@@ -19,7 +19,7 @@ module Hyperstore
 {
 
     /**
-     * A constraint context is used to log a new diagnostic message.
+     * A constraint context is used to log diagnostic messages.
      */
     export class ConstraintContext
     {

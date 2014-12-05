@@ -161,14 +161,22 @@ module Hyperstore
 
     class DslParser
     {
-        constructor(private schema:Schema, private def) {}
+        constructor(private schema:Schema, private def, private dslSet={}) {}
 
-        private pendings:any[];
+        private pendings : any[];
 
         parse(dsl)
         {
             if (!dsl)
                 return;
+
+            var uri;
+            if( dsl.$import && dsl.$import.$uri && !this.dslSet[dsl.$import.$uri]) {
+                uri = dsl.$import.$uri;
+                this.dslSet[dsl.$import.$uri] = true;
+                var p = new DslParser(this.schema, this.def, this.dslSet);
+                p.parse(dsl.$import);
+            }
 
             this.pendings = [];
             // must be process first
@@ -187,6 +195,10 @@ module Hyperstore
             }
 
             this.pendings.forEach(p=>this.createRelationship(p));
+
+            if(uri) {
+
+            }
         }
 
         private parseEntity(o, name:string)
@@ -207,7 +219,9 @@ module Hyperstore
                 if (prop[0] === "$")
                 {
                     if (prop === "$constraints")
-                        this.parseConstraints(o.$constraints, c=> entity.addConstraint(c.message, c.condition, c.error, c.kind));
+                        this.parseConstraints(o.$constraints,
+                                              c=> entity.addConstraint(c.message, c.condition, c.error, c.kind)
+                                              );
                     continue;
                 }
                 this.parseProperty(prop, o[prop], entity);
@@ -266,7 +280,9 @@ module Hyperstore
                         name + ". Use reference instead.";
                     }
                     var p = entity.defineProperty(name, t, o.$default);
-                    this.parseConstraints(o.$constraints, c => p.addConstraint(c.message, c.condition, c.error, c.kind));
+                    this.parseConstraints(o.$constraints,
+                                          c => p.addConstraint(c.message, c.condition, c.error, c.kind)
+                                          );
                 }
                 else
                 {
@@ -359,9 +375,10 @@ module Hyperstore
                 return;
 
             var def = constraints.$default || {kind: "check", error: false};
+            def.kind = def.kind === "check" ? ConstraintKind.Check : ConstraintKind.Validate;
             for (var msg in constraints)
             {
-                if( !constraints.hasOwnProperty(msg))
+                if( !constraints.hasOwnProperty(msg) || msg[0] === '$')
                     continue;
                 var c = constraints[msg];
                 var ct =  {
@@ -479,16 +496,32 @@ module Hyperstore
                     continue;
                 var val = values[name];
                 var valueObject = new SchemaValueObject(this.schema, name);
-                this.extends(valueObject, val);
+                this.extends(valueObject, val, p => {
+                    if(p === "$type") {
+                        var s = this.schema.store.getSchemaInfo(val[p]);
+                        valueObject.parent = s;
+                    }
+                    else if(p==="$constraints") {
+                        this.parseConstraints(val.$constraints,
+                                              c=>valueObject.addConstraint(c.message, c.condition, c.error, c.kind)
+                                              );
+                    }
+                });
             }
         }
 
-        private extends(v, o) {
+        private extends(v, o, callback?) {
             if(!o)
                 return;
             for(var p in o) {
-                if( o.hasOwnProperty(p) && p[0] !== "$")
-                    v[p] = o[p];
+                if( o.hasOwnProperty(p) )
+                {
+                    if(p[0] === "$") {
+                        if(callback) callback( p );
+                    }
+                    else
+                        v[p] = o[p];
+                }
             }
         }
     }

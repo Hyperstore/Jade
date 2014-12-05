@@ -140,7 +140,7 @@ export class SchemaElement extends SchemaInfo
 
         if (!info.isCollection)
         {
-            var desc = {
+            var desc = <any>{
                 configurable: true,
                 enumerable  : true,
                 set         : function (v) { this[refName].setReference(v); },
@@ -307,14 +307,14 @@ export class SchemaElement extends SchemaInfo
      * @param propertyName - if the constraint target a specific property, the propertyName diagnostic message property will be set with this value.
      */
     addConstraint(
-        message:string, constraint:(self:ModelElement, ctx:ConstraintContext) => boolean, asError:boolean = true,
-        kind:ConstraintKind = ConstraintKind.Validate, propertyName?:string)
+        message:string, constraint:(self:ModelElement, ctx:ConstraintContext) => boolean, asError:boolean = false,
+        kind:ConstraintKind = ConstraintKind.Check, propertyName?:string)
     {
         this.schema.constraints.addConstraint(
             this,
             {
                 kind             : kind,
-                verify: constraint,
+                condition        : constraint,
                 message          : message,
                 messageType      : asError
                     ? MessageType.Error

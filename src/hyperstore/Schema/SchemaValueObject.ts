@@ -23,29 +23,39 @@ module Hyperstore
     // -------------------------------------------------------------------------------------
     export class SchemaValueObject extends SchemaInfo
     {
+        constraints : IPropertyConstraint[];
+
         /**
          *
          * @param schema
          * @param id
-         * @param validate
-         * @param message
-         * @param kind
+         * @param parent
          */
-        constructor(schema:Schema, id:string, validate?:(newValue, oldValue, ctx:ConstraintContext) => boolean, public message?:string, kind:ConstraintKind = ConstraintKind.Check)
+        constructor(schema:Schema, id:string, public parent?:SchemaInfo)
         {
             super(schema, SchemaKind.ValueObject, id);
-            if (validate)
-            {
-                if (kind === ConstraintKind.Check)
-                {
-                    this["check"] = validate;
-                }
-                else
-                {
-                    this["validate"] = validate;
-                }
-            }
             schema.__addSchemaElement(this);
+        }
+
+        /**
+         * add a constraint
+         * @param message Error message
+         * @param condition
+         * @param asError
+         * @param kind
+         */
+        addConstraint( message:string, condition:(val:any, old:any, ctx:ConstraintContext) => boolean,
+                       asError:boolean = true, kind:ConstraintKind = ConstraintKind.Validate)
+        {
+            this.constraints = this.constraints || [];
+            this.constraints.push(
+                {
+                    kind             : kind,
+                    condition        : condition,
+                    message          : message,
+                    messageType      : asError ? MessageType.Error : MessageType.Warning
+                }
+            );
         }
     }
 
@@ -55,15 +65,20 @@ module Hyperstore
     export class Primitive extends SchemaValueObject
     {
         /**
-         * @private
+         *
          * @param schema
          * @param id
-         * @param validate
-         * @param checkConstraint
+         * @param message
+         * @param condition
+         * @param asError
+         * @param kind
          */
-        constructor(schema:Schema, id:string, validate?:(newValue, oldValue, ctx:ConstraintContext) => boolean, message?:string, checkConstraint:boolean = true)
+        constructor(schema:Schema, id:string, message?:string, condition?:(val:any, old:any, ctx:ConstraintContext) => boolean,
+                    asError:boolean = true, kind:ConstraintKind = ConstraintKind.Validate)
         {
-            super(schema, id, validate, message, checkConstraint ? ConstraintKind.Check : ConstraintKind.Validate);
+            super(schema, id)
+            if( condition)
+                this.addConstraint(message, condition, asError, kind ? ConstraintKind.Check : ConstraintKind.Validate);
             this.kind = SchemaKind.Primitive;
         }
     }

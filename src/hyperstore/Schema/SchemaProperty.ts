@@ -52,14 +52,15 @@ export class SchemaProperty
     }
 
     /**
-     * Add a property constraint. See [IConstraint]]
+     * Add a property constraint. See [IElementConstraint]]
      * @param message - message if the condition is not true. See [[DiagnosticMessage]] for advanced format behavior.
      * @param condition - condition to validate
      * @param asError - error or warning
-     * @param kind - Specify when the constraint is executed (check = on every change, validate = manually). See [IConstraint]]
+     * @param kind - Specify when the constraint is executed (check = on every change, validate = manually). See [IElementConstraint]]
      * @returns {Hyperstore.SchemaProperty}
      */
-    addConstraint(message:string, condition:(val, old, ctx:ConstraintContext) => boolean, asError:boolean, kind:ConstraintKind = ConstraintKind.Validate):SchemaProperty
+    addConstraint(message:string, condition:(val, old, ctx:ConstraintContext) => boolean, asError:boolean,
+                  kind:ConstraintKind = ConstraintKind.Validate):SchemaProperty
     {
         this.owner.schema.constraints.addPropertyConstraint(this, condition, message, asError, kind);
         return this;

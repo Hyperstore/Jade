@@ -35,17 +35,25 @@ module Hyperstore
      * involved during the session.
      * * validateElement : constraints must be run manually by calling the [[ConstraintsManager.validate]]
      */
-    export interface IConstraint
+    export interface IElementConstraint
     {
-        kind: ConstraintKind
-        verify: (self:ModelElement, ctx:ConstraintContext) => boolean;
+        kind: ConstraintKind;
+        condition: (self:ModelElement, ctx:ConstraintContext) => boolean;
         message: string;
         messageType?: MessageType;
         propertyName?: string;
     }
 
+    export interface IPropertyConstraint
+    {
+        kind: ConstraintKind;
+        condition: (val:any, old:any, ctx:ConstraintContext) => boolean;
+        message: string;
+        messageType?: MessageType;
+    }
+
     /**
-     * Constraint kind. See [[IConstraint]]
+     * Constraint kind. See [[IElementConstraint]]
      */
     export enum ConstraintKind {
         Check,
