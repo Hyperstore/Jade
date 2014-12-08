@@ -195,7 +195,7 @@ module Hyperstore
                         {
                             if (def.seed)
                             {
-                                if (def.seed.always || domain.getElements().length === 0)
+                                if (def.seed.always || !domain.getElements().hasNext())
                                 {
                                     if (typeof(
                                             def.seed.populate) === "function")

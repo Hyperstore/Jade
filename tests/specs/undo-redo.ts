@@ -15,7 +15,7 @@
                     Test : {
                         Library: {
                             Name : "string",
-                            Books: {Book: "1=>*"}
+                            Books: ["Book"]
                         },
                         Book   : {
                             Title: ""

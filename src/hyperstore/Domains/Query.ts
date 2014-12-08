@@ -18,41 +18,9 @@
 
 module Hyperstore {
 
-    interface IIterator {
-        moveNext() : boolean;
-        current() : ModelElement;
-    }
+    export class Query implements ICursor {
 
-    class Iterator implements IIterator {
-        private _list: any[];
-        private _cx:number;
-
-        constructor(obj)
-        {
-            this.setStart(obj);
-        }
-
-        setStart(obj) {
-            if( obj.length)
-                this._list = obj;
-            else
-                this._list = [obj];
-            this._cx = -1;
-        }
-
-        moveNext() : boolean {
-            this._cx++;
-            return this._cx < this._list.length;
-        }
-
-        current() {
-            return this._list[this._cx];
-        }
-    }
-
-    export class Query  {
-
-        private _iterator:IIterator;
+        private _iterator:ICursor;
         private _current: ModelElement;
         private _cx:number;
         private _subQueries : Query[];
@@ -78,22 +46,32 @@ module Hyperstore {
             }
         }
 
-        setStart(obj) {
-            this._iterator = new Iterator(obj);
+        reset() {
+            this._cx = 0;
+            this._state = 0;
+            this._current = undefined;
+            if( this._iterator)
+                this._iterator.reset();
+            this._subQueries.forEach(q=>q.reset());
         }
 
-        moveNext() : boolean {
+        setStart(obj) {
+            this._iterator = Cursor.from(obj);
+            this.reset();
+        }
+
+        hasNext() : boolean {
             while(true)
             {
                 switch (this._state)
                 {
                     case 0:
-                        if(!this._iterator.moveNext())
+                        if(!this._iterator.hasNext())
                         {
                             this._state = 4;
                             break;
                         }
-                        var elem = this._iterator.current();
+                        var elem = this._iterator.next();
                         if( !elem || !this.filter(elem, this._config))
                             break;
                         this._cx++;
@@ -121,12 +99,12 @@ module Hyperstore {
                             this._state = 3;
                         }
                     case 3:
-                        if( !this._subQueries[this._iter].moveNext())
+                        if( !this._subQueries[this._iter].hasNext())
                         {
                             this._state=2;
                         }
                         else {
-                            this._current = this._subQueries[this._iter].current();
+                            this._current = this._subQueries[this._iter].next();
                             return true;
                         }
                         break;
@@ -200,7 +178,7 @@ module Hyperstore {
             return true;
         }
 
-        current() : any {
+        next() : any {
             return this._current;
         }
     }

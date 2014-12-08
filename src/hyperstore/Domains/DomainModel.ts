@@ -140,32 +140,34 @@ export class DomainModel
             return;
         }
 
-            if (def.entities || def.relationships)
-            {
-                this.store.runInSession( () => this.loadFromHyperstoreJson(def));
-                return;
-            }
+        if (def.entities || def.relationships)
+        {
+            this.store.runInSession(() => this.loadFromHyperstoreJson(def));
+            return;
+        }
 
-            if (!rootSchema)
-            {
-                throw "rootSchema is required";
-            }
-            var refs = {};
-            if (Utils.isArray(def))
-            {
-                var list = [];
-                this.store.runInSession(() =>
+        if (!rootSchema)
+        {
+            throw "rootSchema is required";
+        }
+        var refs = {};
+        if (Utils.isArray(def))
+        {
+            var list = [];
+            this.store.runInSession(
+                () =>
                 {
                     Utils.forEach(def, e => list.push(this.parseJson(e, rootSchema, refs)));
-                });
-                return list;
-            }
-            else
-            {
-                var r;
-                this.store.runInSession(() => r = [this.parseJson(def, rootSchema, refs)]);
-                return r;
-            }
+                }
+            );
+            return list;
+        }
+        else
+        {
+            var r;
+            this.store.runInSession(() => r = [this.parseJson(def, rootSchema, refs)]);
+            return r;
+        }
     }
 
     private parseJson(obj:any, schema:SchemaElement, refs):ModelElement
@@ -173,7 +175,7 @@ export class DomainModel
         var mel = this.createEntity(schema);
         for (var member in obj)
         {
-            if(!obj.hasOwnProperty(member))
+            if (!obj.hasOwnProperty(member))
                 continue;
             var val = obj[member];
             var prop = mel.schemaElement.getProperty(member, true);
@@ -230,7 +232,7 @@ export class DomainModel
                         ? mel
                         : elem;
 
-                    if (src.domain.getRelationships(rel.schemaRelationship, src, end).length === 0)
+                    if (!src.domain.getRelationships(rel.schemaRelationship, src, end).hasNext())
                     {
                         src.domain.createRelationship(rel.schemaRelationship, src, end.id, end.schemaElement.id);
                     }
@@ -341,7 +343,7 @@ export class DomainModel
      * @param end : Select incoming relationships of 'end'
      * @returns {ModelElement[]}
      */
-    getRelationships(schemaElement?:SchemaRelationship, start?:ModelElement, end?:ModelElement):ModelElement[]
+    getRelationships(schemaElement?:SchemaRelationship, start?:ModelElement, end?:ModelElement): ICursor
     {
         var list = [];
         var currentSchema = <SchemaElement>schemaElement;
@@ -375,7 +377,7 @@ export class DomainModel
                     list.push(rel);
                 }
             }
-            return list;
+            return Cursor.from(list);
         }
         else if (end)
         {
@@ -400,13 +402,12 @@ export class DomainModel
                     list.push(rel);
                 }
             }
-            return list;
+            return Cursor.from(list);
         }
         else
         {
-            return Utils.select(
-                this._graph.getNodes(NodeType.Edge, schemaElement),
-                n=>
+            return this._graph.getNodes(NodeType.Edge, schemaElement)
+                .map(n=>
                 {
                     tmpSchema = currentSchema;
                     if (schemaElement && schemaElement.id !== tmpSchema.id)
@@ -420,8 +421,7 @@ export class DomainModel
                         }
                     }
                     return undefined;
-                }
-            );
+                });
         }
     }
 
@@ -441,7 +441,7 @@ export class DomainModel
         }
 
         var pid = ownerId + property.name;
-        var node = this._graph.getNode(pid);
+        var node = this._graph.getPropertyNode(pid);
         var value = undefined;
 
         if (!node)
@@ -478,7 +478,7 @@ export class DomainModel
         }
 
         var pid = ownerId + property.name;
-        var node = this._graph.getNode(pid);
+        var node = this._graph.getPropertyNode(pid);
         var oldValue = undefined;
 
         if (!node)
@@ -548,7 +548,7 @@ export class DomainModel
                 )
             )
         );
-        this._cache[mel.id] = mel;
+        this._cache[mel.id] = mel; // TODO cache mel in node and remove _cache
         return mel;
     }
 
@@ -588,7 +588,7 @@ export class DomainModel
                 )
             )
         );
-        this._cache[mel.id] = mel;
+        this._cache[mel.id] = mel; // TODO cache mel in node
         return mel;
     }
 
@@ -656,7 +656,7 @@ export class DomainModel
      * @param kind
      * @returns {ModelElement[]}
      */
-    getElements(schemaElement?:SchemaElement, kind:NodeType = NodeType.EdgeOrNode):ModelElement[]
+    getElements(schemaElement?:SchemaElement, kind:NodeType = NodeType.EdgeOrNode): ICursor
     {
         if (typeof (
                 schemaElement) === "string")
@@ -665,8 +665,8 @@ export class DomainModel
         }
         var _this = this;
 
-        return Utils.select(
-            this._graph.getNodes(kind, schemaElement), function (node)
+        return this._graph.getNodes(kind, schemaElement)
+            .map( function (node)
             {
                 var schemaElement = _this.store.getSchemaElement(node.schemaId);
                 return _this.getFromCache(
@@ -692,65 +692,77 @@ export class DomainModel
         return mel;
     }
 }
+
     class Hypergraph
     {
-        private nodes;
+        private _deletedNodes:number = 0;
+        _nodes;
+        _keys;
+        private _properties;
+        static DELETED_NODE = '$';
 
         constructor(public domain:DomainModel)
         {
-            this.nodes = {};
+            this._properties = {};
+            this._nodes = [];
+            this._keys = {};
         }
 
         dispose()
         {
-            this.nodes = undefined;
+            this._keys = null;
+            this._nodes = null;
+            this._properties = null;
+        }
+
+        private addNodeCore(node) : GraphNode {
+            var n = this._keys[node.id];
+            if (n !== undefined && n !== Hypergraph.DELETED_NODE)
+            {
+                throw "Duplicate element " + node.id;
+            }
+
+            this._keys[node.id] = this._nodes.push( node ) - 1;
+            return node;
         }
 
         addNode(id:string, schemaId:string, version:number):GraphNode
         {
             var node = new GraphNode(id, schemaId, NodeType.Node, version);
-            if (this.nodes[id])
-            {
-                throw "Duplicate element";
-            }
-            this.nodes[id] = node;
-            return node;
+            return this.addNodeCore(node);
         }
 
         addPropertyNode(id:string, schemaId:string, value:any, version:number):GraphNode
         {
-            if (this.nodes[id])
-            {
-                throw "Duplicate element";
-            }
-
             var node = new GraphNode(
                 id, schemaId, NodeType.Property, version, undefined, undefined, undefined, undefined, value
             );
-            this.nodes[id] = node;
-            return node;
+            return this._properties[id] = node;
+        }
+
+        getPropertyNode(pid:string) : GraphNode {
+            return this._properties[pid];
         }
 
         addRelationship(id:string, schemaId:string, startId:string, startSchemaId:string, endId:string, endSchemaId:string, version:number):GraphNode
         {
-
-            var node = new GraphNode(id, schemaId, NodeType.Edge, version, startId, startSchemaId, endId, endSchemaId);
-            this.nodes[id] = node;
-
-            var start = this.nodes[startId];
+            var start = this.getNode(startId);
             if (!start)
             {
-                throw "Invalid element " + startId;
+                throw "Invalid start element " + startId + " when adding relationship " + id;
             }
+
+            var node = new GraphNode(id, schemaId, NodeType.Edge, version, startId, startSchemaId, endId, endSchemaId);
+            this.addNodeCore(node);
 
             if (startId === endId)
             {
                 start.addEdge(id, schemaId, Direction.Both, startId, startSchemaId);
-                return;
+                return node;
             }
 
             start.addEdge(id, schemaId, Direction.Outgoing, endId, endSchemaId);
-            var end = this.nodes[endId];
+            var end = this.getNode(endId);
             if (end)
             {
                 end.addEdge(id, schemaId, Direction.Incoming, startId, startSchemaId);
@@ -760,7 +772,8 @@ export class DomainModel
 
         getNode(id:string):GraphNode
         {
-            return this.nodes[id];
+            var n = this._keys[id];
+            return (n !== undefined && n !== Hypergraph.DELETED_NODE) ? this._nodes[n] : undefined;
         }
 
         removeNode(id:string, version:number):AbstractEvent[]
@@ -768,8 +781,7 @@ export class DomainModel
             var events = [];
             var revents = [];
 
-            var node = this.nodes[id];
-
+            var node = this.getNode(id);
             if (!node)
             {
                 return events;
@@ -815,7 +827,7 @@ export class DomainModel
                         if (!sawNodes[edge.id])
                         {
                             sawNodes[edge.id] = true;
-                            nodes.push(this.nodes[edge.id]);
+                            nodes.push(this.getNode(edge.id));
                         }
                     }
 
@@ -825,7 +837,7 @@ export class DomainModel
                         if (!sawNodes[edge.id])
                         {
                             sawNodes[edge.id] = true;
-                            nodes.push(this.nodes[edge.id]);
+                            nodes.push(this.getNode(edge.id));
                         }
                     }
 
@@ -837,7 +849,7 @@ export class DomainModel
                             if (!sawNodes[node.endId])
                             {
                                 sawNodes[node.endId] = true;
-                                nodes.push(this.nodes[node.endId]);
+                                nodes.push(this.getNode(node.endId));
                             }
                         }
                     }
@@ -848,21 +860,43 @@ export class DomainModel
 
             events = revents.concat(events);
             var pevents = [];
-            events.forEach(e=> this.removeNodeInternal(this.nodes[e.id], sawNodes, pevents));
+            events.forEach(e=> this.removeNodeInternal(e.id, sawNodes, pevents));
+            if( this._deletedNodes > 1000)
+                this.shrink();
             return pevents.concat(events);
         }
 
-        private removeNodeInternal(node:GraphNode, sawNodes, events:AbstractEvent[])
+        private shrink() {
+            var nodes = [];
+            for(var key in this._keys) {
+                var n = this._keys[key];
+                if( n === Hypergraph.DELETED_NODE)
+                    continue;
+                this._keys[key] = this._nodes.push(n) - 1;
+            }
+            this._nodes = nodes;
+            this._deletedNodes = 0;
+        }
+
+        private removeNodeInternal(id:string, sawNodes, events:AbstractEvent[])
         {
-            if (!node)
+            var index = this._keys[id];
+            if (index === undefined || index === Hypergraph.DELETED_NODE)
             {
                 return;
             }
 
-            var id = node.id;
+            var node = this._nodes[index];
+            this._nodes[index] = null;
+            this._deletedNodes++;
+           // if( this.domain.store.keepDeletedNodes)
+                this._keys[id] = Hypergraph.DELETED_NODE;
+           // else
+           //     delete this._keys[index];
+
             if (node.kind === NodeType.Edge)
             {
-                var start = this.nodes[node.startId];
+                var start = this.getNode(node.startId);
                 if (!start)
                 {
                     throw "Invalid element " + node.startId;
@@ -870,7 +904,7 @@ export class DomainModel
 
                 start.removeEdge(id, Direction.Outgoing);
 
-                var end = this.nodes[node.endId];
+                var end = this.getNode(node.endId);
                 if (end)
                 {
                     end.removeEdge(id, Direction.Incoming);
@@ -880,13 +914,13 @@ export class DomainModel
             var schema = this.domain.store.getSchemaElement(node.schemaId);
             var self = this;
             schema.getProperties(true).forEach(
-                    p=>
+                p=>
                 {
                     var pid = node.id + p.name;
-                    var pnode = self.nodes[pid];
+                    var pnode = self._properties[pid];
                     if (pnode)
                     {
-                        delete self.nodes[pid];
+                        delete self._properties[pid];
                         events.push(
                             new RemovePropertyEvent(
                                 self.domain.name, node.id, node.schemaId, p.name, pnode.value,
@@ -896,8 +930,6 @@ export class DomainModel
                     }
                 }
             );
-
-            delete this.nodes[id];
         }
 
         traverseNodes(startNode:GraphNode, visit:(node:GraphNode) => GraphNode[])
@@ -927,26 +959,156 @@ export class DomainModel
             }
         }
 
-        getNodes(kind:NodeType, schema?:SchemaElement):GraphNode[]
+        getNodes(kind:NodeType, schema?:SchemaElement): NodesCursor
         {
-            var list = [];
-            for (var key in this.nodes)
-            {
-                if(!this.nodes.hasOwnProperty(key))
-                    continue;
-                var node = this.nodes[key];
-                if ((
-                    node.kind & kind) !== 0 && (
-                    !schema || schema.id === node.schemaId))
-                {
-                    list.push(node);
-                }
-            }
-            return list;
+            return new NodesCursor(this, kind, schema);
         }
 
     }
 
+    export interface ICursor {
+        hasNext():boolean;
+        next:any;
+        reset();
+    }
+
+    export class Cursor implements ICursor {
+        reset() {}
+        hasNext():boolean {throw "not implemented. Use Cursor.from to instanciate a cursor.";}
+        next() {return undefined;}
+
+        firstOrDefault() {
+            var r = this.hasNext() ? this.next() : undefined;
+            this.reset();
+            return r;
+        }
+
+        forEach(callback) {
+            while(this.hasNext()) {
+                callback(this.next());
+            }
+            this.reset();
+        }
+
+        any() : boolean {
+            var r = this.hasNext();
+            this.reset();
+            return r;
+        }
+
+        toArray() : any[] {
+            var list = [];
+            this.forEach(n=>list.push(n));
+            return list;
+        }
+
+        map(callback) : ICursor {
+            return new MapCursor(callback, this);
+        }
+
+        static from(obj) : ICursor {
+            if( Array.isArray(obj))
+                return new ArrayCursor(obj);
+
+            if(obj.hasNext)
+                return obj;
+
+            if( obj instanceof ModelElementCollection)
+                return new ArrayCursor(obj);
+
+            throw "Not implemented";
+        }
+    }
+
+    class MapCursor extends Cursor {
+        private _current;
+
+        constructor(private _filter, private _cursor:ICursor) {
+            super();
+            this.reset();
+        }
+
+        reset() {
+            this._cursor.reset();
+            this._current = undefined;
+        }
+
+        hasNext() : boolean {
+            while(true) {
+                if( !this._cursor.hasNext())
+                    return false;
+                var r = this._filter(this._cursor.next());
+                if( r ) {
+                    this._current = r;
+                    return true;
+                }
+            }
+        }
+
+        next() {
+            return this._current;
+        }
+    }
+
+    class ArrayCursor extends Cursor implements ICursor {
+        private _index:number;
+
+        constructor(private _array) {
+            super();
+            this.reset();
+        }
+
+        reset() {
+            this._index = 0;
+        }
+
+        hasNext() : boolean {
+            if( this._index === this._array.length)
+                return false;
+            this._index++;
+            return true;
+        }
+
+        next() : any {
+            return this._array[this._index-1];
+        }
+    }
+
+    class NodesCursor extends Cursor implements ICursor {
+        private _index : number;
+        private _current : GraphNode;
+
+        constructor(private _graph:Hypergraph, private _kind:NodeType, private _schema:SchemaElement) {
+            super();
+            this.reset();
+        }
+
+        reset() {
+            this._index = 0;
+            this._current = undefined;
+        }
+
+        hasNext() : boolean {
+            while(true) {
+                if( this._index === this._graph._nodes.length) {
+                    this._current = undefined;
+                    return false;
+                }
+                this._index++;
+                var node = this._graph._nodes[this._index-1];
+                if( node && node !== Hypergraph.DELETED_NODE && (node.kind & this._kind) !== 0
+                    && (!this._schema || this._schema.id === node.schemaId))
+                {
+                    this._current = node;
+                    return true;
+                }
+            }
+        }
+
+        next() : any {
+            return this._current;
+        }
+    }
     /**
      *
      */

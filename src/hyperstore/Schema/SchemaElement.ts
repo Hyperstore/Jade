@@ -352,8 +352,8 @@ class ReferenceHandler
         {
             var start = this._opposite ? undefined : this._source;
             var end = this._opposite ? this._source : undefined;
-            var rels = this._source.domain.getRelationships(this._schemaRelationship, start, end);
-            this.relationship = rels.length > 0 ? rels[0] : undefined;
+            var cursor = this._source.domain.getRelationships(this._schemaRelationship, start, end);
+            this.relationship = cursor.hasNext() ? cursor.next() : undefined;
         }
 
         if (!this.relationship)
@@ -383,8 +383,8 @@ class ReferenceHandler
 
         if (this.relationship)
         {
-            var rels = this._source.domain.getRelationships(this._schemaRelationship, start, end);
-            this.relationship = rels.length > 0 ? rels[0] : undefined;
+            var cursor = this._source.domain.getRelationships(this._schemaRelationship, start, end);
+            this.relationship = cursor.hasNext() ? cursor.next() : undefined;
         }
         start = this._opposite ? other : this._source;
         end = this._opposite ? this._source : other;
