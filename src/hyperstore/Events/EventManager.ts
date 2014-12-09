@@ -34,6 +34,7 @@ module Hyperstore
         static RemoveRelationshipEvent = "removeRelationship";
         static RemovePropertyEvent = "removeProperty";
         static SessionCompleted = "sessionCompleted";
+        static OnErrors = "onErrors";
 
         /**
          * create a new instance

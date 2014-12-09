@@ -18,19 +18,30 @@
 
 module Hyperstore
 {
-// -------------------------------------------------------------------------------------
-//
-// -------------------------------------------------------------------------------------
-export class SchemaEntity extends SchemaElement
-{
-
     // -------------------------------------------------------------------------------------
     //
     // -------------------------------------------------------------------------------------
-    constructor(schema:Schema, id:string, public baseElement?:SchemaElement)
+    export class SchemaEntity extends SchemaElement
     {
-        super(schema, SchemaKind.Entity, id, baseElement);
-        schema.__addSchemaElement(this);
+        // -------------------------------------------------------------------------------------
+        //
+        // -------------------------------------------------------------------------------------
+        constructor(schema:Schema, id:string, public baseElement?:SchemaElement)
+        {
+            super(schema, SchemaKind.Entity, id, baseElement);
+            schema.__addSchemaElement(this);
+        }
+
+        /**
+         *
+         * @param domain
+         * @param id
+         * @param version
+         * @returns {ModelElement}
+         */
+        create(domain:DomainModel, id?:string, version?:number) : ModelElement {
+            if(!domain) throw "domain is required.";
+            return domain.createEntity(this, id, version);
+        }
     }
-}
 }

@@ -81,7 +81,7 @@ module Hyperstore
 
                     if (t.state !== TrackingState.Removed)
                     {
-                        var mel = store.getElement(t.id);
+                        var mel = store.get(t.id);
                         if (mel)
                         {
                             list[mel.id] = mel;
@@ -95,7 +95,7 @@ module Hyperstore
 
                     if (!list[t.startId] && this.getTrackedElementState(t.startId) !== TrackingState.Removed)
                     {
-                        var mel = store.getElement(t.startId);
+                        var mel = store.get(t.startId);
                         if (mel)
                         {
                             list[mel.id] = mel;
@@ -114,7 +114,7 @@ module Hyperstore
 
                     if (!list[t.endId] && this.getTrackedElementState(t.endId) !== TrackingState.Removed)
                     {
-                        var mel = store.getElement(t.endId);
+                        var mel = store.get(t.endId);
                         if (mel)
                         {
                             list[mel.id] = mel;

@@ -118,20 +118,16 @@ module Hyperstore
                             ostore.add(data, element.id);
 
                         case TrackingState.Updated:
-                            if (element.properties)
-                            {
+                            if (element.properties) {
                                 var schemaElement = self.domain.store.getSchemaElement(element.schemaId);
-                                element.properties.forEach(
-                                    function (pv, pn)
-                                    {
-                                        if (pv && pv.value)
-                                        {
-                                            var ps = schemaElement.getProperty(pn, true);
-                                            var data:any = {va: ps.serialize(pv.value), ve: pv.version};
-                                            ostore.put(data, element.id + pn);
-                                        }
+                                for (var pn in element.properties) {
+                                    var pv = element.properties[pn];
+                                    if (pv && pv.value) {
+                                        var ps = schemaElement.getProperty(pn, true);
+                                        var data:any = {va: ps.serialize(pv.value), ve: pv.version};
+                                        ostore.put(data, element.id + pn);
                                     }
-                                );
+                                }
                             }
                             break;
 
@@ -212,7 +208,7 @@ module Hyperstore
                         {
                             var data = relationships[i];
                             var rs = self.domain.store.getSchemaRelationship(data.schema);
-                            var start = self.domain.getElement(data.startId);
+                            var start = self.domain.get(data.startId);
                             if (start)
                             {
                                 self.domain.createRelationship(

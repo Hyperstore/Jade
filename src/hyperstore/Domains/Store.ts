@@ -172,12 +172,15 @@ module Hyperstore
                     var domain = new DomainModel(this, domainName);
                     config.domains[domainName] = domain;
 
-                    if (typeof(
-                            def.adapters) === "function")
+                    if (def.$adapters) {
+                        var adapters = typeof(def.$adapters) === "function" ? def.$adapters() : def.$adapters;
+                        delete def.$adapters;
+                    }
+
+                    if( adapters && adapters.forEach)
                     {
                         var _p = p;
-                        def.adapters().forEach(
-                                a=>
+                        adapters.forEach(a=>
                             {
                                 var tmp = _p;
                                 var _ = domain.addAdapterAsync(a);
@@ -185,57 +188,61 @@ module Hyperstore
                                 _p = _;
                             }
                         );
-                    }
-                    else
-                        p.resolve(this);
 
-                    var self = this;
-                    p.then(
-                        function ()
-                        {
-                            if (def.seed)
-                            {
-                                if (def.seed.always || !domain.getElements().hasNext())
-                                {
-                                    if (typeof(
-                                            def.seed.populate) === "function")
-                                    {
-                                        var session = self.beginSession();
-                                        try
-                                        {
-                                            def.seed.populate(domain);
-                                            session.acceptChanges();
-                                        }
-                                        finally
-                                        {
-                                            session.close();
-                                        }
-                                    }
-                                    else if (def.seed.url)
-                                    {
-                                        // url
-                                    }
-                                    else if (def.seed.data)
-                                    {
-                                        for (var name in def.seed.data)
-                                        {
-                                            var root = domain.store.getSchemaElement(name);
-                                            domain.loadFromJson(def.seed.data[name], root);
-                                        }
-                                    }
-                                }
-                                delete def.seed;
+                        var self = this;
+                        p.then(
+                            function() {
+                                self.populateDomain(def, domain);
+                                p.resolve(this);
                             }
-                        }
-                    );
+                        );
+                    }
+                    else {
+                        p.resolve(this);
+                        this.populateDomain(def, domain);
+                    }
                 }
 
-                self.defaultDomainModel = self.getDomain(config.defaultDomainModel);
+                this.defaultDomainModel = this.getDomain(config.defaultDomainModel);
             }
             else
                 p.resolve(this);
 
             return p;
+        }
+
+        private populateDomain(def, domain) {
+            if( !def || domain.find().hasNext()) // already initialize
+                return;
+
+            if (def.$seed) {
+                if (typeof(def.$seed) === "function")
+                {
+                    var session = domain.store.beginSession();
+                    try
+                    {
+                        def.$seed(domain);
+                        session.acceptChanges();
+                    }
+                    finally
+                    {
+                        session.close();
+                    }
+                }
+                else if (typeof(def.$seed) === "string")
+                {
+                    // url
+                }
+                return;
+            }
+
+            for (var name in def)
+            {
+                if( !def.hasOwnProperty(name))
+                    continue;
+                var root = domain.store.getSchemaElement(name);
+                domain.loadFromJson(def[name], root);
+            }
         }
 
         /**
@@ -544,7 +551,7 @@ module Hyperstore
          * @param id
          * @returns {*}
          */
-        getElement(id:string):ModelElement
+        get(id:string):ModelElement
         {
             var domainName = id.substr(0, id.indexOf(':'));
             for (var i = 0; i < this._domains.length; i++)
@@ -553,7 +560,7 @@ module Hyperstore
                 if (domain.name !== domainName)
                     continue;
 
-                var mel = domain.getElement(id);
+                var mel = domain.get(id);
                 if (mel)
                 {
                     return mel;
@@ -570,7 +577,7 @@ module Hyperstore
          * @param kind
          * @returns {ModelElement[]}
          */
-        getElements(schemaElement?:SchemaElement, kind:NodeType = NodeType.EdgeOrNode):ModelElement[]
+        find(schemaElement?:SchemaElement, kind:NodeType = NodeType.EdgeOrNode):ModelElement[]
         {
             return Utils.selectMany(
                 this.domains, function (domain)

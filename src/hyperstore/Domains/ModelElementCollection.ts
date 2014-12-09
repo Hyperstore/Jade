@@ -98,12 +98,14 @@ export class ModelElementCollection
 
                         if (e.schemaId === self._schemaRelationship.id && (
                             self._source && e.startId === self._source.id)
-                            || (
-                            self._end && e.endId === self._end.id))
+                            || (self._end && e.endId === self._end.id))
                         {
                             if (e.eventName === EventManager.AddRelationshipEvent)
                             {
-                                var rel = self._domain.store.getElement(e.id);
+                                var rel = self._domain.store.get(e.id);
+                                if( !rel)
+                                    return;
+
                                 var mel = self._source ? rel.end : rel.start;
 
                                 if (!self._filter || self._filter(mel))
@@ -161,7 +163,7 @@ export class ModelElementCollection
     private loadItems()
     {
         var opposite = !!this._source;
-        var cursor = this._domain.getRelationships(this._schemaRelationship, this._source, this._end);
+        var cursor = this._domain.findRelationships(this._schemaRelationship, this._source, this._end);
         while(cursor.hasNext())
         {
             var rel = cursor.next();
@@ -203,10 +205,10 @@ export class ModelElementCollection
         var source = this._source ? this._source : mel;
         var end = this._end ? this._end : mel;
 
-        var rel = (<any>this._domain.getRelationships(this._schemaRelationship, source, end)).firstOrDefault();
+        var rel = (<any>this._domain.findRelationships(this._schemaRelationship, source, end)).firstOrDefault();
         if (rel)
         {
-            this._domain.removeElement(rel.id);
+            this._domain.remove(rel.id);
         }
     }
 

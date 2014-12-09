@@ -63,7 +63,7 @@
             undoManager.redo(); // re create
 
             expect(lib.Books.count).toEqual(1);
-            b = <any>domain.getElement("test:2");
+            b = <any>domain.get("test:2");
             expect(b.Title).toEqual("test");
             done();
         });

@@ -171,7 +171,7 @@ module Hyperstore
         validate(elements):DiagnosticMessage[]
         {
             if (elements.store)
-                elements = <DomainModel>elements.getElements();
+                elements = <DomainModel>elements.find();
             return this.checkOrValidateElements(elements, ConstraintKind.Validate);
         }
 

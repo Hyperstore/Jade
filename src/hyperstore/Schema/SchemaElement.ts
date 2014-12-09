@@ -352,7 +352,7 @@ class ReferenceHandler
         {
             var start = this._opposite ? undefined : this._source;
             var end = this._opposite ? this._source : undefined;
-            var cursor = this._source.domain.getRelationships(this._schemaRelationship, start, end);
+            var cursor = this._source.domain.findRelationships(this._schemaRelationship, start, end);
             this.relationship = cursor.hasNext() ? cursor.next() : undefined;
         }
 
@@ -383,7 +383,7 @@ class ReferenceHandler
 
         if (this.relationship)
         {
-            var cursor = this._source.domain.getRelationships(this._schemaRelationship, start, end);
+            var cursor = this._source.domain.findRelationships(this._schemaRelationship, start, end);
             this.relationship = cursor.hasNext() ? cursor.next() : undefined;
         }
         start = this._opposite ? other : this._source;
@@ -395,7 +395,7 @@ class ReferenceHandler
             {
                 return; // Same relationship do nothing
             }
-            this._source.domain.removeElement(this.relationship.id);
+            this._source.domain.remove(this.relationship.id);
         }
 
         this.relationship = undefined;

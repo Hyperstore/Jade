@@ -63,9 +63,6 @@ describe('Schema tests', function ()
         },
         domains : {
             test: {
-                seed : {
-                    always:true
-                }
             }
         }
     };

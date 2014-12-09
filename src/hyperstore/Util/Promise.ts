@@ -106,7 +106,7 @@ module Hyperstore
 
                             if (callbackDidNotThrow && this.isGenericPromise(passthroughValue))
                             {
-                                // By returning a futher promise from a callback, you can insert it into the chain. This is the basis for composition.
+                                // By returning a further promise from a callback, you can insert it into the chain. This is the basis for composition.
                                 // This rule is in the Promises/A+ spec, but not Promises/A.
                                 passthroughValue.then(
                                     frame.chainedPromise._resolveSuccess, frame.chainedPromise._resolveError

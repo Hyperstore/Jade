@@ -81,23 +81,18 @@ module Hyperstore
                             localStorage.setItem(LocalStorageAdapter.PREFIX + element.id, JSON.stringify(data));
 
                         case TrackingState.Updated:
-                            if (element.properties)
-                            {
+                            if (element.properties) {
                                 var schemaElement = self.domain.store.getSchemaElement(element.schemaId);
-
-                                element.properties.forEach(
-                                    function (pv, pn)
-                                    {
-                                        if (pv && pv.value)
-                                        {
-                                            var ps = schemaElement.getProperty(pn, true);
-                                            var data:any = {va: ps.serialize(pv.value), ve: pv.version};
-                                            localStorage.setItem(
-                                                LocalStorageAdapter.PREFIX + element.id + pn, JSON.stringify(data)
-                                            );
-                                        }
+                                for (var pn in element.properties) {
+                                    var pv = element.properties[pn];
+                                    if (pv && pv.value) {
+                                        var ps = schemaElement.getProperty(pn, true);
+                                        var data:any = {va: ps.serialize(pv.value), ve: pv.version};
+                                        localStorage.setItem(
+                                            LocalStorageAdapter.PREFIX + element.id + pn, JSON.stringify(data)
+                                        );
                                     }
-                                );
+                                }
                             }
                             break;
 
@@ -182,7 +177,7 @@ module Hyperstore
                 {
                     var data = relationships[i];
                     var rs = this.domain.store.getSchemaRelationship(data.schema);
-                    var start = this.domain.getElement(data.startId);
+                    var start = this.domain.get(data.startId);
                     this.domain.createRelationship(rs, start, data.endId, data.endSchemaId, data.id, data.version);
                     this.loadProperties(data.id, rs);
                 }

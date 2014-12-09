@@ -51,12 +51,12 @@ export class EventDispatcher implements IEventDispatcher
             {
                 eventName: EventManager.RemoveEntityEvent, execute: function (d:DomainModel, evt)
             {
-                var mel = d.getElement(evt.id);
+                var mel = d.get(evt.id);
                 if (!mel)
                 {
                     throw "Invalid element";
                 }
-                d.removeElement(mel.id, evt.version);
+                d.remove(mel.id, evt.version);
             }
             }
         );
@@ -66,7 +66,7 @@ export class EventDispatcher implements IEventDispatcher
                 eventName: EventManager.AddRelationshipEvent, execute: function (d, evt)
             {
                 var schema = d.store.getSchemaRelationship(evt.schemaId);
-                var start = d.getElement(evt.startId);
+                var start = d.get(evt.startId);
                 if (!start)
                 {
                     throw "Invalid source element for relationship " + evt.id;
@@ -80,12 +80,12 @@ export class EventDispatcher implements IEventDispatcher
             {
                 eventName: EventManager.RemoveRelationshipEvent, execute: function (d:DomainModel, evt)
             {
-                var mel = d.getElement(evt.id);
+                var mel = d.get(evt.id);
                 if (!mel)
                 {
                     throw "Invalid element";
                 }
-                d.removeElement(mel.id, evt.version);
+                d.remove(mel.id, evt.version);
             }
             }
         );

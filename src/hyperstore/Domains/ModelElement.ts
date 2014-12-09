@@ -134,7 +134,7 @@ export class ModelElement
 
         if (!this._start)
         {
-            this._start = this.domain.getElement(this.startId);
+            this._start = this.domain.get(this.startId);
         }
         return this._start;
     }
@@ -152,7 +152,7 @@ export class ModelElement
 
         if (!this._end)
         {
-            this._end = this.domain.store.getElement(this.endId);
+            this._end = this.domain.store.get(this.endId);
         }
         return this._end;
     }
@@ -249,12 +249,12 @@ export class ModelElement
         if ((
             direction & Direction.Outgoing) !== 0)
         {
-            list = this.domain.getRelationships(schemaElement, this);
+            list = this.domain.findRelationships(schemaElement, this);
         }
         if ((
             direction & Direction.Incoming) !== 0)
         {
-            var list2 = this.domain.getRelationships(schemaElement, undefined, this);
+            var list2 = this.domain.findRelationships(schemaElement, undefined, this);
             if (list && list.any())
             {
                 list = list.concat(list2);

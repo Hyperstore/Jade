@@ -24,17 +24,13 @@
                 },
                 domains : {
                     Test : {
-                        seed : {
-                            resource : {
-                                Library : {
-                                    Name : "Lib 1",
-                                    Books : [
-                                        {
-                                            Title : "Book 1"
-                                        }
-                                    ]
+                        Library : {
+                            Name : "Lib 1",
+                            Books : [
+                                {
+                                    Title : "Book 1"
                                 }
-                            }
+                            ]
                         }
                     }
                 }

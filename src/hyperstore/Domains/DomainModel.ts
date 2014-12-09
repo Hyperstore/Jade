@@ -232,7 +232,7 @@ export class DomainModel
                         ? mel
                         : elem;
 
-                    if (!src.domain.getRelationships(rel.schemaRelationship, src, end).hasNext())
+                    if (!src.domain.findRelationships(rel.schemaRelationship, src, end).hasNext())
                     {
                         src.domain.createRelationship(rel.schemaRelationship, src, end.id, end.schemaElement.id);
                     }
@@ -260,7 +260,7 @@ export class DomainModel
                 var entityId = this.createId(entity["id"]);
                 if (entity.state && entity.state === "D")
                 {
-                    this.removeElement(entityId, entity.v);
+                    this.remove(entityId, entity.v);
                     continue;
                 }
 
@@ -295,7 +295,7 @@ export class DomainModel
                     var entityId = this.createId(relationship["id"]);
                     if (relationship.state && relationship.state === "D")
                     {
-                        this.removeElement(entityId, relationship.v);
+                        this.remove(entityId, relationship.v);
                         continue;
                     }
 
@@ -304,7 +304,7 @@ export class DomainModel
 
                     if (!this.elementExists(entityId))
                     {
-                        var start = this.getElement(this.createId(relationship.startId));
+                        var start = this.get(this.createId(relationship.startId));
                         this.createRelationship(
                             <SchemaRelationship>schema, start, this.createId(relationship.endId),
                             this.findSchemaId(def.schemas, relationship.endSchemaId), entityId
@@ -343,7 +343,7 @@ export class DomainModel
      * @param end : Select incoming relationships of 'end'
      * @returns {ModelElement[]}
      */
-    getRelationships(schemaElement?:SchemaRelationship, start?:ModelElement, end?:ModelElement): ICursor
+    findRelationships(schemaElement?:SchemaRelationship, start?:ModelElement, end?:ModelElement): ICursor
     {
         var list = [];
         var currentSchema = <SchemaElement>schemaElement;
@@ -597,7 +597,7 @@ export class DomainModel
      * @param id
      * @param version
      */
-    removeElement(id:string, version?:number)
+    remove(id:string, version?:number)
     {
         var events;
         this.store.runInSession(
@@ -636,7 +636,7 @@ export class DomainModel
      * @param id
      * @returns {*}
      */
-    getElement(id:string):ModelElement
+    get(id:string):ModelElement
     {
         var node = this._graph.getNode(id);
         if (!node)
@@ -656,7 +656,7 @@ export class DomainModel
      * @param kind
      * @returns {ModelElement[]}
      */
-    getElements(schemaElement?:SchemaElement, kind:NodeType = NodeType.EdgeOrNode): ICursor
+    find(schemaElement?:SchemaElement, kind:NodeType = NodeType.EdgeOrNode): ICursor
     {
         if (typeof (
                 schemaElement) === "string")

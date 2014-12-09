@@ -18,53 +18,68 @@
 
 module Hyperstore
 {
-// -------------------------------------------------------------------------------------
-//
-// -------------------------------------------------------------------------------------
-export class SchemaRelationship extends SchemaElement
-{
-    private _startProperty:string;
-    private _endProperty:string;
-
     // -------------------------------------------------------------------------------------
     //
     // -------------------------------------------------------------------------------------
-    constructor(schema:Schema, id:string, public startSchemaId:string, public endSchemaId:string, public embedded:boolean, public cardinality:Cardinality, startProperty?:string, endProperty?:string, public baseElement?:SchemaElement)
+    export class SchemaRelationship extends SchemaElement
     {
-        super(schema, SchemaKind.Relationship, id, baseElement);
-        schema.__addSchemaElement(this);
-        this.startProperty = startProperty;
-        this.endProperty = endProperty;
-    }
+        private _startProperty:string;
+        private _endProperty:string;
 
-    set startProperty(name:string)
-    {
-        if (name)
+        // -------------------------------------------------------------------------------------
+        //
+        // -------------------------------------------------------------------------------------
+        constructor(schema:Schema, id:string, public startSchemaId:string, public endSchemaId:string, public embedded:boolean, public cardinality:Cardinality, startProperty?:string, endProperty?:string, public baseElement?:SchemaElement)
         {
-            this._startProperty = name;
-            var source = <SchemaElement>this.schema.store.getSchemaElement(this.startSchemaId);
-            source.__defineReferenceProperty(this, false);
+            super(schema, SchemaKind.Relationship, id, baseElement);
+            schema.__addSchemaElement(this);
+            this.startProperty = startProperty;
+            this.endProperty = endProperty;
+        }
+
+        set startProperty(name:string)
+        {
+            if (name)
+            {
+                this._startProperty = name;
+                var source = <SchemaElement>this.schema.store.getSchemaElement(this.startSchemaId);
+                source.__defineReferenceProperty(this, false);
+            }
+        }
+
+        get startProperty()
+        {
+            return this._startProperty;
+        }
+
+        set endProperty(name:string)
+        {
+            if (name)
+            {
+                this._endProperty = name;
+                var source = <SchemaElement>this.schema.store.getSchemaElement(this.endSchemaId);
+                source.__defineReferenceProperty(this, true);
+            }
+        }
+
+        get endProperty()
+        {
+            return this._endProperty;
+        }
+
+        /**
+         *
+          * @param domain
+         * @param start
+         * @param endId
+         * @param endSchemaId
+         * @param id
+         * @param version
+         * @returns {ModelElement}
+         */
+        create(domain:DomainModel, start:ModelElement, endId:string, endSchemaId:string, id?:string, version?:number) : ModelElement {
+            if(!domain) throw "domain is required.";
+            return domain.createRelationship(this, start, endId, endSchemaId, id, version);
         }
     }
-
-    get startProperty()
-    {
-        return this._startProperty;
-    }
-
-    set endProperty(name:string)
-    {
-        if (name)
-        {
-            this._endProperty = name;
-            var source = <SchemaElement>this.schema.store.getSchemaElement(this.endSchemaId);
-            source.__defineReferenceProperty(this, true);
-        }
-    }
-
-    get endProperty()
-    {
-        return this._endProperty;
-    }
-}
 }
