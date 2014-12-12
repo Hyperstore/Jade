@@ -1,4 +1,7 @@
-module Hyperstore {
+/*module Hyperstore {
+    interface mongo {
+
+    }
 
     export class MongoDbAdapter extends Adapter {
 
@@ -90,4 +93,4 @@ module Hyperstore {
             });
         }
     }
-}
+}*/

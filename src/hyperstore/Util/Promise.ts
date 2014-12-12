@@ -2,7 +2,7 @@
 // Copyright (c) Microsoft Corporation. All rights reserved.
 // ----------------------------------------------------------------------------
 // from https://github.com/Azure/azure-mobile-services/blob/master/sdk/Javascript/src/Utilities/Promises.js
-
+/*
 /// <reference path="../_references.ts" />
 module Hyperstore
 {
@@ -145,3 +145,4 @@ module Hyperstore
         }
     }
 }
+    */

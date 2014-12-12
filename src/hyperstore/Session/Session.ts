@@ -67,7 +67,7 @@ module Hyperstore
             this.originStoreId = store.storeId;
             this.mode = SessionMode.Normal;
             this.trackingData = new TrackingData();
-            this.result = new SessionResult();
+            this.result = new SessionResult(this);
             this.result.maxVersionNumber = 0;
 
             if (config && config.origin)
@@ -151,9 +151,10 @@ module Hyperstore
             }
 
             this.aborted = this.aborted || this.result.hasErrors;
+            // Rollback
             if (this.aborted)
             {
-                // Rollback
+                // Undo all session events
                 this.mode = this.mode | SessionMode.Rollback;
                 var d = this.store.eventBus.defaultEventDispatcher;
                 this.events.reverse().forEach(
@@ -164,13 +165,22 @@ module Hyperstore
                 );
             }
 
+            // Cannot use the current session from here
             Session.current = undefined;
 
+            // Session completed events
             var self = this;
-            if (!this.aborted && !this.result.hasErrorsOrWarnings)
-                this.store.domains.forEach(d=> (<DomainModel>d).events.__notifySessionCompleted(self));
+            // First domain events and only if there is no errors or warnings
+            if (!this.aborted && !this.result.hasErrorsOrWarnings) {
+                this.store.domains.forEach(d=>
+                {
+                    (<DomainModel>d).events.__notifySessionCompleted(self);
+                });
+            }
+            // store events is always send
             this.store.__sendSessionCompletedEvent(self);
 
+            // if errors and not in silent mode, throw an exception
             if( this.result.hasErrors && !(this.mode & SessionMode.SilentMode))
                 throw {message: "Session failed", result:this.result};
 

@@ -24,7 +24,8 @@
     "grunt-contrib-uglify": "^0.6.0",
     "grunt-release": "^0.7.0",
     "grunt-template-jasmine-istanbul": "^0.3.0",
-    "grunt-ts": "^1.12.1"
+    "grunt-ts": "^1.12.1",
+    "q": "^1.1.2"
   },
   "repository": {
     "type": "git",
@@ -36,6 +37,5 @@
   "directories": {
     "test": "tests"
   },
-  "dependencies": {
-  }
+  "dependencies": {}
 }

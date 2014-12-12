@@ -15,6 +15,7 @@
 // limitations under the License.
 
 /// <reference path="../_references.ts" />
+/// <reference path="../../../Scripts/typings/Q/Q.d.ts" />
 module Hyperstore
 {
 
@@ -24,6 +25,10 @@ module Hyperstore
      */
     export class SessionResult
     {
+        /**
+         * Promises for waiting for async tasks like persistence
+         */
+        private _promises: Q.Promise<any>[];
         /**
          * Session has been aborted ?
          */
@@ -56,6 +61,54 @@ module Hyperstore
          */
         public maxVersionNumber:number;
 
+        constructor(private _session:Session)
+        {
+            this._promises = [];
+        }
+
+        addPromise(q)  {
+            this._promises.push(q);
+        }
+
+        /**
+         * register a promise
+         *  registerPromise(func, args, callback)
+         *  callback is always the last argument and must have a node callback signature (err, result)
+         * @param func
+         */
+        registerPromise(obj:any, method:string, callback:(err?,r?,session?:Session)=>void, ...args:any[]) {
+            var p = Q.defer<any>();
+          //  var args = Array.prototype.slice.call(arguments,0);
+            var func = obj[method];
+            var self = this;
+            var fargs = args;
+            for(var i = args.length;i<func.length-1;i++)
+                args.push(undefined);
+
+            func.apply(obj, fargs.concat(function(err, r) {
+                if( err )
+                {
+                    p.reject(err);
+                    return;
+                }
+                p.resolve(r);
+                callback(err, r, self._session);
+            }));
+
+            this._promises.push(p.promise);
+        }
+
+        async() : Q.Promise<any> {
+            if( this._promises.length) {
+                var p = Q.allSettled(this._promises);
+                this._promises = [];
+                return p;
+            }
+            var q = Q.defer<any>();
+            q.resolve(false);
+            return q.promise;
+
+        }
         /**
          * Is there some error or warning messages ?
          *

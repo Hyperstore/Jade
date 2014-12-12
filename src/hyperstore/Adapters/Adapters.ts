@@ -15,6 +15,7 @@
 // limitations under the License.
 
 /// <reference path="../_references.ts" />
+/// <reference path="../../../Scripts/typings/Q/Q.d.ts" />
 module Hyperstore
 {
 
@@ -44,12 +45,9 @@ module Hyperstore
          * must be called by the concrete class.
          * Subscribe to the [[Store.onSessionCompleted]]
          * @param domain - domain to persist
-         * @returns {Hyperstore.Promise} - the promise returns the current adapter
          */
-        initAsync(domain:DomainModel):Promise
+        init(domain:DomainModel)
         {
-            var promise = new Promise();
-
             this.domain = domain;
             this._cookie = domain.store.onSessionCompleted(
                 (s:Session) =>
@@ -66,10 +64,8 @@ module Hyperstore
                     var elements = Utils.select(
                         s.trackingData.involvedTrackedElements,
                         (e:ITrackedElement) => (
-                                               e.domain ===
-                                               this.domain.name /*&& e.extension == this.domain.extension*/)
-                            ? e
-                            : undefined
+                            e.domain === this.domain.name /*&& e.extension == this.domain.extension*/)
+                            ? e : undefined
                     );
 
                     if (elements.length === 0)
@@ -80,9 +76,6 @@ module Hyperstore
                     this.persistElements(s, elements);
                 }
             );
-
-            promise.resolve(this);
-            return promise;
         }
 
         /**
@@ -109,7 +102,7 @@ module Hyperstore
          * @param filter - a function callback allowing to filter element before loading it in the domain.
          * @returns a promise with no special value.
          */
-        loadElementsAsync(filter?:(id, schemaId) => boolean):Promise
+        loadElementsAsync(filter?:(id, schemaId) => boolean):Q.Promise<any>
         {
             return undefined;
         }

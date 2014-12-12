@@ -57,7 +57,7 @@ module.exports = function (grunt) {
         // Useful for creating external modules (amd/commonjs)
         concat : {
             options: {
-                banner : "/// <reference path='../../scripts/typings/jquery/jquery.d.ts' />\r\n" +
+                banner : "/// <reference path='../../scripts/typings/q/q.d.ts' />\r\n" +
                          "/// <reference path='../../scripts/typings/signalr/signalr.d.ts' />\r\n",
                 process : function(src, filepath) {
                     var re = /(\s*\/\/.*)/gm;
@@ -75,12 +75,11 @@ module.exports = function (grunt) {
         // for more detailed code coverage reports
         jasmine : {
             src : ".built/src/**/*.js",
-
             options: {
                 outfile: ".built/_SpecRunner.html",
                 errorReporting:true,
                 keepRunner:true,
-                //vendor: '<%= jasmine.all.options.vendor %>',
+                vendor: ["node_modules/q/q.js"],
                 specs:'.built/specs/*.js'/*,
                 template: require('grunt-template-jasmine-istanbul'),
                 templateOptions: {

@@ -15,6 +15,7 @@
 // limitations under the License.
 
 /// <reference path="../_references.ts" />
+/// <reference path="../../../Scripts/typings/Q/Q.d.ts" />
 module Hyperstore
 {
 
@@ -29,9 +30,9 @@ module Hyperstore
          * clear all domain elements
          * @returns {Hyperstore.Promise}
          */
-        clearAsync()
+        clearAsync() : Q.Promise<any>
         {
-            var promise = new Promise();
+            var defer = Q.defer<any>();
 
             var dl = this.domain.name.length;
             for (var i = 0; i < localStorage.length; i++)
@@ -49,8 +50,8 @@ module Hyperstore
                 localStorage.removeItem(key);
             }
 
-            promise.resolve();
-            return promise;
+            defer.resolve(true);
+            return defer.promise;
         }
 
         persistElements(s:Session, elements:ITrackedElement[])
@@ -77,7 +78,7 @@ module Hyperstore
                                 data.endId = element.endId;
                                 data.endSchemaId = element.endSchemaId;
                             }
-                            ;
+
                             localStorage.setItem(LocalStorageAdapter.PREFIX + element.id, JSON.stringify(data));
 
                         case TrackingState.Updated:
@@ -117,9 +118,9 @@ module Hyperstore
          * @param filter - function to filter element
          * @returns - a promise returning a [[SessionResult]]
          */
-        loadElementsAsync(filter?:(id, schemaId) => boolean):Promise
+        loadElementsAsync(filter?:(id, schemaId) => boolean):Q.Promise<any>
         {
-            var promise = new Promise();
+            var defer = Q.defer<any>();
 
             var session = this.domain.store.beginSession({mode: SessionMode.Loading});
             try
@@ -185,9 +186,9 @@ module Hyperstore
             }
             finally
             {
-                promise.resolve(session.close());
+                defer.resolve(session.close());
             }
-            return promise;
+            return defer.promise;
         }
 
         private loadProperties(id, schema:SchemaElement)

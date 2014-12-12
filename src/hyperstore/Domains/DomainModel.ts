@@ -76,16 +76,11 @@ export class DomainModel
             id || ++this._sequence).toString();
     }
 
-    addAdapterAsync(adapter:Adapter):Promise
+    addAdapter(adapter:Adapter)
     {
         var self = this;
-        return adapter.initAsync(this).then(
-            function (a)
-            {
-                self._adapters.push(a);
-                return a;
-            }
-        );
+        adapter.init(this);
+        this._adapters.push(adapter);
     }
 
     /**

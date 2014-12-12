@@ -28,6 +28,7 @@
  */
 
 /// <reference path="../_references.ts" />
+/// <reference path="../../../Scripts/typings/Q/Q.d.ts" />
 
 module Hyperstore
 {
@@ -124,15 +125,15 @@ module Hyperstore
      *    })();
          * </code>
          */
-        initAsync(config?:any):Promise
+        initAsync(config?:any):Q.Promise<any>
         {
-            var p = new Promise();
+            var p = Q.defer<any>();
 
             this.storeId = Utils.newGuid();
             if (!config)
             {
                 p.resolve(this);
-                return p;
+                return p.promise;
             }
 
             if (typeof config === 'function')
@@ -142,7 +143,7 @@ module Hyperstore
             {
                 this.storeId = config;
                 p.resolve(this);
-                return p;
+                return p.promise;
             }
 
             this["config"] = config;
@@ -161,10 +162,8 @@ module Hyperstore
                 }
             }
 
-            if (config.domains)
-            {
-                for (var domainName in config.domains)
-                {
+            if (config.domains) {
+                for (var domainName in config.domains) {
                     if (!config.domains.hasOwnProperty(domainName))
                         continue;
 
@@ -177,41 +176,23 @@ module Hyperstore
                         delete def.$adapters;
                     }
 
-                    if( adapters && adapters.forEach)
-                    {
-                        var _p = p;
-                        adapters.forEach(a=>
-                            {
-                                var tmp = _p;
-                                var _ = domain.addAdapterAsync(a);
-                                _.then(function () {tmp.resolve();});
-                                _p = _;
-                            }
-                        );
-
-                        var self = this;
-                        p.then(
-                            function() {
-                                self.populateDomain(def, domain);
-                                p.resolve(this);
-                            }
-                        );
+                    if (adapters && adapters.forEach) {
+                        adapters.forEach(a=> domain.addAdapter(a));
                     }
-                    else {
-                        p.resolve(this);
-                        this.populateDomain(def, domain);
-                    }
+                    var result = this.populateDomain(def, domain);
+                        if( result)
+                            result.async().then(() => p.resolve(this));
+                        else
+                            p.resolve(this);
                 }
 
                 this.defaultDomainModel = this.getDomain(config.defaultDomainModel);
             }
-            else
-                p.resolve(this);
 
-            return p;
+            return p.promise;
         }
 
-        private populateDomain(def, domain) {
+        private populateDomain(def, domain) : SessionResult {
             if( !def || domain.find().hasNext()) // already initialize
                 return;
 
@@ -226,7 +207,8 @@ module Hyperstore
                     }
                     finally
                     {
-                        session.close();
+                        var r = session.close();
+                        return r.result;
                     }
                 }
                 else if (typeof(def.$seed) === "string")

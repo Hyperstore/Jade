@@ -75,7 +75,7 @@ angular.module("hyperstore", [])
             Hyperstore.Utils.forEach(adapters, function (a) {
                 var d = $.Deferred();
                 tasks.push(d.promise());
-                domain.addAdapterAsync.call(domain, a).then(
+                domain.addAdapter.call(domain, a).then(
                     function (adapter) {
                         adapter.loadElementsAsync().done(function (result) {
                             d.resolve(result.maxVersionNumber);
