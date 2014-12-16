@@ -52,7 +52,6 @@ module Hyperstore {
             this._current = undefined;
             if( this._iterator)
                 this._iterator.reset();
-            this._subQueries.forEach(q=>q.reset());
         }
 
         setStart(obj) {
@@ -97,6 +96,7 @@ module Hyperstore {
                         }
                         else {
                             this._state = 3;
+                            this._subQueries[this._iter].reset();
                         }
                     case 3:
                         if( !this._subQueries[this._iter].hasNext())

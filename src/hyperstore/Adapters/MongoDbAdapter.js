@@ -13,28 +13,29 @@
 // WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 // See the License for the specific language governing permissions and
 // limitations under the License.
-
-/// <reference path="../../../Scripts/typings/mongodb/mongodb.d.ts" />
-
-import mongo = require('mongodb');
-
-
-    export class MongoDbAdapter extends Hyperstore.Adapter {
-
-        constructor(private url = 'mongodb://localhost:27017/test') {
-            super();
+var __extends = this.__extends || function (d, b) {
+    for (var p in b) if (b.hasOwnProperty(p)) d[p] = b[p];
+    function __() { this.constructor = d; }
+    __.prototype = b.prototype;
+    d.prototype = new __();
+};
+define(["require", "exports", 'mongodb'], function(require, exports, mongo) {
+    var MongoDbAdapter = (function (_super) {
+        __extends(MongoDbAdapter, _super);
+        function MongoDbAdapter(url) {
+            if (typeof url === "undefined") { url = 'mongodb://localhost:27017/test'; }
+            _super.call(this);
+            this.url = url;
         }
-
-        persistElements(session, elements) {
+        MongoDbAdapter.prototype.persistElements = function (session, elements) {
             var self = this;
 
-            session.registerPromise(mongo.MongoClient, "connect", this.url,
-            function (err, db:mongo.Db) {
+            session.registerPromise(mongo.MongoClient, "connect", this.url, function (err, db) {
                 if (err) {
                     return;
                 }
 
-                var col:any = db.collection('nodes');
+                var col = db.collection('nodes');
                 var bulk = col.initializeUnorderedBulkOp();
 
                 var cx = 0;
@@ -43,20 +44,21 @@ import mongo = require('mongodb');
                         console.log("Write 1000...");
                         cx = 0;
                         bulk.execute(function (err, r) {
-                            if (err) console.log(err);
+                            if (err)
+                                console.log(err);
                         });
                         bulk = col.initializeUnorderedBulkOp();
                     }
 
                     switch (element.state) {
                         case 0:
-                            var data:any = {_id: element.id, sc: element.schemaId, ve: element.version};
+                            var data = { _id: element.id, sc: element.schemaId, ve: element.version };
                             if (element.startId) {
                                 data.sid = element.startId;
                                 data.eid = element.endId;
                                 data.esid = element.endSchemaId;
-                                bulk.find({_id: element.startId}).updateOne({$push: {o: element.id}});
-                                bulk.find({_id: element.endId}).updateOne({$push: {i: element.id}});
+                                bulk.find({ _id: element.startId }).updateOne({ $push: { o: element.id } });
+                                bulk.find({ _id: element.endId }).updateOne({ $push: { i: element.id } });
                                 cx++;
                                 cx++;
                             }
@@ -70,8 +72,8 @@ import mongo = require('mongodb');
                                     var pv = element.properties[pn];
                                     if (pv && pv.value) {
                                         var ps = schemaElement.getProperty(pn, true);
-                                        data = {_id: element.id + pn, va: ps.serialize(pv.value), ve: pv.version};
-                                        bulk.find({_id: element.id + pn}).upsert().updateOne(data);
+                                        data = { _id: element.id + pn, va: ps.serialize(pv.value), ve: pv.version };
+                                        bulk.find({ _id: element.id + pn }).upsert().updateOne(data);
                                         cx++;
                                     }
                                 }
@@ -79,35 +81,37 @@ import mongo = require('mongodb');
                             break;
 
                         case 1:
-                            bulk.find({_id: element.id}).deleteOne();
+                            bulk.find({ _id: element.id }).deleteOne();
                             cx++;
                             if (element.startId) {
-                                bulk.find({_id: element.startId}).updateOne({$pull: {o: element.id}});
+                                bulk.find({ _id: element.startId }).updateOne({ $pull: { o: element.id } });
                                 cx++;
-                                bulk.find({_id: element.endId}).updateOne({$pull: {i: element.id}});
+                                bulk.find({ _id: element.endId }).updateOne({ $pull: { i: element.id } });
                                 cx++;
                             }
 
                             var schemaElement = self.domain.store.getSchemaElement(element.schemaId);
                             Hyperstore.Utils.forEach(schemaElement.getProperties(true), function (p) {
-                                    bulk.find({_id: element.id + p.name}).deleteOne();
-                                    cx++;
-                                }
-                            );
+                                bulk.find({ _id: element.id + p.name }).deleteOne();
+                                cx++;
+                            });
                             break;
                     }
                 });
 
                 if (cx > 0) {
                     console.log("Write final...");
-                    session.registerPromise(bulk, "execute",
-                    function (err, r) {
-                        if (err) console.log(err);
+                    session.registerPromise(bulk, "execute", function (err, r) {
+                        if (err)
+                            console.log(err);
                         db.close();
                     });
-                }
-                else
+                } else
                     db.close();
             });
-        }
-    }
+        };
+        return MongoDbAdapter;
+    })(Hyperstore.Adapter);
+    exports.MongoDbAdapter = MongoDbAdapter;
+});
+//# sourceMappingURL=MongoDbAdapter.js.map

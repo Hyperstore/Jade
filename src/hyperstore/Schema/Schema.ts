@@ -159,28 +159,42 @@ module Hyperstore
         }
     }
 
+    // ----------------------------------------------------------------
+    // Store config json parser
+    // ----------------------------------------------------------------
     class DslParser
     {
         constructor(private schema:Schema, private def, private dslSet={}) {}
 
         private pendings : any[];
 
+        /**
+         *
+         * @param dsl
+         */
         parse(dsl)
         {
             if (!dsl)
                 return;
 
             var uri;
+            // external reference
+            // var obj = require('xxxx);
+            // $import = obj;
+            // obj must have a $uri field as an unique id;
             if( dsl.$import && dsl.$import.$uri && !this.dslSet[dsl.$import.$uri]) {
                 uri = dsl.$import.$uri;
-                this.dslSet[dsl.$import.$uri] = true;
+                this.dslSet[dsl.$import.$uri] = true; // cyclic reference guard
                 var p = new DslParser(this.schema, this.def, this.dslSet);
-                p.parse(dsl.$import);
+                p.parse(dsl.$import); //
             }
 
+            // Relationship must be created after all entities
             this.pendings = [];
-            // must be process first
+
+            // valueObjects must be processed first
             this.parseValueObjects(dsl.$valueObjects);
+
             for (var name in dsl)
             {
                 if (name[0] !== "$")
@@ -195,10 +209,6 @@ module Hyperstore
             }
 
             this.pendings.forEach(p=>this.createRelationship(p));
-
-            if(uri) {
-
-            }
         }
 
         private parseEntity(o, name:string)
@@ -210,12 +220,14 @@ module Hyperstore
                 if (!base)
                     throw "Unknown extended entity " + o.$extend;
             }
+
             var entity = new SchemaEntity(this.schema, name, base);
             this.def[name + "Schema"] = entity;
             for (var prop in o)
             {
                 if( !o.hasOwnProperty(prop))
                     continue;
+
                 if (prop[0] === "$")
                 {
                     if (prop === "$constraints")
@@ -224,6 +236,7 @@ module Hyperstore
                                               );
                     continue;
                 }
+
                 this.parseProperty(prop, o[prop], entity);
             }
         }

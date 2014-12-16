@@ -7,7 +7,6 @@
 /// <reference path="Schema/SchemaRelationship.ts" />
 /// <reference path="Schema/SchemaValueObject.ts" />
 /// <reference path="Util/Promise.ts" />
-/// <reference path="Util/Utils.ts" />
 /// <reference path="Session/Session.ts" />
 /// <reference path="Session/SessionResult.ts" />
 /// <reference path="Session/Trackings.ts" />
@@ -28,10 +27,10 @@
 /// <reference path="Bus/EventBus.ts" />
 /// <reference path="Bus/AbstractChannel.ts" />
 /// <reference path="Adapters/Adapters.ts" />
-
+/// <reference path="Util/Utils.ts" />
 /// <reference path="Adapters/IndexedDb.ts" />
 /// <reference path="Adapters/LocalStorage.ts" />
-
+/// <reference path="Adapters/MongoDbAdapter.ts" />
 
 /// <reference path="Bus/SignalRChannel.ts" />
 /// <reference path="undomanager.ts" />

@@ -60,7 +60,7 @@
             b.Title = "test";
             lib.Books.add(b);
             session.close();
-            expect(lib.Books.count).toEqual(0);
+            expect(lib.Books.items.length).toEqual(1);
             expect(b.disposed).toBeTruthy();
             done();
         });

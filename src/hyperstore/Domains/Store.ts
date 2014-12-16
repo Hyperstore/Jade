@@ -42,6 +42,73 @@ module Hyperstore
         domains? : any;
     }
 
+    class DomainManager implements ICursor {
+        private _domains;
+        private _keys;
+
+        private _ix:number;
+
+        constructor() {
+            this._keys = {};
+            this._domains = [];
+        }
+
+        reset() {
+            this._ix = 0;
+        }
+
+        next() {
+            return this._domains[this._ix-1];
+        }
+
+        hasNext() : boolean {
+            return this._ix++ < this._keys.length;
+        }
+
+        addDomain(domain) {
+            this._keys[domain.name] = this._domains.push( domain ) - 1;
+        }
+
+        public unload(domain:DomainModel)
+        {
+            domain.dispose();
+            var i = this._keys[name];
+            if(i)
+            {
+                if (domain.extension)
+                    this._domains[i] = (<any>domain).domain;
+                else
+                {
+                    this._domains.splice(i);
+                    delete this._keys[domain.name];
+                }
+            }
+        }
+
+        getDomain(name:string) : DomainModel {
+            var i = this._keys[name];
+            return i !== undefined ? this._domains[i] : undefined;
+        }
+
+        all() : DomainModel[] {
+            return this._domains;
+        }
+
+        dispose() {
+            this._domains.forEach(d=> {
+                var tmp = d;
+                while(tmp.extension)
+                {
+                    tmp.dispose();
+                    tmp = tmp.domain;
+                }
+                tmp.dispose();
+            });
+            this._domains = null;
+            this._keys = null;
+        }
+    }
+
     /**
      *
      * store is the main hyperstore container for domains and schemas.
@@ -66,7 +133,7 @@ module Hyperstore
     {
         private schemasBySimpleName;
         private schemas;
-        private _domains:Array<DomainModel>;
+        private _domains:DomainManager;
         private _subscriptions;
         public storeId:string;
         public defaultDomainModel:DomainModel;
@@ -87,7 +154,7 @@ module Hyperstore
             this.eventBus = new EventBus(this);
             this.schemas = {};
             this.schemasBySimpleName = {};
-            this._domains = new Array<DomainModel>();
+            this._domains = new DomainManager();
             new Schema(this, "$", this.primitiveSchemaDefinition());
         }
 
@@ -234,7 +301,7 @@ module Hyperstore
         {
             this.eventBus.dispose();
             this.eventBus = undefined;
-            this.domains.forEach(d=> d.dispose());
+            this._domains.dispose();
             this._domains = undefined;
             this.schemas = undefined;
             this.schemasBySimpleName = undefined;
@@ -250,9 +317,7 @@ module Hyperstore
          */
         public unloadDomain(domain:DomainModel)
         {
-            domain.dispose();
-            var pos = this._domains.indexOf(domain);
-            this._domains.splice(pos);
+            this._domains.unload(domain);
         }
 
         /**
@@ -261,7 +326,7 @@ module Hyperstore
          */
         public get domains():DomainModel[]
         {
-            return this._domains;
+            return this._domains.all();
         }
 
         /**
@@ -317,20 +382,12 @@ module Hyperstore
          */
         getDomain(name:string):DomainModel
         {
-            for (var i = 0; i < this._domains.length; i++)
-            {
-                var d = this._domains[i];
-                if (d.name === name)
-                {
-                    return d;
-                }
-            }
-            return undefined;
+            return this._domains.getDomain(name);
         }
 
         __addDomain(domain:DomainModel)
         {
-            this._domains.push(domain);
+            this._domains.addDomain(domain);
         }
 
         /**
@@ -536,21 +593,8 @@ module Hyperstore
         get(id:string):ModelElement
         {
             var domainName = id.substr(0, id.indexOf(':'));
-            for (var i = 0; i < this._domains.length; i++)
-            {
-                var domain = this._domains[i];
-                if (domain.name !== domainName)
-                    continue;
-
-                var mel = domain.get(id);
-                if (mel)
-                {
-                    return mel;
-                }
-                break;
-            }
-
-            return undefined;
+            var domain = this.getDomain(domainName);
+            return domain ? domain.get(id): undefined;
         }
 
         /**
@@ -559,18 +603,48 @@ module Hyperstore
          * @param kind
          * @returns {ModelElement[]}
          */
-        find(schemaElement?:SchemaElement, kind:NodeType = NodeType.EdgeOrNode):ModelElement[]
+        find(schemaElement?:SchemaElement, kind:NodeType = NodeType.EdgeOrNode): ICursor
         {
-            return Utils.selectMany(
-                this.domains, function (domain)
+            return new SelectManyCursor(this._domains, function (domain)
                 {
                     return domain.GetElements(schemaElement, kind);
                 }
             );
         }
+    }
 
-        loadResources(url) {
 
+    class SelectManyCursor implements ICursor {
+        private _iter:ICursor;
+
+        constructor(private _cursor:ICursor, private _select) {
+            this.reset();
+        }
+
+        reset() {
+            this._cursor.reset();
+            this._iter = null;
+        }
+
+        hasNext() : boolean {
+            while(true) {
+                if(!this._iter)
+                {
+                    if (!this._cursor.hasNext())
+                    {
+                        return false;
+                    }
+                    this._iter = this._select(this._cursor.next());
+                }
+                if(this._iter.hasNext())
+                    return true;
+                this._iter = null;
+            }
+        }
+
+        next() : any {
+            return this._iter.next();
         }
     }
+
 }

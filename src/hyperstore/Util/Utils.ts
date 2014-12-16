@@ -16,6 +16,104 @@
 
 module Hyperstore
 {
+    export class HashTable<TKey,TElem> extends Cursor  {
+        _values : TElem[];
+        _keys;
+        _ix:number;
+        _deleted:number;
+        private _current:TElem;
+
+        constructor(private _throttle = 100)
+        {
+            super();
+            this._values = [];
+            this._keys = {};
+        }
+
+        reset() {
+            this._ix = 0;
+        }
+
+        hasNext() : boolean {
+            while(true)
+            {
+                if (this._ix >= this._values.length)
+                {
+                    this._current = undefined;
+                    return false;
+                }
+                this._current = this._values[this._ix++];
+                if( this._current != null)
+                    return true;
+            }
+        }
+
+        next() {
+            return this._current;
+        }
+
+        dispose()
+        {
+            this._keys = null;
+            this._values = null;
+        }
+
+        keyExists(key:TKey) : boolean {
+            return this._keys[key];
+        }
+
+        add(key:TKey, elem:TElem)  {
+            var n = this._keys[key];
+            if( n )
+                this._values[n] = elem;
+            else
+                this._keys[key] = this._values.push( elem ) - 1;
+        }
+
+        get(key:TKey) {
+            var n = this._keys[key];
+            return n ? this._values[n] : undefined;
+        }
+
+        remove(key:TKey)
+        {
+            var n = this._keys[key];
+            if (n)
+            {
+                this._deleted++;
+                delete this._keys[key];
+                if (this._deleted > this._throttle)
+                    this.shrink();
+                else
+                    this._values[n] = null;
+            }
+        }
+
+        clone() : HashTable<TKey,TElem>  {
+            var clone = new HashTable<TKey,TElem>();
+            clone._values = new Array(this._values.length - this._deleted);
+            for(var key in this._keys) {
+                var n = this._keys[key];
+                clone._keys[key] = n
+            }
+            clone._deleted = this._deleted;
+            clone._values = this._values.slice();
+            clone._throttle = this._throttle;
+            return clone;
+        }
+
+        private shrink() {
+            var values = [];
+            for(var key in this._keys) {
+                var n = this._keys[key];
+                var val = this._values[n];
+                this._keys[key] = values.push(val) - 1;
+            }
+            this._values = values;
+            this._deleted = 0;
+        }
+    }
+
     export class Utils
     {
         private static date = new Date();

@@ -14,7 +14,6 @@ module.exports = function (grunt) {
         "src/hyperstore/Schema/SchemaRelationship.ts" ,
         "src/hyperstore/Schema/SchemaValueObject.ts" ,
         "src/hyperstore/Util/Promise.ts" ,
-        "src/hyperstore/Util/Utils.ts" ,
         "src/hyperstore/Session/Session.ts" ,
         "src/hyperstore/Session/SessionResult.ts" ,
         "src/hyperstore/Session/Trackings.ts" ,
@@ -39,6 +38,7 @@ module.exports = function (grunt) {
         "src/hyperstore/Adapters/LocalStorage.ts" ,
         "src/hyperstore/Bus/SignalRChannel.ts" ,
         "src/hyperstore/undomanager.ts",
+        "src/hyperstore/Util/Utils.ts" ,
         "src/hyperstore/Domains/Query.ts"
     ];
 
@@ -58,9 +58,10 @@ module.exports = function (grunt) {
         concat : {
             options: {
                 banner : "/// <reference path='../../scripts/typings/q/q.d.ts' />\r\n" +
-                         "/// <reference path='../../scripts/typings/signalr/signalr.d.ts' />\r\n",
+                         "/// <reference path='../../scripts/typings/signalr/signalr.d.ts' />\r\n" +
+                         "import Q = require('q');\r\n",
                 process : function(src, filepath) {
-                    var re = /(\s*\/\/.*)/gm;
+                    var re = /(\/\/.*)/gm;
                     return src.replace(/module\s*\bHyperstore\b\s*\{([\s\S]*)}/i, '$1')
                               .replace(re, '');
                 }

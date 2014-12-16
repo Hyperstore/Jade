@@ -111,10 +111,6 @@ export class ModelElement
         this.domain = domain;
         this.schemaElement = schemaElement;
         this.id = id;
-        if (!id)
-        {
-            this.id = this.domain.createId();
-        }
         this.startId = startId;
         this.startSchemaId = startSchemaId;
         this.endId = endId;

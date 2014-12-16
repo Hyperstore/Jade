@@ -18,6 +18,8 @@
 /// <reference path="../../../Scripts/typings/Q/Q.d.ts" />
 module Hyperstore
 {
+// localForage
+//pouchdb
 
     /**
      * Abstract adapter do not use directly.

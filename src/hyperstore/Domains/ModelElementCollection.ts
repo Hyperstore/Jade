@@ -20,66 +20,34 @@ module Hyperstore
 /**
  * encapsulates collection (many references)
  */
-export class ModelElementCollection
+class ModelElementArray
 {
-    private _source:ModelElement;
-    private _end:ModelElement;
-    private _schemaRelationship:SchemaRelationship;
-    private _domain:DomainModel;
-    private _filter:(mel:ModelElement) => boolean;
-    private _count:number;
+    all:ModelElement[];
     private _sessionCompletedCookie;
 
-    public setFilter(where:(mel:ModelElement) => boolean)
+    public reset()
     {
-        this._filter = where;
-        this.clear();
-        this.loadItems();
+        this.all = [];
+
+        var opposite = !!this._collection.source;
+        var cursor = this._collection.domain.findRelationships(this._collection.schemaRelationship,
+                                                               this._collection.source,
+                                                               this._collection.end);
+        while(cursor.hasNext())
+        {
+            var rel = cursor.next();
+            var elem = opposite ? rel.end : rel.start;
+            if (!this._collection.filter || this._collection.filter(elem))
+            {
+                this.add(elem);
+            }
+        }
     }
 
-    private clear()
+    constructor(private _collection:ModelElementCollection)
     {
-        this._count = 0;
-        var self = <any>this;
-        while (self.length > 0)
-        {
-            self.pop();
-        }
-    }
-
-    /**
-     * create a collection where the source element is a terminal of a relationships depending of the opposite value
-     * if opposite is false source is the start element otherwise the end element.
-     * @param source
-     * @param schemaRelationship
-     * @param opposite
-     * @param filter
-     */
-    constructor(source:ModelElement, schemaRelationship:SchemaRelationship, opposite:boolean = false, filter?:(mel:ModelElement) => boolean)
-    {
-        if (schemaRelationship.cardinality === Cardinality.OneToOne)
-        {
-            throw "Invalid cardinality. Use reference instead.";
-        }
-
-        if (!opposite && !source.schemaElement.isA(schemaRelationship.startSchemaId))
-        {
-            throw "Invalid source type";
-        }
-        if (opposite && !source.schemaElement.isA(schemaRelationship.endSchemaId))
-        {
-            throw "Invalid end type";
-        }
-
-        this._source = opposite ? undefined : source;
-        this._end = opposite ? source : undefined;
-        this._schemaRelationship = schemaRelationship;
-        this._domain = source.domain;
-
-        this._filter = filter;
         var self = this;
-
-        this._sessionCompletedCookie = this._domain.events.on(
+        this._sessionCompletedCookie = this._collection.domain.events.on(
             EventManager.SessionCompleted, function (s)
             {
                 if (s.aborted)
@@ -96,40 +64,26 @@ export class ModelElementCollection
                             return;
                         }
 
-                        if (e.schemaId === self._schemaRelationship.id && (
-                            self._source && e.startId === self._source.id)
-                            || (self._end && e.endId === self._end.id))
+                        if (e.schemaId === self._collection.schemaRelationship.id &&
+                            (self._collection.source && e.startId === self._collection.source.id)
+                            || (self._collection.end && e.endId === self._collection.end.id))
                         {
                             if (e.eventName === EventManager.AddRelationshipEvent)
                             {
-                                var rel = self._domain.store.get(e.id);
+                                var rel = self._collection.source.domain.store.get(e.id);
                                 if( !rel)
                                     return;
 
-                                var mel = self._source ? rel.end : rel.start;
-
-                                if (!self._filter || self._filter(mel))
+                                var mel = self._collection.source ? rel.end : rel.start;
+                                if (!self._collection.filter || self._collection.filter(mel))
                                 {
-                                    Array.prototype.push.call(self, mel);
-                                    self._count++;
+                                    self.add(mel);
                                 }
                             }
                             else
                             {
-                                var id = self._source ? e.endId : e.startId;
-
-                                // Remove
-                                for (var k = 0; k < self._count; k++)
-                                {
-                                    if (self[k].id === id)
-                                    {
-                                        if (Array.prototype.splice.call(self, k, 1).length === 1)
-                                        {
-                                            self._count--;
-                                        }
-                                        break;
-                                    }
-                                }
+                                var id = self._collection.source ? e.endId : e.startId;
+                                self.remove(id);
                             }
                         }
                     }
@@ -137,43 +91,7 @@ export class ModelElementCollection
             }
         );
 
-        for (var p in this)
-        {
-            if (this.hasOwnProperty(p))
-            {
-                var desc = Object.getOwnPropertyDescriptor(this, p);
-                desc.configurable = false;
-                Object.defineProperty(this, p, desc);
-            }
-        }
-
-        this._count = 0;
-        this.loadItems();
-    }
-
-    /**
-     *
-     * @returns {number}
-     */
-    get count():number
-    {
-        return this._count;
-    }
-
-    private loadItems()
-    {
-        var opposite = !!this._source;
-        var cursor = this._domain.findRelationships(this._schemaRelationship, this._source, this._end);
-        while(cursor.hasNext())
-        {
-            var rel = cursor.next();
-            var elem = opposite ? rel.end : rel.start;
-            if (!this._filter || this._filter(elem))
-            {
-                Array.prototype.push.call(this, elem);
-                this._count++;
-            }
-        }
+        this.reset();
     }
 
     /**
@@ -181,81 +99,63 @@ export class ModelElementCollection
      */
     dispose()
     {
-        this._domain.events.remove(this._sessionCompletedCookie);
-        this.clear();
+        this._collection.domain.events.remove(this._sessionCompletedCookie);
+        this.all = null;
     }
 
-    /**
-     *
-     * @param mel
-     */
-    remove(mel:ModelElement)
+    remove(id:string)
     {
-        if ((
-            this._source || this._end).disposed)
+        // Remove
+        for (var k = 0; k < this.all.length; k++)
         {
-            throw "Can not use a disposed element";
-        }
-
-        if (mel == null)
-        {
-            return;
-        }
-
-        var source = this._source ? this._source : mel;
-        var end = this._end ? this._end : mel;
-
-        var rel = (<any>this._domain.findRelationships(this._schemaRelationship, source, end)).firstOrDefault();
-        if (rel)
-        {
-            this._domain.remove(rel.id);
+            if (this.all[k].id === id)
+            {
+                this.all.splice(k);
+                break;
+            }
         }
     }
 
-    /**
-     *
-     * @param mel
-     */
     add(mel:ModelElement)
     {
-        if ((
-            this._source || this._end).disposed)
-        {
-            throw "Can not use a disposed element";
-        }
-
-        if (mel == null)
-        {
-            return;
-        }
-
-        var source = this._source ? this._source : mel;
-        var end = this._end ? this._end : mel;
-
-        var rel = this._source.domain.createRelationship(
-            this._schemaRelationship, source, end.id, end.schemaElement.id
-        );
+        this.all.push(mel);
     }
 }
-    /*
-    export class ModelElementsCursor extends Cursor
+
+    export class ModelElementCollection extends Cursor
     {
-        private _source:ModelElement;
-        private _end:ModelElement;
-        private _schemaRelationship:SchemaRelationship;
-        private _domain:DomainModel;
-        private _filter;
-        private _cursor;
+        source:ModelElement;
+        end:ModelElement
+        schemaRelationship:SchemaRelationship;
+        domain:DomainModel;
+        filter;
+        cursor;
+        private _items : ModelElementArray;
 
         public setFilter(where:(mel:ModelElement) => boolean)
         {
-            this._cursor = Cursor.from(this._domain.getRelationships(this._schemaRelationship, this._source, this._end));
+            this.cursor = Cursor.from(this.domain.findRelationships(this.schemaRelationship, this.source, this.end));
             if(where)
-                this._cursor = this._cursor.map(where);
+                this.cursor = this.cursor.map(where);
+            if( this._items)
+                this._items.reset();
+        }
+
+        /**
+         * get all items as an array (for angular)
+         * Changes will be take into account at the end of the session
+         * @returns {ModelElement[]}
+         */
+        get items() {
+            if(!this._items) {
+                this._items = new ModelElementArray(this);
+            }
+            return this._items.all;
         }
 
         constructor(source:ModelElement, schemaRelationship:SchemaRelationship, opposite:boolean = false, filter?:(mel:ModelElement) => boolean)
         {
+            super();
             if (schemaRelationship.cardinality === Cardinality.OneToOne)
             {
                 throw "Invalid cardinality. Use reference instead.";
@@ -270,33 +170,42 @@ export class ModelElementCollection
                 throw "Invalid end type";
             }
 
-            this._source = opposite ? undefined : source;
-            this._end = opposite ? source : undefined;
-            this._schemaRelationship = schemaRelationship;
-            this._domain = source.domain;
+            this.source = opposite ? undefined : source;
+            this.end = opposite ? source : undefined;
+            this.schemaRelationship = schemaRelationship;
+            this.domain = source.domain;
             this.setFilter(filter);
         }
 
         hasNext() {
-            return this._cursor.hasNext();
+            while(true)
+            {
+                if (!this.cursor.hasNext())
+                    return false;
+                var rel = this.cursor.next();
+                if (rel && rel.end)
+                    return true;
+            }
         }
 
         reset() {
-            this._cursor.reset();
+            this.cursor.reset();
         }
 
         next() {
-            return this._cursor.next();
+            return this.cursor.next().end;
         }
 
         dispose()
         {
+            if(this._items)
+                this._items.dispose();
         }
 
         remove(mel:ModelElement)
         {
             if ((
-                this._source || this._end).disposed)
+                this.source || this.end).disposed)
             {
                 throw "Can not use a disposed element";
             }
@@ -306,21 +215,22 @@ export class ModelElementCollection
                 return;
             }
 
-            var source = this._source ? this._source : mel;
-            var end = this._end ? this._end : mel;
+            var source = this.source ? this.source : mel;
+            var end = this.end ? this.end : mel;
 
-            var cursor = this._domain.getRelationships(this._schemaRelationship, source, end);
+            var cursor = this.domain.findRelationships(this.schemaRelationship, source, end);
             if (cursor.hasNext())
             {
                 var rel = cursor.next();
-                this._domain.removeElement(rel.id);
+                this.domain.remove(rel.id);
+                if (this._items)
+                    this._items.remove(rel.id);
             }
         }
 
         add(mel:ModelElement)
         {
-            if ((
-                this._source || this._end).disposed)
+            if ((this.source || this.end).disposed)
             {
                 throw "Can not use a disposed element";
             }
@@ -330,12 +240,14 @@ export class ModelElementCollection
                 return;
             }
 
-            var source = this._source ? this._source : mel;
-            var end = this._end ? this._end : mel;
+            var source = this.source ? this.source : mel;
+            var end = this.end ? this.end : mel;
 
-            var rel = this._source.domain.createRelationship(
-                this._schemaRelationship, source, end.id, end.schemaElement.id
+            var rel = this.source.domain.createRelationship(
+                this.schemaRelationship, source, end.id, end.schemaElement.id
             );
+            if (this._items)
+                this._items.add(rel);
         }
-    }*/
+    }
 }

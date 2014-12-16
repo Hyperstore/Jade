@@ -48,21 +48,21 @@
             session.acceptChanges();
             session.close();
 
-            expect(lib.Books.count).toEqual(1);
+            expect(lib.Books.items.length).toEqual(1);
             expect(b.disposed).toBeFalsy();
             expect(undoManager.canRedo).toBeFalsy();
             expect(undoManager.canUndo).toBeTruthy();
 
             undoManager.undo(); // remove all
 
-            expect(lib.Books.count).toEqual(0);
+            expect(lib.Books.items.length).toEqual(0);
             expect(b.disposed).toBeTruthy();
             expect(undoManager.canUndo).toBeFalsy();
             expect(undoManager.canRedo).toBeTruthy();
 
             undoManager.redo(); // re create
 
-            expect(lib.Books.count).toEqual(1);
+            expect(lib.Books.items.length).toEqual(1);
             b = <any>domain.get("test:2");
             expect(b.Title).toEqual("test");
             done();

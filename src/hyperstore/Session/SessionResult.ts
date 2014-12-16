@@ -145,5 +145,14 @@ module Hyperstore
             }
             this.messages.push(message);
         }
+
+        /**
+         * log an error message
+         * @param message
+         */
+        logError(message:string) {
+            var diag = new DiagnosticMessage(MessageType.Error, message);
+            this.log(diag);
+        }
     }
 }
