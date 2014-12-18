@@ -16,7 +16,7 @@
 
 /// <reference path="../../../Scripts/typings/mongodb/mongodb.d.ts" />
 
-import mongo = require('mongodb');
+/*import mongo = require('mongodb');
 
 
     export class MongoDbAdapter extends Hyperstore.Adapter {
@@ -111,3 +111,4 @@ import mongo = require('mongodb');
             });
         }
     }
+*/

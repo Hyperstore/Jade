@@ -164,7 +164,12 @@ module Hyperstore
     // ----------------------------------------------------------------
     class DslParser
     {
-        constructor(private schema:Schema, private def, private dslSet={}) {}
+        constructor(private schema:Schema, private def, private context?) {
+            if(!this.context) {
+                this.context = {constraints:{}, dsls:{}};
+            }
+            this.context.dsls[schema.name] = true; // cyclic reference guard
+        }
 
         private pendings : any[];
 
@@ -174,26 +179,43 @@ module Hyperstore
          */
         parse(dsl)
         {
-            if (!dsl)
+            if (!dsl )
                 return;
 
             var uri;
             // external reference
             // var obj = require('xxxx);
             // $import = obj;
-            // obj must have a $uri field as an unique id;
-            if( dsl.$import && dsl.$import.$uri && !this.dslSet[dsl.$import.$uri]) {
-                uri = dsl.$import.$uri;
-                this.dslSet[dsl.$import.$uri] = true; // cyclic reference guard
-                var p = new DslParser(this.schema, this.def, this.dslSet);
-                p.parse(dsl.$import); //
+            if( dsl.$imports) {
+                for(var i=0;i <dsl.$imports.length;i++) {
+                    this.parseConstraintDeclarations(dsl.$imports[i].$constraints);
+
+                    var schemas = dsl.$imports[i].schemas;
+                    if( !schemas )
+                        continue;
+
+                    for(var schemaName in schemas) {
+                        if( this.context.dsls[schemaName])
+                            continue;
+                        var schema = new Schema(this.schema.store,schemaName );
+                        var def = schemas[schemaName];
+                        var p = new DslParser(schema, def, this.context);
+                        p.parse(def); //
+                        var hasProperties = false;
+                        Utils.forEach(def, p=>hasProperties=true);
+                        if( hasProperties)
+                            this.def[schemaName] = def;
+                    }
+                }
             }
 
             // Relationship must be created after all entities
             this.pendings = [];
 
+            this.parseConstraintDeclarations(dsl.$constraints);
+
             // valueObjects must be processed first
-            this.parseValueObjects(dsl.$valueObjects);
+            this.parseValueObjects(dsl.$types);
 
             for (var name in dsl)
             {
@@ -209,6 +231,15 @@ module Hyperstore
             }
 
             this.pendings.forEach(p=>this.createRelationship(p));
+        }
+
+        private parseConstraintDeclarations(val) {
+            this.parseConstraints(val, (ct) => {
+               var name = ct.name;
+                if( !name)
+                    throw "Global constraint must have a name.";
+                this.context.constraints[name] = ct;
+            });
         }
 
         private parseEntity(o, name:string)
@@ -308,7 +339,7 @@ module Hyperstore
                                 src     : entity.id,
                                 end     : o.$end,
                                 type    : o.$kind,
-                                name    : o.$name,
+                                name    : o.$relationship,
                                 property: name,
                                 const   : o.$constraints
                             }
@@ -391,15 +422,30 @@ module Hyperstore
             def.kind = def.kind === "check" ? ConstraintKind.Check : ConstraintKind.Validate;
             for (var msg in constraints)
             {
-                if( !constraints.hasOwnProperty(msg) || msg[0] === '$')
+                if( !constraints.hasOwnProperty(msg))
                     continue;
+
                 var c = constraints[msg];
-                var ct =  {
-                    message  : msg,
-                    kind     : c.check ? ConstraintKind.Check : c.validate ? ConstraintKind.Validate : def.kind,
-                    error    : c.error || def.error,
-                    condition: c.validate || c.check || c
-                };
+                if(  msg[0] === '$') {
+                    if( msg !== "$ref")
+                        continue;
+                    var refs = Array.isArray(c) ? c : [c];
+                    for(var i=0;i<refs.length;i++) {
+                        var ct = this.context.constraints[refs[i]];
+                        if( ct)
+                            callback(ct);
+                    }
+                    continue;
+                }
+                else {
+                    ct = {
+                        name: c.name,
+                        message: msg,
+                        kind: c.check ? ConstraintKind.Check : c.validate ? ConstraintKind.Validate : def.kind,
+                        error: c.error || def.error,
+                        condition: c.validate || c.check || c
+                    };
+                }
                 // TODO validate constraint
                 callback(ct);
             }
@@ -422,7 +468,7 @@ module Hyperstore
                     type : o.$kind,
                     obj  : o,
                     base : base,
-                    name : o.$name,
+                    name : name,
                     const: o.$constraints
                 }
             );
@@ -430,6 +476,7 @@ module Hyperstore
 
         private createRelationship(def)
         {
+            // TODO optional redefinition (inutile de redefinir les propriétes pour une relation explicite)
             var src = this.schema.store.getSchemaElement(def.src);
             var end = this.schema.store.getSchemaElement(def.end);
 
@@ -504,11 +551,14 @@ module Hyperstore
         {
             if(!values)
                 return;
+
             for(var name in values) {
                 if( !values.hasOwnProperty(name))
                     continue;
+
                 var val = values[name];
                 var valueObject = new SchemaValueObject(this.schema, name);
+
                 this.extends(valueObject, val, p => {
                     if(p === "$type") {
                         var s = this.schema.store.getSchemaInfo(val[p]);

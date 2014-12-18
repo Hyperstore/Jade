@@ -36,7 +36,7 @@
                 }
             };
             store = new Hyperstore.Store();
-            store.initAsync(cfg).then(function()
+            store.init(cfg).then(function()
                   {
                       lib = (<any>cfg.domains.Test).createEntity((<any>cfg.schemas.Test).LibrarySchema);
                       lib.Name = "test";

@@ -192,7 +192,7 @@ module Hyperstore
      *    })();
          * </code>
          */
-        initAsync(config?:any):Q.Promise<any>
+        init(config?:any):Q.Promise<any>
         {
             var p = Q.defer<any>();
 

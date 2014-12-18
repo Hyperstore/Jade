@@ -8,7 +8,7 @@ describe('Schema tests', function ()
     {
         schemas: {
             s: {
-                valueObjects : {
+                $types : {
                     Email : {
                         $type: "string",
                         serialize : function(val) {
@@ -71,7 +71,7 @@ describe('Schema tests', function ()
 
     beforeEach(function(done) {
         store = new Hyperstore.Store();
-        store.initAsync(config).then(function() {done()});
+        store.init(config).then(function() {done()});
     });
 
     it('should initialize store from the dsl', function(done) {
