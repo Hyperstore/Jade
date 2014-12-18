@@ -49,19 +49,10 @@ module Hyperstore
             message?:string, asError:boolean = false, kind:ConstraintKind = ConstraintKind.Check)
         {
             var def = {condition: condition, message: message, error: asError, kind: kind};
-            this.setPropertyConstraint(def, property);
-
-            var schema = <any>property.schemaProperty;
-            while(schema)
-            {
-                Utils.forEach(schema.constraints,
-                              c => this.setPropertyConstraint(c, property, schema)
-                );
-                schema = (<any>schema).parent;
-            }
+            this.__setPropertyConstraint(property, def);
         }
 
-        private setPropertyConstraint(def, property, schema?)
+        __setPropertyConstraint(property, def, schema?)
         {
             if (!def.condition)
             {
@@ -80,7 +71,7 @@ module Hyperstore
                         var pv = <PropertyValue>ctx.element.domain.getPropertyValue(self.id, property);
                         if (!pv)
                         {
-                            return null;
+                            pv = new PropertyValue(null,null,0);
                         }
                         var result = <string>null;
                         ctx.propertyName = property.name;
@@ -180,6 +171,8 @@ module Hyperstore
             var ctx = new ConstraintContext(kind);
             for (var key in elements)
             {
+                if( !elements.hasOwnProperty(key))
+                    continue;
                 var mel = elements[key];
                 try
                 {
@@ -202,6 +195,8 @@ module Hyperstore
             {
                 for (var key in constraints)
                 {
+                    if( !constraints.hasOwnProperty(key))
+                        continue;
                     var constraint = constraints[key];
                     if (constraint.kind === ctx.kind)
                     {

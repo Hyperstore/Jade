@@ -1045,10 +1045,13 @@ export class DomainModel
             }
         }
 
-        any() : boolean {
+        any(callback?) : boolean {
             this.reset();
-            var r = this.hasNext();
-            return r;
+            while(this.hasNext()) {
+                if( !callback || callback(this.next()))
+                    return true;
+            }
+            return false
         }
 
         toArray() : any[] {

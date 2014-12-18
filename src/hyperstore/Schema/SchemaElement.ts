@@ -180,6 +180,15 @@ export class SchemaElement extends SchemaInfo
         this._properties[name] = desc;
         this.schema.constraints.addPropertyConstraint(desc);
 
+        var schema = <any>desc.schemaProperty;
+        while(schema)
+        {
+            Utils.forEach(schema.constraints, c =>
+                this.schema.constraints.__setPropertyConstraint(desc, c, schema)
+            );
+            schema = (<any>schema).parent;
+        }
+
         if (desc.kind == PropertyKind.Normal)
         {
             Object.defineProperty(

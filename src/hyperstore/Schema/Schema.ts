@@ -272,6 +272,32 @@ module Hyperstore
             }
         }
 
+        private parseKeyValue(str) {
+            var kv = {};
+            var i=0;
+            while(i < str.length) {
+                var pos = str.indexOf(':', i);
+                var key = str.substring(i, pos).trim();
+                key = key.replace(/"/g, '');
+                i=pos+1;
+                var block = 0;
+                while(i<str.length) {
+                    var ch = str.charAt(i);
+                    if( ch === '[' || ch == '{') {block++;}
+                    else if( ch === ']' || ch === '}') {
+                        block--;
+                    }
+                    else if( ch === ',' && block === 0 )
+                        break;
+                    i++;
+                }
+                var val = str.substring(pos+1, i).trim().replace(/'/g, '"');
+                i++; // Skip ,
+                kv[key] = val;
+            }
+            return kv;
+        }
+
         private parsePropertyType(text:string) {
 
             var t = <any>typeof(text);
@@ -292,9 +318,10 @@ module Hyperstore
                     if( r.length === 3 && r[2])
                     {
                         // min:1, max:2 => {"min":1, "max":2}
-                        re = /["']?(\w*)["']?\s*:\s*([^,]*)/g;
-                        var init = JSON.parse('{' + r[2].replace(re, '"$1": $2') + '}');
-                        this.extends(vo, init);
+                        //re = /["']?(\w*)["']?\s*:\s*([^,]*)/g; // TODO
+                        //var txt = '{' + r[2].replace(re, '"$1": $2') + '}';
+                        //var init = JSON.parse(txt);
+                        this.extends(vo, this.parseKeyValue(r[2]));
                     }
 
                     return vo;
