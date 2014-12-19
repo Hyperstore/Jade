@@ -36,11 +36,19 @@ module.exports = function (grunt) {
         "src/hyperstore/Adapters/Adapters.ts" ,
         "src/hyperstore/Adapters/IndexedDb.ts" ,
         "src/hyperstore/Adapters/LocalStorage.ts" ,
-        "src/hyperstore/Bus/SignalRChannel.ts" ,
+        "src/hyperstore/Domains/DomainSerializer.ts" ,
         "src/hyperstore/undomanager.ts",
         "src/hyperstore/Util/Utils.ts" ,
         "src/hyperstore/Domains/Query.ts"
     ];
+
+    var amdSources = sources.concat([
+        "src/hyperstore/Bus/SignalRChannel.ts"
+    ]);
+
+    var commonjsSources = sources.concat([
+        "src/Nodejs/DomainSerializer.ts"
+    ]);
 
     grunt.initConfig({
         pkg: grunt.file.readJSON('package.json'),
@@ -56,26 +64,40 @@ module.exports = function (grunt) {
         // concat ts files into one file removing module statement before concatenating files.
         // Useful for creating external modules (amd/commonjs)
         concat : {
-            options: {
-                banner : "/// <reference path='../../scripts/typings/q/q.d.ts' />\r\n" +
-                         "/// <reference path='../../scripts/typings/signalr/signalr.d.ts' />\r\n" +
-                         "import Q = require('q');\r\n",
-                process : function(src, filepath) {
-                    var re = /(\/\/.*)/gm;
-                    return src.replace(/module\s*\bHyperstore\b\s*\{([\s\S]*)}/i, '$1')
-                              .replace(re, '');
-                }
+            amd : {
+                options: {
+                    banner : "/// <reference path='../../../scripts/typings/q/q.d.ts' />\r\n" +
+                    "/// <reference path='../../../scripts/typings/signalr/signalr.d.ts' />\r\n" +
+                    "import Q = require('q');\r\n",
+                    process : function(src, filepath) {
+                        var re = /(\/\/.*)/gm;
+                        return src.replace(/module\s*\bHyperstore\b\s*\{([\s\S]*)}/i, '$1')
+                            .replace(re, '');
+                    }
+                },
+                src: amdSources,
+                dest:".built/src/amd/hyperstore.ts"
             },
-            all : {
-                src: sources,
-                dest:".built/src/<%= pkg.name %>.ts"
+            commonjs : {
+                options: {
+                    banner : "/// <reference path='../../../scripts/typings/q/q.d.ts' />\r\n" +
+                    "/// <reference path='../../../scripts/typings/node/node.d.ts' />\r\n" +
+                    "import Q = require('q');\r\n",
+                    process : function(src, filepath) {
+                        var re = /(\/\/.*)/gm;
+                        return src.replace(/module\s*\bHyperstore\b\s*\{([\s\S]*)}/i, '$1')
+                            .replace(re, '');
+                    }
+                },
+                src: commonjsSources,
+                dest:".built/src/commonjs/hyperstore.ts"
             }
         },
 
         // execute jasmine tests with code coverage using individual ts files 
         // for more detailed code coverage reports
         jasmine : {
-            src : ".built/src/**/*.js",
+            src : ".built/src/hyperstore/**/*.js",
             options: {
                 outfile: ".built/_SpecRunner.html",
                 errorReporting:true,
@@ -122,28 +144,9 @@ module.exports = function (grunt) {
                 }
             },
 
-            dcl : {
-                src: sources,
-                out: ".built/src/hyperstore.js",
-                options : {
-                    declaration:true,
-                    comments: true,
-                    sourceMap: true
-                }
-            },
-
-            specs : {
-                src: "tests/specs/**/*.ts",
-                outDir: ".built/specs/",
-                options : {
-                    comments: true,
-                    sourceMap: true
-                }
-            },
-
             // Amd module compilation from the concatenated ts file
             amd: {
-                src: ['.built/src/<%= pkg.name %>.ts'],
+                src: ['.built/src/amd/hyperstore.ts'],
                 outDir : '.built/amd/',
                 singleFile:true,
                 options: {
@@ -153,10 +156,24 @@ module.exports = function (grunt) {
 
             // Commonjs module compilation from the concatenated ts file
             commonjs: {
-                src: ['.built/src/<%= pkg.name %>.ts'],
+                src: ['.built/src/commonjs/hyperstore.ts'],
                 outDir : 'lib',
+                singleFile:true,
                 options: {
-                    module : "commonjs"
+                    module : "commonjs",
+                    declaration:true,
+                    comments: false,
+                    sourceMap: true
+                }
+            },
+
+            // Tests after commonjs (used the generated hyperstore.d.ts)
+            specs : {
+                src: "tests/specs/**/*.ts",
+                outDir: ".built/specs/",
+                options : {
+                    comments: true,
+                    sourceMap: true
                 }
             }
         }

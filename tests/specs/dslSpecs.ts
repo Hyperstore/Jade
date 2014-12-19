@@ -1,5 +1,6 @@
 /// <reference path="../../scripts/typings/jasmine/jasmine.d.ts" />
-/// <reference path="../../.built/src/hyperstore.d.ts" />
+/// <reference path="../../lib/hyperstore.d.ts" />
+
 'use strict';
 
 describe('Schema tests', function ()

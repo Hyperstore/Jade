@@ -603,7 +603,7 @@ module Hyperstore
          * @param kind
          * @returns {ModelElement[]}
          */
-        find(schemaElement?:SchemaElement, kind:NodeType = NodeType.EdgeOrNode): ICursor
+        find(schemaElement?:SchemaElement, kind:NodeType = NodeType.EntityOrRelationship): ICursor
         {
             return new SelectManyCursor(this._domains, function (domain)
                 {

@@ -30,8 +30,7 @@
 /// <reference path="Util/Utils.ts" />
 /// <reference path="Adapters/IndexedDb.ts" />
 /// <reference path="Adapters/LocalStorage.ts" />
-/// <reference path="Adapters/MongoDbAdapter.ts" />
-
+/// <reference path="Domains/DomainSerializer.ts" />
 /// <reference path="Bus/SignalRChannel.ts" />
 /// <reference path="undomanager.ts" />
 

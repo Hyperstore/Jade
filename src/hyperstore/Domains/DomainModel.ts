@@ -398,7 +398,7 @@ export class DomainModel
         }
         else
         {
-            return this.graph.getNodes(NodeType.Edge, schemaElement)
+            return this.graph.getNodes(NodeType.Relationship, schemaElement)
                 .map(info=>
                 {
                     if (!tmpSchema || info.schemaId !== tmpSchema.id)
@@ -654,10 +654,9 @@ export class DomainModel
      * @param kind
      * @returns {ModelElement[]}
      */
-    find(schemaElement?:SchemaElement, kind:NodeType = NodeType.EdgeOrNode):ICursor
+    find(schemaElement?:SchemaElement, kind:NodeType = NodeType.EntityOrRelationship):ICursor
     {
-        if (typeof (
-                schemaElement) === "string")
+        if (typeof (schemaElement) === "string")
         {
             schemaElement = this.store.getSchemaElement(schemaElement.toString());
         }
@@ -745,7 +744,7 @@ export class DomainModel
 
         addNode(id:string, schemaId:string, version:number):GraphNode
         {
-            var node = new GraphNode(id, schemaId, NodeType.Node, version);
+            var node = new GraphNode(id, schemaId, NodeType.Entity, version);
             return this.addNodeCore(node);
         }
 
@@ -769,7 +768,7 @@ export class DomainModel
                 throw "Invalid start element " + startId + " when adding relationship " + id;
             }
 
-            var node = new GraphNode(id, schemaId, NodeType.Edge, version, startId, startSchemaId, endId, endSchemaId);
+            var node = new GraphNode(id, schemaId, NodeType.Relationship, version, startId, startSchemaId, endId, endSchemaId);
             this.addNodeCore(node);
 
             if (startId === endId)
@@ -912,7 +911,7 @@ export class DomainModel
            // else
            //     delete this._keys[index];
 
-            if (node.kind === NodeType.Edge)
+            if (node.kind === NodeType.Relationship)
             {
                 var start = this.getNode(node.startId);
                 if (!start)
@@ -1175,13 +1174,26 @@ export class DomainModel
     }
 
     /**
-     *
+     * Type of element in the graph model
      */
     export enum NodeType
     {
-        Node = 1,
-        Edge = 2,
-        EdgeOrNode = 3,
+        /**
+         * Element is an entity
+         */
+        Entity = 1,
+        /**
+         * Element is a relationship
+         */
+        Relationship = 2,
+        /**
+         * Value used for query only
+         */
+        EntityOrRelationship = 3,
+        /**
+         * Element is a property (Do not use this value in a query)
+         * @type {number}
+         */
         Property = 4
     }
 

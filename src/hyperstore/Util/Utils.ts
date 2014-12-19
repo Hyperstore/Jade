@@ -23,11 +23,12 @@ module Hyperstore
         _deleted:number;
         private _current:TElem;
 
-        constructor(private _throttle = 100)
+        constructor(private _throttle = 10)
         {
             super();
             this._values = [];
             this._keys = {};
+            this._deleted=0;
         }
 
         reset() {
@@ -59,12 +60,12 @@ module Hyperstore
         }
 
         keyExists(key:TKey) : boolean {
-            return this._keys[key];
+            return this._keys[key] !== undefined;
         }
 
         add(key:TKey, elem:TElem)  {
             var n = this._keys[key];
-            if( n )
+            if( n !== undefined)
                 this._values[n] = elem;
             else
                 this._keys[key] = this._values.push( elem ) - 1;
@@ -72,7 +73,7 @@ module Hyperstore
 
         get(key:TKey) {
             var n = this._keys[key];
-            return n ? this._values[n] : undefined;
+            return n !== undefined ? this._values[n] : undefined;
         }
 
         remove(key:TKey)
@@ -111,6 +112,18 @@ module Hyperstore
             }
             this._values = values;
             this._deleted = 0;
+        }
+
+        get keys() : TKey[] {
+            var list = new Array(this._values.length-this._deleted);
+            for(var k in this._keys)
+                list.push(k);
+
+            return list;
+        }
+
+        get values() : TElem[] {
+            return Utils.select(this._values, v=> v);
         }
     }
 
@@ -203,35 +216,33 @@ module Hyperstore
             return undefined;
         }
 
-        static forEach(list, fn)
-        {
-            if (!list)
-            {
+        static forEach(list, fn) {
+            if (!list) {
                 return;
             }
 
-            if (list.length)
-            {
-                for (var i = 0; i < list.length; i++)
-                {
+            if (list.length) {
+                for (var i = 0; i < list.length; i++) {
                     var e = list[i];
-                    if (e)
-                    {
+                    if (e) {
                         fn(e);
                     }
                 }
+                return;
             }
-            else
-            {
-                for (var k in list)
-                {
-                    if (list.hasOwnProperty(k))
-                    {
-                        var e = list[k];
-                        if (e)
-                        {
-                            fn(e);
-                        }
+            if (list.hasNext) {
+                while(list.hasNext()) {
+                    var e = list.next();
+                    if(e) fn(e);
+                }
+                return;
+            }
+
+            for (var k in list) {
+                if (list.hasOwnProperty(k)) {
+                    var e = list[k];
+                    if (e) {
+                        fn(e);
                     }
                 }
             }

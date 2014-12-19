@@ -56,8 +56,8 @@ module Hyperstore
      * Constraint kind. See [[IElementConstraint]]
      */
     export enum ConstraintKind {
-        Check,
-        Validate
+        Check=0, // Order is important
+        Validate=1
     }
 
     /**

@@ -169,21 +169,15 @@ module Hyperstore
         private checkOrValidateElements(elements, kind:ConstraintKind):DiagnosticMessage[]
         {
             var ctx = new ConstraintContext(kind);
-            for (var key in elements)
-            {
-                if( !elements.hasOwnProperty(key))
-                    continue;
-                var mel = elements[key];
-                try
-                {
+            Utils.forEach(elements, mel => {
+                try {
                     ctx.element = mel;
                     this.checkCondition(ctx, mel.schemaElement);
                 }
-                catch (e)
-                {
+                catch (e) {
                     ctx.log(e, MessageType.Error);
                 }
-            }
+            });
 
             return ctx.messages;
         }
@@ -198,7 +192,7 @@ module Hyperstore
                     if( !constraints.hasOwnProperty(key))
                         continue;
                     var constraint = constraints[key];
-                    if (constraint.kind === ctx.kind)
+                    if (constraint.kind <= ctx.kind) // validate includes check constraint
                     {
                         var msg = constraint.execute(ctx.element, ctx);
                         if(msg)

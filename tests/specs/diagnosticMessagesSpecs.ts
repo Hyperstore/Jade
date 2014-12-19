@@ -1,9 +1,9 @@
 ﻿/// <reference path="../../scripts/typings/jasmine/jasmine.d.ts" />
-/// <reference path="../../.built/src/hyperstore.d.ts" />
+/// <reference path="../../lib/hyperstore.d.ts" />
 
     describe('Diagnostic message formatting tests', function () {
         'use strict';
-        var store = new Hyperstore.Store();
+        var store = new Store();
         var schema = new Hyperstore.Schema(store, 'Test');
         var librarySchema = new Hyperstore.SchemaEntity(schema, 'Library');
         librarySchema.defineProperty('Name', 'string');
