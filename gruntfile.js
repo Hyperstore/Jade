@@ -94,24 +94,12 @@ module.exports = function (grunt) {
             }
         },
 
-        // execute jasmine tests with code coverage using individual ts files 
-        // for more detailed code coverage reports
-        jasmine : {
-            src : ".built/src/hyperstore/**/*.js",
-            options: {
-                outfile: ".built/_SpecRunner.html",
-                errorReporting:true,
-                keepRunner:true,
-                vendor: ["node_modules/q/q.js"],
-                specs:'.built/specs/*.js'/*,
-                template: require('grunt-template-jasmine-istanbul'),
-                templateOptions: {
-                    coverage: '.built/coverage/json/coverage.json',
-                    report: [
-                        {type: 'html', options: {dir: '.built/coverage/html'}},
-                        {type: 'text-summary'}
-                    ]
-                }*/
+        mochaTest: {
+            all : {
+                src: "test/**/*.js",
+                options: {
+                //    reporter: "bdd"
+                }
             }
         },
 
@@ -165,16 +153,6 @@ module.exports = function (grunt) {
                     comments: false,
                     sourceMap: true
                 }
-            },
-
-            // Tests after commonjs (used the generated hyperstore.d.ts)
-            specs : {
-                src: "tests/specs/**/*.ts",
-                outDir: ".built/specs/",
-                options : {
-                    comments: true,
-                    sourceMap: true
-                }
             }
         }
     });
@@ -182,10 +160,10 @@ module.exports = function (grunt) {
     grunt.registerTask('default', ['build']);
     
     // build create uglify files targeting amd & commonjs modules.
-    grunt.registerTask('build', ['clean',  'concat', 'ts', 'jasmine', 'uglify']);
+    grunt.registerTask('build', ['clean',  'concat', 'ts', 'mochaTest', 'uglify']);
 
     // execute jasmine test with code coverage
-    grunt.registerTask('test', ['ts:specs', 'jasmine']);
+    grunt.registerTask('test', ['ts:specs', 'mocha']);
 
     // generate et publish packages
     //grunt.registerTask('release', ['test', 'build']);
@@ -195,5 +173,5 @@ module.exports = function (grunt) {
     grunt.loadNpmTasks('grunt-contrib-clean');
     grunt.loadNpmTasks('grunt-contrib-concat');
     grunt.loadNpmTasks('grunt-contrib-uglify');
-    grunt.loadNpmTasks('grunt-contrib-jasmine');
+    grunt.loadNpmTasks('grunt-mocha-test');
 };

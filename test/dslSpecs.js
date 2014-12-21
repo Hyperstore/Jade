@@ -1,5 +1,5 @@
-/// <reference path="../../scripts/typings/jasmine/jasmine.d.ts" />
-/// <reference path="../../lib/hyperstore.d.ts" />
+var hyperstore = require('../lib/hyperstore.js');
+var expect = require('chai').expect;
 
 'use strict';
 
@@ -71,13 +71,13 @@ describe('Schema tests', function ()
     var store;
 
     beforeEach(function(done) {
-        store = new Hyperstore.Store();
+        store = new hyperstore.Store();
         store.init(config).then(function() {done()});
     });
 
     it('should initialize store from the dsl', function(done) {
-  //      expect(store.getDomain('test')).not.toBeUndefined();
-  //      expect(store.getSchemaElement('Library', false)).not.toBeUndefined();
+  //      expect(store.getDomain('test')).to.not.be.undefined;
+  //      expect(store.getSchemaElement('Library', false)).to.not.be.undefined;
         done();
     });
 });

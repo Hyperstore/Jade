@@ -14,7 +14,7 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-/// <reference path="../../../Scripts/typings/mongodb/mongodb.d.ts" />
+/// <reference path="../../Scripts/typings/mongodb/mongodb.d.ts" />
 
 /*import mongo = require('mongodb');
 

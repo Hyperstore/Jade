@@ -79,7 +79,7 @@ module Hyperstore
         remove(key:TKey)
         {
             var n = this._keys[key];
-            if (n)
+            if (n !== undefined )
             {
                 this._deleted++;
                 delete this._keys[key];

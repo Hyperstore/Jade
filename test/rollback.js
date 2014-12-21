@@ -1,14 +1,14 @@
-﻿/// <reference path="../../scripts/typings/jasmine/jasmine.d.ts" />
-/// <reference path="../../lib/hyperstore.d.ts" />
+﻿var hyperstore = require('../lib/hyperstore.js');
+var expect = require('chai').expect;
 
-    describe('session rollback', function () {
+describe('session rollback', function () {
         'use strict';
 
         var store;
         var lib;
         var cfg;
 
-        beforeEach(function(done)
+        beforeEach(function()
         {
             cfg = {
                 schemas : {
@@ -35,34 +35,29 @@
                     }
                 }
             };
-            store = new Hyperstore.Store();
-            store.init(cfg).then(function()
-                  {
-                      lib = (<any>cfg.domains.Test).createEntity((<any>cfg.schemas.Test).LibrarySchema);
-                      lib.Name = "test";
-                      done();
-                  });
+            store = new hyperstore.Store();
+            store.init(cfg);
+            lib = cfg.domains.Test.find(cfg.schemas.Test.LibrarySchema).firstOrDefault();
+            lib.Name = "test";
         });
 
         //Spec - 1
-        it('should restore property value', function (done) {
+        it('should restore property value', function () {
             var session = store.beginSession();
             lib.Name = 'test2';
             session.close();
 
-            expect(lib.Name).toEqual('test');
-            done();
+            expect(lib.Name).to.equal('test');
         });
 
-        it('should remove relationship', function (done) {
+        it('should remove relationship', function () {
             var session = store.beginSession();
-            var b =  (<any>cfg.domains.Test).createEntity((<any>cfg.schemas.Test).BookSchema);
+            var b =  cfg.domains.Test.createEntity(cfg.schemas.Test.BookSchema);
             b.Title = "test";
             lib.Books.add(b);
             session.close();
-            expect(lib.Books.items.length).toEqual(1);
-            expect(b.disposed).toBeTruthy();
-            done();
+            expect(lib.Books.items.length).to.equal(1);
+            expect(b.disposed).to.be.true;
         });
     });
 
