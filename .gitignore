@@ -6,3 +6,4 @@ node_modules/
 .baseDir.ts
 .doc
 npm-debug.log
+.baseDir.*

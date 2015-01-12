@@ -42,7 +42,7 @@ export class EventDispatcher implements IEventDispatcher
                 eventName: EventManager.AddEntityEvent, execute: function (d, evt)
             {
                 var schema = d.store.getSchemaEntity(evt.schemaId);
-                d.createEntity(schema, evt.id, evt.version);
+                d.create(schema, evt.id, evt.version);
             }
             }
         );

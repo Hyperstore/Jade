@@ -170,7 +170,7 @@ module Hyperstore
                 {
                     var data = entities[i];
                     var s = this.domain.store.getSchemaEntity(data.schema);
-                    this.domain.createEntity(s, data.id, data.version);
+                    this.domain.create(s, data.id, data.version);
                     this.loadProperties(data.id, s);
                 }
 

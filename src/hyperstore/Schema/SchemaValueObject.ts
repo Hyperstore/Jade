@@ -74,11 +74,11 @@ module Hyperstore
          * @param kind
          */
         constructor(schema:Schema, id:string, message?:string, condition?:(val:any, old:any, ctx:ConstraintContext) => boolean,
-                    asError:boolean = true, kind:ConstraintKind = ConstraintKind.Validate)
+                    asError:boolean = true, kind:ConstraintKind = ConstraintKind.Check)
         {
             super(schema, id)
             if( condition)
-                this.addConstraint(message, condition, asError, kind ? ConstraintKind.Check : ConstraintKind.Validate);
+                this.addConstraint(message, condition, asError, kind );
             this.kind = SchemaKind.Primitive;
         }
     }

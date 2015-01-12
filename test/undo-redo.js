@@ -28,7 +28,7 @@ describe('Undo/Redo manager', function () {
             };
             store = new Hyperstore.Store();
             store.init(cfg);
-            lib = cfg.domains.Test.createEntity(cfg.schemas.Test.LibrarySchema);
+            lib = cfg.domains.Test.create(cfg.schemas.Test.LibrarySchema);
             lib.Name = "test";
         });
 
@@ -39,7 +39,7 @@ describe('Undo/Redo manager', function () {
 
             var session = store.beginSession();
             var domain = cfg.domains.Test;
-            var b =  domain.createEntity(cfg.schemas.Test.BookSchema);
+            var b =  domain.create(cfg.schemas.Test.BookSchema);
             b.Title = "test";
             lib.Books.add(b);
             session.acceptChanges();

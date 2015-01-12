@@ -41,7 +41,7 @@ module Hyperstore
          */
         create(domain:DomainModel, id?:string, version?:number) : ModelElement {
             if(!domain) throw "domain is required.";
-            return domain.createEntity(this, id, version);
+            return domain.create(this, id, version);
         }
     }
 }

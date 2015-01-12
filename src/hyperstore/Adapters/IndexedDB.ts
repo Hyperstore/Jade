@@ -175,7 +175,7 @@ module Hyperstore
                             for (var i = 0; i < entities.length; i++) {
                                 var data = entities[i];
                                 var s = self.domain.store.getSchemaEntity(data.schema);
-                                self.domain.createEntity(s, data.id, data.version);
+                                self.domain.create(s, data.id, data.version);
                                 self.loadProperties(data.id, s, ostore);
                             }
 

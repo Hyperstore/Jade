@@ -52,7 +52,7 @@ describe('session rollback', function () {
 
         it('should remove relationship', function () {
             var session = store.beginSession();
-            var b =  cfg.domains.Test.createEntity(cfg.schemas.Test.BookSchema);
+            var b =  cfg.domains.Test.create(cfg.schemas.Test.BookSchema);
             b.Title = "test";
             lib.Books.add(b);
             session.close();

@@ -366,7 +366,7 @@ export declare class DomainModel {
     public getPropertyValue(ownerId: string, property: SchemaProperty): PropertyValue;
     public setPropertyValue(ownerId: string, property: SchemaProperty, value: any, version?: number): PropertyValue;
     private updateSequence(id);
-    public createEntity(schemaElement: SchemaElement, id?: string, version?: number): ModelElement;
+    public create(schemaElement: SchemaElement, id?: string, version?: number): ModelElement;
     public createRelationship(schemaRelationship: SchemaRelationship, start: ModelElement, endId: string, endSchemaId: string, id?: string, version?: number): ModelElement;
     public remove(id: string, version?: number): void;
     public elementExists(id: string): boolean;

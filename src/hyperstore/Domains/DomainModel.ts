@@ -168,7 +168,7 @@ export class DomainModel
 
     private parseJson(obj:any, schema:SchemaElement, refs):ModelElement
     {
-        var mel = this.createEntity(schema);
+        var mel = this.create(schema);
         for (var member in obj)
         {
             if (!obj.hasOwnProperty(member))
@@ -265,7 +265,7 @@ export class DomainModel
                 var schema = this.store.getSchemaElement(schemaId);
                 if (!this.elementExists(entityId))
                 {
-                    list.push(elem = this.createEntity(schema, entityId));
+                    list.push(elem = this.create(schema, entityId));
                 }
 
                 if (entity.properties)
@@ -526,7 +526,7 @@ export class DomainModel
      * @param version
      * @returns {Hyperstore.ModelElement}
      */
-    createEntity(schemaElement:SchemaElement, id?:string, version?:number):ModelElement
+    create(schemaElement:SchemaElement, id?:string, version?:number):ModelElement
     {
         Utils.Requires(schemaElement, "schemaElement");
         if (typeof(schemaElement) == "string")
