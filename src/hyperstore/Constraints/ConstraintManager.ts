@@ -66,9 +66,9 @@ module Hyperstore
                 {
                     propertyName     : property.name,
                     messageType      : def.messageType,
-                    execute : function (self, ctx) : string
+                    execute : function (self:ModelElement, ctx:ConstraintContext) : string
                     {
-                        var pv = <PropertyValue>ctx.element.domain.getPropertyValue(self.id, property);
+                        var pv = <PropertyValue>ctx.element.getInfo().domain.getPropertyValue(self.getInfo().id, property);
                         if (!pv)
                         {
                             pv = new PropertyValue(null,null,0);
@@ -89,7 +89,8 @@ module Hyperstore
                         }
                         catch (e)
                         {
-                            ctx.log(e, MessageType.Error );
+                            var txt = "Fatal error << " + e + " >> on property constraint " + message + " for property " + property.name;
+                            ctx.log(txt, MessageType.Error );
                         }
                         ctx.propertyName = undefined;
                         return result;
@@ -116,7 +117,7 @@ module Hyperstore
             if(!constraint.execute)
             {
                 var message = constraint.message || "Constraint failed for element {id}";
-                constraint.execute = function (self, ctx)
+                constraint.execute = function (self:ModelElement, ctx:ConstraintContext)
                 {
                     var result = <string>null;
                     ctx.propertyName = null;
@@ -133,7 +134,8 @@ module Hyperstore
                     }
                     catch (e)
                     {
-                        ctx.log(e, MessageType.Error );
+                        var txt = "Fatal error << " + e + " >> on element constraint " + message;
+                        ctx.log(txt, MessageType.Error );
                     }
                     return result;
                 };
@@ -162,17 +164,17 @@ module Hyperstore
         validate(elements):DiagnosticMessage[]
         {
             if (elements.store)
-                elements = <DomainModel>elements.find();
+                elements = <DomainModel>elements.getElements();
             return this.checkOrValidateElements(elements, ConstraintKind.Validate);
         }
 
         private checkOrValidateElements(elements, kind:ConstraintKind):DiagnosticMessage[]
         {
             var ctx = new ConstraintContext(kind);
-            Utils.forEach(elements, mel => {
+            Utils.forEach(elements, (mel:ModelElement) => {
                 try {
                     ctx.element = mel;
-                    this.checkCondition(ctx, mel.schemaElement);
+                    this.checkCondition(ctx, mel.getInfo().schemaElement);
                 }
                 catch (e) {
                     ctx.log(e, MessageType.Error);

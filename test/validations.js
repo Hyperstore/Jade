@@ -5,17 +5,64 @@ var expect = require('chai').expect;
 
 describe('Validation tests', function ()
 {
- /*   var test = {
+  /*  var test = {
+        constraints : {
+            "Property {propertyName} is required": {
+                name: "required", // unique id
+                check: function (val) {
+                    return val != undefined;
+                }
+            }
+        },
+        types: {
+            enum: {
+                $values: [],
+                constraints: {
+                    "Invalid property {propertyName} must be one of {$values}": function (val) {
+                        return this.values.indexOf(val) !== -1;
+                    }
+                }
+            },
+            range: {
+                type:"number",
+                $min: 0,
+                $max: 1,
+                constraints : {
+                    "Invalid {propertyName} value must be between {$min} and {$max}": function (val) {
+                        return val >= this.min && val <= this.max;
+                    }
+                }
+            },
+            arrayOf: {
+                type: "string",
+                constraints : {
+                    "Invalid {propertyName}. Must be an array of {$type}": function (val) {
+                        if (!val) return true;
+                        if (!val.length) return false;
+                        var ok = true;
+                        val.forEach(function (v) {
+                            if (typeof v !== this.type) ok = false;
+                        });
+                        return ok;
+                    }
+                }
+            }
+        },
         schemas : {
             "name" :{
                 library : {
+                    extends : "",
                     properties : {
                         "title" : {
                             type : "email",
                             default : "jdjdjd",
                             constraints : {
                                 "$import" : ["required"],
-                                "kdoekd dokedd" : function(val) {}
+                                "kdoekd dokedd" : function(val) {},
+                                "jdkdkdkd " : {
+                                    check : function() {},
+                                    error:true
+                                }
                             }
                         },
                         relationships : {
@@ -32,8 +79,8 @@ describe('Validation tests', function ()
                 }
             }
         }
-    };
-    */
+    };*/
+
 
     var config =
     {
@@ -91,8 +138,8 @@ describe('Validation tests', function ()
                         $constraints : {
                             "$ref" : "required",
                             "Duplicate value {value} for {propertyName}" : function(val, old, ctx) {
-                                var domain = ctx.element.domain;
-                                var others = domain.find(ctx.element.schemaElement);
+                                var domain = ctx.element.getInfo().domain;
+                                var others = domain.getElements(ctx.element.schemaElement);
                                 var pname = ctx.propertyName;
                                 return !others.any( function(e) {return e[pname] === val && e.id !== ctx.element.id});
                             }
@@ -122,32 +169,34 @@ describe('Validation tests', function ()
 
     var store;
     var root;
+    var meta;
 
     beforeEach(function() {
         store = new hyperstore.Store();
-        store.init(config);
-        root = config.domains.test.find("Container").firstOrDefault();
+        meta = store.init(config);
+        root = meta.domains.test.getElements("Container").firstOrDefault();
     });
 
-  /*  it('should failed on wrong primitives values', function() {
+    it('should failed on wrong primitives values', function() {
         var session = store.beginSession();
-        var item = config.domains.test.create("Item");
+        var item = meta.domains.test.create("Item");
         item.Num = "str";
         session.acceptChanges();
         var r = session.close();
         expect(r.hasErrorsOrWarnings).to.equal(true);
-        expect(r.messages.length).to.equal(2);
+        expect(r.messages.length).to.equal(3);
         session = store.beginSession();
         item.Num = 2;
         item.Values = "A";
+        item.Range = 1;
         session.acceptChanges();
         r = session.close();
         expect(r.hasErrorsOrWarnings).to.equal(false);
-    });*/
+    });
 
     it('should failed on wrong range values', function() {
         var session = store.beginSession();
-        var item = config.domains.test.create("Item");
+        var item = meta.domains.test.create("Item");
         item.Values = "A";
 
         item.Range = "str";
@@ -169,4 +218,15 @@ describe('Validation tests', function ()
 
     });
 
+    it('on demand validations', function() {
+        var session = store.beginSession();
+        var item = meta.domains.test.create("Item");
+        session.acceptChanges();
+        var r = session.close();
+        expect(r.hasErrorsOrWarnings).to.equal(true);
+        var cx = r.messages.length;
+
+        var diags = meta.domains.test.validate();
+        expect(diags.length).to.equal(cx);
+    });
 });

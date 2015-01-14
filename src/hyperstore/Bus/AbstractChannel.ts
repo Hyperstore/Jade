@@ -27,6 +27,7 @@ module Hyperstore
     export class AbstractChannel
     {
         public eventBus:EventBus;
+        public domain:DomainModel
 
         /**
          * Event dispatcher. See [[IEventHandler]].
@@ -35,8 +36,16 @@ module Hyperstore
          */
         public dispatcher:IEventDispatcher;
 
-        constructor(public domain:DomainModel)
+        constructor()
         {
+        }
+
+        /**
+         * associate a channel with a domain.
+         * @param domain
+         */
+        associate(domain:DomainModel) {
+            this.domain = domain;
         }
 
         /**

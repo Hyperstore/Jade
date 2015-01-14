@@ -56,7 +56,7 @@ export class EventDispatcher implements IEventDispatcher
                 {
                     throw "Invalid element";
                 }
-                d.remove(mel.id, evt.version);
+                d.remove(evt.id, evt.version);
             }
             }
         );
@@ -85,7 +85,7 @@ export class EventDispatcher implements IEventDispatcher
                 {
                     throw "Invalid element";
                 }
-                d.remove(mel.id, evt.version);
+                d.remove(evt.id, evt.version);
             }
             }
         );

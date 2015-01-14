@@ -25,7 +25,7 @@ module Hyperstore
      */
     export class IndexedDbAdapter extends Adapter
     {
-        private static DB_NAME = "HY$DB";
+        private static DB_NAME = "_HY$DB";
         private indexedDB;
 
         /**
@@ -49,11 +49,11 @@ module Hyperstore
             var self = this;
             var q = Q.defer<any>();
 
-            var request = self.indexedDB.open(self.domain.name, 2);
+            var request = self.indexedDB.open(self.domain.name, 3);
             request.onupgradeneeded = function (e) {
                 var db = e.target.result;
                 if (!db.objectStoreNames.contains(IndexedDbAdapter.DB_NAME)) {
-                    db.createObjectStore(IndexedDbAdapter.DB_NAME, {autoIncrement: false});
+                    db.createObjectStore(IndexedDbAdapter.DB_NAME, {autoIncrement: false, keyPath: "id"});
                 }
                 // https://groups.google.com/a/chromium.org/forum/?fromgroups=#!topic/chromium-html5/VlWI87JFKMk[1-25-false]
                 e.target.transaction.oncomplete = function (e) {
@@ -83,7 +83,7 @@ module Hyperstore
         persistElements(s:Session, elements:ITrackedElement[])
         {
             var self = this;
-            var r = Session.current.result;
+            var r = s.result;
 
             var q = Q.defer<any>();
             r.addPromise(q);
@@ -95,14 +95,14 @@ module Hyperstore
                     function (element:ITrackedElement) {
                         switch (element.state) {
                             case TrackingState.Added:
-                                var data:any = {schema: element.schemaId, version: element.version};
+                                var data:any = {id:element.id, schema: element.schemaId, version: element.version};
                                 if (element.startId) {
                                     data.startId = element.startId;
                                     data.endId = element.endId;
                                     data.endSchemaId = element.endSchemaId;
                                 }
                                 ;
-                                ostore.add(data, element.id);
+                                ostore.put(data);
 
                             case TrackingState.Updated:
                                 if (element.properties) {
@@ -111,8 +111,8 @@ module Hyperstore
                                         var pv = element.properties[pn];
                                         if (pv && pv.value) {
                                             var ps = schemaElement.getProperty(pn, true);
-                                            var data:any = {va: ps.serialize(pv.value), ve: pv.version};
-                                            ostore.put(data, element.id + pn);
+                                            var data:any = {va: ps.serialize(pv.value), ve: pv.version, id:element.id + pn};
+                                            ostore.put(data);
                                         }
                                     }
                                 }
@@ -149,7 +149,7 @@ module Hyperstore
                 var entities = [];
                 var relationships = [];
 
-                var dl = this.domain.name.length;
+                var dl = self.domain.name.length;
 
                 ostore.openCursor().onsuccess = function (e) {
                     var cursor = (<any>e.target).result;

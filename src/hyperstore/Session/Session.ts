@@ -157,8 +157,7 @@ module Hyperstore
                 // Undo all session events
                 this.mode = this.mode | SessionMode.Rollback;
                 var d = this.store.eventBus.defaultEventDispatcher;
-                this.events.reverse().forEach(
-                    e => {
+                this.events.reverse().forEach(e => {
                         if ((<any>e).getReverseEvent)
                             d.handleEvent((<any>e).getReverseEvent())
                     }
@@ -170,8 +169,8 @@ module Hyperstore
 
             // Session completed events
             var self = this;
-            // First domain events and only if there is no errors or warnings
-            if (!this.aborted && !this.result.hasErrorsOrWarnings) {
+            // First domain events
+            if (!this.aborted) {
                 this.store.domains.forEach(d=>
                 {
                     (<DomainModel>d).events.__notifySessionCompleted(self);
@@ -181,19 +180,27 @@ module Hyperstore
             this.store.__sendSessionCompletedEvent(self);
 
             // if errors and not in silent mode, throw an exception
-            if( this.result.hasErrors && !(this.mode & SessionMode.SilentMode))
-                throw {message: "Session failed", result:this.result};
+            if( this.result.hasErrors && !(this.mode & SessionMode.SilentMode)) {
+                var txt = "Session failed : ";
+                for(var i in this.result.messages) {
+                    if( !this.result.messages.hasOwnProperty(i))
+                        continue;
+                    var msg = this.result.messages[i];
+                    if( msg.messageType === MessageType.Error)
+                       txt = txt + msg.message + "\r\n";
+                }
+                throw {message: txt, result: this.result};
+            }
 
             return this.result;
         }
 
         private executeConstraints(elements:ModelElement[])
         {
-            var constraintsManager = Utils.groupBy(elements, e=> e.schemaElement.schema.constraints);
+            var constraintsManager = Utils.groupBy(elements, (e:ModelElement) => e.getInfo().schemaElement.schema.constraints);
 
             var messages = [];
-            Utils.forEach(
-                constraintsManager, m =>
+            Utils.forEach(constraintsManager, m =>
                 {
                     var manager = m.key;
                     messages = messages.concat(manager.__checkElements(m.value));

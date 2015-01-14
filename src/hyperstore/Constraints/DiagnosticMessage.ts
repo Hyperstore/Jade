@@ -33,7 +33,7 @@ module Hyperstore
         {
             if (element)
             {
-                this.id = element.id;
+                this.id = element.getInfo().id;
             }
         }
 
@@ -57,7 +57,12 @@ module Hyperstore
                             case "propertyName" :
                                 return propertyName;
                             default :
-                                return element ? element[name] : null;
+                                if(!element) return null;
+                                if(name[0] === '_') {
+                                    var info = element.getInfo();
+                                    return info[name.substring(1)];
+                                }
+                                return element[name];
                         }
                     });
         }

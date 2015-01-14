@@ -45,7 +45,7 @@ export declare class Schema {
     public store: Store;
     public name: string;
     public constraints: ConstraintsManager;
-    constructor(store: Store, name?: string, def?: ISchemaDefinition);
+    constructor(store: Store, name?: string, def?: ISchemaDefinition, result?: any);
     public __addSchemaElement(schemaInfo: SchemaInfo): void;
 }
 export declare class SchemaInfo {
@@ -70,7 +70,7 @@ export declare class SchemaElement extends SchemaInfo {
     public __defineReferenceProperty(schemaRelationship: SchemaRelationship, opposite: boolean): void;
     public defineProperty(name: any, schema: any, defaultValue?: any, kind?: PropertyKind): SchemaProperty;
     public isA(schema: any): boolean;
-    public deserialize(ctx: SerializationContext): ModelElement;
+    public deserialize(ctx: SerializationContext): ModelRelationship;
     public addConstraint(message: string, constraint: (self: ModelElement, ctx: ConstraintContext) => boolean, asError?: boolean, kind?: ConstraintKind, propertyName?: string): void;
 }
 export declare class SchemaEntity extends SchemaElement {
@@ -100,7 +100,7 @@ export declare class SchemaRelationship extends SchemaElement {
     constructor(schema: Schema, id: string, startSchemaId: string, endSchemaId: string, embedded: boolean, cardinality: Cardinality, startProperty?: string, endProperty?: string, baseElement?: SchemaElement);
     public startProperty : string;
     public endProperty : string;
-    public create(domain: DomainModel, start: ModelElement, endId: string, endSchemaId: string, id?: string, version?: number): ModelElement;
+    public create(domain: DomainModel, start: ModelElement, endId: string, endSchemaId: string, id?: string, version?: number): ModelRelationship;
 }
 export declare class SchemaValueObject extends SchemaInfo {
     public parent: SchemaInfo;
@@ -322,7 +322,8 @@ export declare class Store {
     public eventBus: EventBus;
     public language: string;
     constructor();
-    public init(config?: any): Q.Promise<any>;
+    public initAsync(config?: any): Q.Promise<any>;
+    public init(config?: any, p?: Q.Deferred<any>): any;
     private populateDomain(def, domain);
     public dispose(): void;
     public unloadDomain(domain: DomainModel): void;
@@ -342,7 +343,7 @@ export declare class Store {
     public getSchemaEntity(schemaName: string, throwException?: boolean): SchemaEntity;
     public runInSession(action: () => void): void;
     public get(id: string): ModelElement;
-    public find(schemaElement?: SchemaElement, kind?: NodeType): ICursor;
+    public getElements(schemaElement?: SchemaElement, kind?: NodeType): ICursor;
 }
 export declare class DomainModel {
     public store: Store;
@@ -356,22 +357,24 @@ export declare class DomainModel {
     private graph;
     constructor(store: Store, name: string);
     public dispose(): void;
+    public validate(schemaElement?: SchemaElement): DiagnosticMessage[];
     public createId(id?: string): string;
     public addAdapter(adapter: Adapter): void;
     private findSchemaId(schemas, id);
     public loadFromJson(def: any, rootSchema?: SchemaElement): ModelElement[];
     private parseJson(obj, schema, refs);
     private loadFromHyperstoreJson(def);
-    public findRelationships(schemaElement?: SchemaRelationship, start?: ModelElement, end?: ModelElement): ICursor;
+    public getRelationships(schemaElement?: SchemaRelationship, start?: ModelElement, end?: ModelElement): ICursor;
     public getPropertyValue(ownerId: string, property: SchemaProperty): PropertyValue;
     public setPropertyValue(ownerId: string, property: SchemaProperty, value: any, version?: number): PropertyValue;
     private updateSequence(id);
     public create(schemaElement: SchemaElement, id?: string, version?: number): ModelElement;
-    public createRelationship(schemaRelationship: SchemaRelationship, start: ModelElement, endId: string, endSchemaId: string, id?: string, version?: number): ModelElement;
+    public createRelationship(schemaRelationship: SchemaRelationship, start: ModelElement, endId: string, endSchemaId: string, id?: string, version?: number): ModelRelationship;
     public remove(id: string, version?: number): void;
     public elementExists(id: string): boolean;
     public get(id: string): ModelElement;
-    public find(schemaElement?: SchemaElement, kind?: NodeType): ICursor;
+    public getEntities(schemaElement?: SchemaElement): ICursor;
+    public getElements(schemaElement?: SchemaElement, kind?: NodeType): ICursor;
     private getFromCache(schemaElement, startId?, startSchemaId?, endId?, endSchemaId?, id?);
 }
 export declare class DomainModelScope extends DomainModel {
@@ -390,6 +393,8 @@ export declare class Cursor implements ICursor {
     static emptyCursor: Cursor;
     public firstOrDefault(): any;
     public forEach(callback: any): void;
+    public count(callback?: any): number;
+    public concat(list: ICursor): ICursor;
     public any(callback?: any): boolean;
     public toArray(): any[];
     public map(callback: any): ICursor;
@@ -406,25 +411,35 @@ export declare enum NodeType {
     EntityOrRelationship = 3,
     Property = 4,
 }
+export interface IEntityMetadata {
+    id: string;
+    schemaElement: SchemaElement;
+    domain: DomainModel;
+    disposed: boolean;
+}
+export interface IRelationshipMetadata extends IEntityMetadata {
+    startId: string;
+    startSchemaId: string;
+    endId: string;
+    endSchemaId: string;
+}
 export declare class ModelElement {
-    public id: string;
-    public schemaElement: SchemaElement;
-    public domain: DomainModel;
-    public startId: string;
-    public startSchemaId: string;
-    public endId: string;
-    public endSchemaId: string;
-    private _start;
-    private _end;
-    public disposed: boolean;
+    private _info;
+    public getInfo(): IEntityMetadata;
+    public isDisposed : boolean;
     public dispose(): void;
     public getPropertyValue(property: SchemaProperty): any;
     public setPropertyValue(property: SchemaProperty, value: any): PropertyValue;
-    public __initialize(domain: DomainModel, id: string, schemaElement: SchemaElement, startId?: string, startSchemaId?: string, endId?: string, endSchemaId?: string): void;
-    public start : ModelElement;
-    public end : ModelElement;
+    public __initialize(domain: DomainModel, id: string, schemaElement: SchemaElement, startId?: string, startSchemaId?: string, endId?: string, endSchemaId?: string): IEntityMetadata;
     public stringify(): string;
-    public getRelationships(schemaElement?: SchemaRelationship, direction?: Direction): ModelElement[];
+    public getRelationships(schemaElement?: SchemaRelationship, direction?: Direction): ModelRelationship[];
+}
+export declare class ModelRelationship extends ModelElement {
+    private __start;
+    private __end;
+    public getStart(): ModelElement;
+    public getEnd(): ModelElement;
+    public __initialize(domain: DomainModel, id: string, schemaElement: SchemaElement, startId?: string, startSchemaId?: string, endId?: string, endSchemaId?: string): IEntityMetadata;
 }
 export declare class ModelElementCollection extends Cursor {
     public source: ModelElement;

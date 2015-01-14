@@ -38,7 +38,7 @@ export class SchemaElement extends SchemaInfo
         this.proto = Object.create(
             baseElement
                 ? baseElement.proto
-                : ModelElement.prototype
+                : kind === SchemaKind.Entity ? ModelElement.prototype : ModelRelationship.prototype
         );
     }
 
@@ -279,7 +279,7 @@ export class SchemaElement extends SchemaInfo
      */
     deserialize(ctx:SerializationContext)
     {
-        var mel = <ModelElement>Object.create(this.proto);
+        var mel = <ModelRelationship>Object.create(this.proto);
 
         mel.__initialize(ctx.domain, ctx.id, this, ctx.startId, ctx.startSchemaId, ctx.endId, ctx.endSchemaId);
 
@@ -338,7 +338,7 @@ export class SchemaElement extends SchemaInfo
 // -------------------------------------------------------------------------------------
 class ReferenceHandler
 {
-    private relationship:ModelElement;
+    private relationship:ModelRelationship;
 
     // -------------------------------------------------------------------------------------
     //
@@ -352,7 +352,7 @@ class ReferenceHandler
     // -------------------------------------------------------------------------------------
     getReference():ModelElement
     {
-        if (this._source.disposed)
+        if (this._source.isDisposed)
         {
             throw "Can not use a disposed element";
         }
@@ -361,7 +361,7 @@ class ReferenceHandler
         {
             var start = this._opposite ? undefined : this._source;
             var end = this._opposite ? this._source : undefined;
-            var cursor = this._source.domain.findRelationships(this._schemaRelationship, start, end);
+            var cursor = this._source.getInfo().domain.getRelationships(this._schemaRelationship, start, end);
             this.relationship = cursor.hasNext() ? cursor.next() : undefined;
         }
 
@@ -371,8 +371,8 @@ class ReferenceHandler
         }
 
         return this._opposite
-            ? this.relationship.start
-            : this.relationship.end;
+            ? this.relationship.getStart()
+            : this.relationship.getEnd();
     }
 
     // -------------------------------------------------------------------------------------
@@ -380,7 +380,7 @@ class ReferenceHandler
     // -------------------------------------------------------------------------------------
     setReference(v:any)
     {
-        if (this._source.disposed)
+        if (this._source.isDisposed)
         {
             throw "Can not use a disposed element";
         }
@@ -390,9 +390,11 @@ class ReferenceHandler
         var start:ModelElement = this._opposite ? undefined : this._source;
         var end = this._opposite ? this._source : undefined;
 
+        var domain = this._source.getInfo().domain;
+
         if (this.relationship)
         {
-            var cursor = this._source.domain.findRelationships(this._schemaRelationship, start, end);
+            var cursor = domain.getRelationships(this._schemaRelationship, start, end);
             this.relationship = cursor.hasNext() ? cursor.next() : undefined;
         }
         start = this._opposite ? other : this._source;
@@ -400,19 +402,20 @@ class ReferenceHandler
 
         if (this.relationship)
         {
-            if (other && this.relationship.startId === start.id && this.relationship.endId === other.id)
+            var info = <IRelationshipMetadata>this.relationship.getInfo();
+            if (other && info.startId === start.getInfo().id && info.endId === other.getInfo().id)
             {
                 return; // Same relationship do nothing
             }
-            this._source.domain.remove(this.relationship.id);
+            domain.remove(info.id);
         }
 
         this.relationship = undefined;
 
         if (other)
         {
-            this.relationship = this._source.domain.createRelationship(
-                this._schemaRelationship, start, end.id, end.schemaElement.id
+            this.relationship = domain.createRelationship(
+                this._schemaRelationship, start, end.getInfo().id, end.getInfo().schemaElement.id
             );
         }
     }

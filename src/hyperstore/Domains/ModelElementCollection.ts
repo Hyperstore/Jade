@@ -30,13 +30,13 @@ class ModelElementArray
         this.all = [];
 
         var opposite = !!this._collection.source;
-        var cursor = this._collection.domain.findRelationships(this._collection.schemaRelationship,
+        var cursor = this._collection.domain.getRelationships(this._collection.schemaRelationship,
                                                                this._collection.source,
                                                                this._collection.end);
         while(cursor.hasNext())
         {
             var rel = cursor.next();
-            var elem = opposite ? rel.end : rel.start;
+            var elem = opposite ? rel.getEnd() : rel.getStart();
             if (!this._collection.filter || this._collection.filter(elem))
             {
                 this.add(elem);
@@ -55,6 +55,10 @@ class ModelElementArray
                     return;
                 }
 
+                var domain = self._collection.source.getInfo().domain;
+                var srcId = self._collection.source && self._collection.source.getInfo().id;
+                var endId = self._collection.end && self._collection.end.getInfo().id;
+
                 Utils.forEach(
                     s.events, function (e)
                     {
@@ -65,16 +69,15 @@ class ModelElementArray
                         }
 
                         if (e.schemaId === self._collection.schemaRelationship.id &&
-                            (self._collection.source && e.startId === self._collection.source.id)
-                            || (self._collection.end && e.endId === self._collection.end.id))
+                            ( e.startId === srcId) || (e.endId === endId))
                         {
                             if (e.eventName === EventManager.AddRelationshipEvent)
                             {
-                                var rel = self._collection.source.domain.store.get(e.id);
+                                var rel = <ModelRelationship>domain.store.get(e.id);
                                 if( !rel)
                                     return;
 
-                                var mel = self._collection.source ? rel.end : rel.start;
+                                var mel = self._collection.source ? rel.getEnd() : rel.getStart();
                                 if (!self._collection.filter || self._collection.filter(mel))
                                 {
                                     self.add(mel);
@@ -108,9 +111,9 @@ class ModelElementArray
         // Remove
         for (var k = 0; k < this.all.length; k++)
         {
-            if (this.all[k].id === id)
+            if (this.all[k].getId() === id)
             {
-                this.all.splice(k);
+                this.all.splice(k,1);
                 break;
             }
         }
@@ -134,7 +137,7 @@ class ModelElementArray
 
         public setFilter(where:(mel:ModelElement) => boolean)
         {
-            this.cursor = Cursor.from(this.domain.findRelationships(this.schemaRelationship, this.source, this.end));
+            this.cursor = Cursor.from(this.domain.getRelationships(this.schemaRelationship, this.source, this.end));
             if(where)
                 this.cursor = this.cursor.map(where);
             if( this._items)
@@ -161,11 +164,12 @@ class ModelElementArray
                 throw "Invalid cardinality. Use reference instead.";
             }
 
-            if (!opposite && !source.schemaElement.isA(schemaRelationship.startSchemaId))
+            var src = source.getInfo();
+            if (!opposite && !src.schemaElement.isA(schemaRelationship.startSchemaId))
             {
                 throw "Invalid source type";
             }
-            if (opposite && !source.schemaElement.isA(schemaRelationship.endSchemaId))
+            if (opposite && !src.schemaElement.isA(schemaRelationship.endSchemaId))
             {
                 throw "Invalid end type";
             }
@@ -173,7 +177,7 @@ class ModelElementArray
             this.source = opposite ? undefined : source;
             this.end = opposite ? source : undefined;
             this.schemaRelationship = schemaRelationship;
-            this.domain = source.domain;
+            this.domain = src.domain;
             this.setFilter(filter);
         }
 
@@ -183,7 +187,7 @@ class ModelElementArray
                 if (!this.cursor.hasNext())
                     return false;
                 var rel = this.cursor.next();
-                if (rel && rel.end)
+                if (rel && rel.getEnd())
                     return true;
             }
         }
@@ -193,7 +197,7 @@ class ModelElementArray
         }
 
         next() {
-            return this.cursor.next().end;
+            return this.cursor.next().getEnd();
         }
 
         dispose()
@@ -204,8 +208,7 @@ class ModelElementArray
 
         remove(mel:ModelElement)
         {
-            if ((
-                this.source || this.end).disposed)
+            if ((this.source || this.end).isDisposed)
             {
                 throw "Can not use a disposed element";
             }
@@ -218,19 +221,17 @@ class ModelElementArray
             var source = this.source ? this.source : mel;
             var end = this.end ? this.end : mel;
 
-            var cursor = this.domain.findRelationships(this.schemaRelationship, source, end);
+            var cursor = this.domain.getRelationships(this.schemaRelationship, source, end);
             if (cursor.hasNext())
             {
                 var rel = cursor.next();
-                this.domain.remove(rel.id);
-                if (this._items)
-                    this._items.remove(rel.id);
+                this.domain.remove(rel.getId());
             }
         }
 
         add(mel:ModelElement)
         {
-            if ((this.source || this.end).disposed)
+            if ((this.source || this.end).isDisposed)
             {
                 throw "Can not use a disposed element";
             }
@@ -241,13 +242,9 @@ class ModelElementArray
             }
 
             var source = this.source ? this.source : mel;
-            var end = this.end ? this.end : mel;
+            var end = (this.end ? this.end : mel).getInfo();
 
-            var rel = this.source.domain.createRelationship(
-                this.schemaRelationship, source, end.id, end.schemaElement.id
-            );
-            if (this._items)
-                this._items.add(rel);
+            this.domain.createRelationship(this.schemaRelationship, source, end.id, end.schemaElement.id);
         }
     }
 }

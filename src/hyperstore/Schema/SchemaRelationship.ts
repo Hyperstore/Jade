@@ -77,7 +77,7 @@ module Hyperstore
          * @param version
          * @returns {ModelElement}
          */
-        create(domain:DomainModel, start:ModelElement, endId:string, endSchemaId:string, id?:string, version?:number) : ModelElement {
+        create(domain:DomainModel, start:ModelElement, endId:string, endSchemaId:string, id?:string, version?:number) : ModelRelationship {
             if(!domain) throw "domain is required.";
             return domain.createRelationship(this, start, endId, endSchemaId, id, version);
         }

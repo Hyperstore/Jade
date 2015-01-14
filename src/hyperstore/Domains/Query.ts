@@ -115,6 +115,7 @@ module Hyperstore {
         }
 
         private filter(elem:ModelElement, config, flag:boolean=false) {
+            var metadata = elem.getInfo();
 
             for(var field in config) {
                 if( !config.hasOwnProperty(field))
@@ -124,7 +125,7 @@ module Hyperstore {
                 var data = config[field];
                 switch(field) {
                     case "$schema":
-                        val = elem.schemaElement.id;
+                        val = metadata.schemaElement.id;
                         break;
                     case "$filter":
                         if( data(elem) === flag)
@@ -134,13 +135,13 @@ module Hyperstore {
                         if( this.filter(elem, data, true) === flag)
                             return flag;
                         break;
-                    case "id":
-                        val = elem.id;
+                    case "_id":
+                        val = metadata.id;
                         break;
                     default:
                         if(field[0] == '$')
                             continue;
-                        var prop = elem.schemaElement.getProperty(field, true);
+                        var prop = metadata.schemaElement.getProperty(field, true);
                         if( !prop )
                             continue;
                         val = elem.getPropertyValue(field);

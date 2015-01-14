@@ -84,7 +84,7 @@ module Hyperstore
                         var mel = store.get(t.id);
                         if (mel)
                         {
-                            list[mel.id] = mel;
+                            list[t.id] = mel;
                         }
                     }
 
@@ -98,7 +98,7 @@ module Hyperstore
                         var mel = store.get(t.startId);
                         if (mel)
                         {
-                            list[mel.id] = mel;
+                            list[t.startId] = mel;
                             var info = this._trackings[t.startId];
                             if (!info)
                             {
@@ -117,7 +117,7 @@ module Hyperstore
                         var mel = store.get(t.endId);
                         if (mel)
                         {
-                            list[mel.id] = mel;
+                            list[t.endId] = mel;
                             var info = this._trackings[t.endId];
                             if (!info)
                             {

@@ -70,14 +70,13 @@ describe('Schema tests', function ()
 
     var store;
 
-    beforeEach(function(done) {
+    beforeEach(function() {
         store = new hyperstore.Store();
-        store.init(config).then(function() {done()});
+        store.init(config);
     });
 
-    it('should initialize store from the dsl', function(done) {
-  //      expect(store.getDomain('test')).to.not.be.undefined;
-  //      expect(store.getSchemaElement('Library', false)).to.not.be.undefined;
-        done();
+    it('should initialize store from the dsl', function() {
+        expect(store.getDomain('test')).to.not.be.undefined;
+        expect(store.getSchemaElement('Library', false)).to.not.be.undefined;
     });
 });

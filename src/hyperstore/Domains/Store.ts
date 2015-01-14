@@ -156,6 +156,7 @@ module Hyperstore
             this.schemasBySimpleName = {};
             this._domains = new DomainManager();
             new Schema(this, "$", this.primitiveSchemaDefinition());
+            this.storeId = Utils.newGuid();
         }
 
         /**
@@ -192,15 +193,20 @@ module Hyperstore
      *    })();
          * </code>
          */
-        init(config?:any):Q.Promise<any>
-        {
+        initAsync(config?:any):Q.Promise<any> {
             var p = Q.defer<any>();
+            this.init(config, p);
+            return p.promise;
+        }
 
-            this.storeId = Utils.newGuid();
+        init(config?:any, p?:Q.Deferred<any>):any
+        {
+            var meta = {schemas:{}, domains:{}};
+
             if (!config)
             {
-                p.resolve(this);
-                return p.promise;
+                if(p) p.resolve(meta);
+                return meta;
             }
 
             if (typeof config === 'function')
@@ -209,14 +215,15 @@ module Hyperstore
             if (!config.schemas)
             {
                 this.storeId = config;
-                p.resolve(this);
-                return p.promise;
+                if(p) p.resolve(meta);
+                return meta;
             }
 
             this["config"] = config;
 
             if (config.storeId)
                 this.storeId = config.storeId;
+
 
             if (config.schemas)
             {
@@ -225,7 +232,7 @@ module Hyperstore
                     if (!config.schemas.hasOwnProperty(schemaName))
                         continue;
                     var def = config.schemas[schemaName];
-                    config.schemas[schemaName].instance = new Schema(this, schemaName, def);
+                    new Schema(this, schemaName, def, meta);
                 }
             }
 
@@ -236,31 +243,59 @@ module Hyperstore
 
                     var def = config.domains[domainName];
                     var domain = new DomainModel(this, domainName);
-                    config.domains[domainName] = domain;
+                    meta.domains[domainName] = domain;
 
+                    var self = this;
+                    var tasks;
+                    // Adapters must be asynchronous
                     if (def.$adapters) {
+                        tasks = [];
+                        // Get adapter list
                         var adapters = typeof(def.$adapters) === "function" ? def.$adapters() : def.$adapters;
-                        delete def.$adapters;
+                        // Initialize and load data
+                        adapters.forEach(a=>
+                        {
+                            domain.addAdapter(a)
+                            tasks.push(a.loadElementsAsync());
+                        });
+
+                        // If any adapter,
+                        if (tasks) {
+                            if (!p) throw Error("You must use initAsync when using adapters.");
+
+                            Q.all(tasks)
+                                .then(function () {
+                                    self.populateDomain(def, domain);
+                                    if( def.$channels) {
+                                        var channels = typeof(def.$channels) === "function" ? def.$channels() : def.$channels;
+                                        // Initialize channels
+                                        channels.forEach(channel=>
+                                        {
+                                            channel.associate(domain);
+                                            domain.store.eventBus.addChannel(channel);
+                                        });
+                                    }
+                                    p.resolve(meta);
+                                })
+                                .fail(function(err) {
+                                   p.reject(err);
+                                });
+                        }
                     }
 
-                    if (adapters && adapters.forEach) {
-                        adapters.forEach(a=> domain.addAdapter(a));
+                    if(!tasks) {
+                        var result = this.populateDomain(def, domain);
+                        if (p) p.resolve(meta);
                     }
-                    var result = this.populateDomain(def, domain);
-                        if( result)
-                            result.async().then(() => p.resolve(this));
-                        else
-                            p.resolve(this);
                 }
 
                 this.defaultDomainModel = this.getDomain(config.defaultDomainModel);
             }
-
-            return p.promise;
+            return meta;
         }
 
-        private populateDomain(def, domain) : SessionResult {
-            if( !def || domain.find().hasNext()) // already initialize
+        private populateDomain(def, domain:DomainModel) : SessionResult {
+            if( !def || domain.getElements().hasNext()) // already initialize
                 return;
 
             if (def.$seed) {
@@ -275,7 +310,7 @@ module Hyperstore
                     finally
                     {
                         var r = session.close();
-                        return r.result;
+                        return r;
                     }
                 }
                 else if (typeof(def.$seed) === "string")
@@ -367,9 +402,9 @@ module Hyperstore
             return {
                 defineSchema: function (schema)
                 {
-                    new Primitive(schema, "string", "{value} must be a string", (val, old, ctx) => !val || typeof(val) == "string", false, ConstraintKind.Check);
-                    new Primitive(schema, "number", "{value} must be a number", (val, old, ctx) => !val || typeof(val) == "number", false, ConstraintKind.Check);
-                    new Primitive(schema, "boolean", "{value} must be a boolean", (val, old, ctx) => !val || typeof(val) == "boolean", false, ConstraintKind.Check);
+                    new Primitive(schema, "string", "{value} must be a string", (val, old, ctx) => !val || typeof(val) === "string", false, ConstraintKind.Check);
+                    new Primitive(schema, "number", "{value} must be a number", (val, old, ctx) => !val || typeof(val) === "number", false, ConstraintKind.Check);
+                    new Primitive(schema, "boolean", "{value} must be a boolean", (val, old, ctx) => !val || typeof(val) === "boolean", false, ConstraintKind.Check);
                 }
             };
         }
@@ -488,15 +523,12 @@ module Hyperstore
             }
 
             var list = [];
-            this.schemas.forEach(
-                    v=>
+            this.schemas.forEach(v=>
                 {
                     if (v.kind === SchemaKind.Relationship)
                     {
                         var r = <SchemaRelationship>v;
-                        if ((
-                            !start || r.startSchemaId === start.id) && (
-                            !end || r.endSchemaId === end.id))
+                        if ((!start || r.startSchemaId === start.id) && (!end || r.endSchemaId === end.id))
                         {
                             list.push(r);
                         }
@@ -602,7 +634,7 @@ module Hyperstore
          * @param kind
          * @returns {ModelElement[]}
          */
-        find(schemaElement?:SchemaElement, kind:NodeType = NodeType.EntityOrRelationship): ICursor
+        getElements(schemaElement?:SchemaElement, kind:NodeType = NodeType.EntityOrRelationship): ICursor
         {
             return new SelectManyCursor(this._domains, function (domain)
                 {

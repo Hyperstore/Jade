@@ -41,20 +41,19 @@ module Hyperstore
 
         /**
          * create a new SignalRChannel instance.
-         * @param domain - associated domain. See [[AbstractChannel]]
          * @param hub - signalr hub if you want override default connection configuration.
          */
-        constructor(domain:DomainModel, public hub?)
-        {
-            super(domain);
-            var self = this;
-
+        constructor(public hub?) {
+            super();
             this.hub = hub || $.hubConnection();
             //this.hub.logging = true;
+        }
 
+        associate(domain:DomainModel) {
+            super.associate(domain);
+            var self = this;
             this.proxy = this.hub.createHubProxy('hyperstore');
-            this.proxy.on(
-                'onEvents', function (env)
+            this.proxy.on('onEvents', function (env)
                 {
                     if (env.origin === self.domain.store.storeId)
                     {

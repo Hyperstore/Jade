@@ -130,7 +130,7 @@ module Hyperstore
     {
         public constraints:ConstraintsManager;
 
-        constructor(public store:Store, public name?:string, def?:ISchemaDefinition)
+        constructor(public store:Store, public name?:string, def?:ISchemaDefinition, result?)
         {
             this.constraints = new ConstraintsManager(this);
             if (def)
@@ -138,17 +138,12 @@ module Hyperstore
                 if (def.defineSchema)
                 {
                     def.defineSchema(this);
-                    delete def.defineSchema;
                 }
                 else
                 {
-                    var parser = new DslParser(this, def);
+                    var ctx = {constraints:{}, dsls:{}, meta: result};
+                    var parser = new DslParser(this, ctx);
                     parser.parse(def);
-                }
-                for (var p in def)
-                {
-                    if (def.hasOwnProperty(p) && p[0] === "$")
-                        delete def[p]; // remove all "$" properties
                 }
             }
         }
@@ -164,11 +159,11 @@ module Hyperstore
     // ----------------------------------------------------------------
     class DslParser
     {
-        constructor(private schema:Schema, private def, private context?) {
-            if(!this.context) {
-                this.context = {constraints:{}, dsls:{}};
-            }
+        private _meta:any;
+
+        constructor(private schema:Schema, private context) {
             this.context.dsls[schema.name] = true; // cyclic reference guard
+            this._meta = context.meta.schemas[schema.name] = {};
         }
 
         private pendings : any[];
@@ -199,12 +194,8 @@ module Hyperstore
                             continue;
                         var schema = new Schema(this.schema.store,schemaName );
                         var def = schemas[schemaName];
-                        var p = new DslParser(schema, def, this.context);
-                        p.parse(def); //
-                        var hasProperties = false;
-                        Utils.forEach(def, p=>hasProperties=true);
-                        if( hasProperties)
-                            this.def[schemaName] = def;
+                        var p = new DslParser(schema, this.context);
+                        p.parse(def);
                     }
                 }
             }
@@ -227,7 +218,6 @@ module Hyperstore
                     else
                         this.parseEntity(o, name);
                 }
-                delete dsl[name];
             }
 
             this.pendings.forEach(p=>this.createRelationship(p));
@@ -253,7 +243,7 @@ module Hyperstore
             }
 
             var entity = new SchemaEntity(this.schema, name, base);
-            this.def[name + "Schema"] = entity;
+            this._meta[name] = entity;
             for (var prop in o)
             {
                 if( !o.hasOwnProperty(prop))
@@ -527,7 +517,7 @@ module Hyperstore
             else
             {
                 rel = new SchemaRelationship(this.schema, name, src.id, end.id, c.embedded || false, c.type, undefined, undefined, def.base);
-                this.def[name + "Schema"] = rel;
+                this._meta[name] = rel;
             }
 
             this.parseConstraints(def.const, c => rel.addConstraint(c.message, c.condition, c.error, c.kind));

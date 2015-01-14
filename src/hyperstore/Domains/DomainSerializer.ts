@@ -128,8 +128,8 @@ module Hyperstore {
 
         private saveInternal(entities?:ICursor, relationships?:ICursor):string {
             try {
-                this.serializeEntities(entities || this._domain.find(undefined, NodeType.Entity));
-                this.serializeRelationships(relationships || this._domain.find(undefined, NodeType.Relationship));
+                this.serializeEntities(entities || this._domain.getEntities());
+                this.serializeRelationships(relationships || this._domain.getRelationships());
                 return this._writer.save(this._domain, this._monikers.values);
             }
             finally {
@@ -161,13 +161,14 @@ module Hyperstore {
         }
 
         private getSchemaMoniker(mel:ModelElement) : string {
-            var moniker = this._monikers.get(mel.schemaElement.id);
+            var schemaElement = mel.getInfo().schemaElement;
+            var moniker = this._monikers.get(schemaElement.id);
             if( moniker ) return moniker.moniker;
             var schema = this.getSchemaInfo(mel, false);
             this._monikerSeq++;
             var parts = schema.id.split(':');
             var monikerId = "" + this._monikerSeq;
-            this._monikers.add(mel.schemaElement.id, {moniker: monikerId, schema:schema, schemaName:parts[0]});
+            this._monikers.add(schemaElement.id, {moniker: monikerId, schema:schema, schemaName:parts[0]});
             return monikerId;
         }
 
@@ -182,20 +183,23 @@ module Hyperstore {
         }
 
         private getSchemaInfo(mel:ModelElement, findInMoniker:boolean = false):SchemaElement {
+            var schemaElement = mel.getInfo().schemaElement;
+
             if (this._monikers != null && findInMoniker) {
-                var moniker = this._monikers.get(mel.schemaElement.id);
+                var moniker = this._monikers.get(schemaElement.id);
                 if (moniker)
                     return moniker.schema;
             }
-            return mel.schemaElement;
+            return schemaElement;
         }
 
         private getId(element:ModelElement) {
-            var parts = element.id.split(':');
+            var id = element.getInfo().id;
+            var parts = id.split(':');
             if (parts[0] === this._domain.name)
                 return parts[1];
 
-            return element.id;
+            return id;
         }
     }
 }

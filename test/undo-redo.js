@@ -7,6 +7,7 @@ describe('Undo/Redo manager', function () {
         var store;
         var lib;
         var cfg;
+        var meta;
 
         beforeEach(function()
         {
@@ -27,33 +28,33 @@ describe('Undo/Redo manager', function () {
                 }
             };
             store = new Hyperstore.Store();
-            store.init(cfg);
-            lib = cfg.domains.Test.create(cfg.schemas.Test.LibrarySchema);
+            meta = store.init(cfg);
+            lib = meta.domains.Test.create(meta.schemas.Test.Library);
             lib.Name = "test";
         });
 
         it('should perform undo and redo', function () {
 
             var undoManager = new Hyperstore.UndoManager(store);
-            undoManager.registerDomain(cfg.domains.Test);
+            undoManager.registerDomain(meta.domains.Test);
 
             var session = store.beginSession();
-            var domain = cfg.domains.Test;
-            var b =  domain.create(cfg.schemas.Test.BookSchema);
+            var domain = meta.domains.Test;
+            var b =  domain.create(meta.schemas.Test.Book);
             b.Title = "test";
             lib.Books.add(b);
             session.acceptChanges();
             session.close();
 
             expect(lib.Books.items.length).to.equal(1);
-            expect(b.disposed).to.be.false;
+            expect(b.isDisposed).to.be.false;
             expect(undoManager.canRedo).to.be.false;
             expect(undoManager.canUndo).to.be.true;
 
             undoManager.undo(); // remove all
 
             expect(lib.Books.items.length).to.equal(0);
-            expect(b.disposed).to.be.true;
+            expect(b.isDisposed).to.be.true;
             expect(undoManager.canUndo).to.be.false;
             expect(undoManager.canRedo).to.be.true;
 

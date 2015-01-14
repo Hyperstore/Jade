@@ -7,6 +7,7 @@ describe('session rollback', function () {
         var store;
         var lib;
         var cfg;
+        var meta;
 
         beforeEach(function()
         {
@@ -22,6 +23,7 @@ describe('session rollback', function () {
                         }
                     }
                 },
+                momo:{},
                 domains : {
                     Test : {
                         Library : {
@@ -36,8 +38,8 @@ describe('session rollback', function () {
                 }
             };
             store = new hyperstore.Store();
-            store.init(cfg);
-            lib = cfg.domains.Test.find(cfg.schemas.Test.LibrarySchema).firstOrDefault();
+            meta = store.init(cfg);
+            lib = meta.domains.Test.getElements(meta.schemas.Test.Library).firstOrDefault();
             lib.Name = "test";
         });
 
@@ -52,12 +54,12 @@ describe('session rollback', function () {
 
         it('should remove relationship', function () {
             var session = store.beginSession();
-            var b =  cfg.domains.Test.create(cfg.schemas.Test.BookSchema);
+            var b =  meta.domains.Test.create(meta.schemas.Test.Book);
             b.Title = "test";
             lib.Books.add(b);
             session.close();
             expect(lib.Books.items.length).to.equal(1);
-            expect(b.disposed).to.be.true;
+            expect(b.isDisposed).to.be.true;
         });
     });
 

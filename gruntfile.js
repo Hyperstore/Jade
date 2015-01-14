@@ -124,6 +124,13 @@ module.exports = function (grunt) {
                 watch:'fast'
             },
 
+            all : {
+                src: sources,
+                out: ".built/src/hyperstore.js",
+                options : {
+                }
+            },
+
             // Compilation for jasmine tests (keep individual files)
             test : {
                 src: "src/hyperstore/**/*.ts",

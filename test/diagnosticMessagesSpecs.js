@@ -14,7 +14,7 @@ var expect = require('chai').expect;
         it('Checks message formatting with element properties', function () {
             var mel = domain.create(librarySchema, "Test:1");
             mel.Name = 'test';
-            var msg = hyperstore.DiagnosticMessage.__format("Name prop {Name} Id={ id }", mel, null);
+            var msg = hyperstore.DiagnosticMessage.__format("Name prop {Name} Id={ _id }", mel, null);
             expect(msg).to.equal('Name prop test Id=Test:1');
         });
 

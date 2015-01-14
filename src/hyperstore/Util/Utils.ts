@@ -231,6 +231,7 @@ module Hyperstore
                 return;
             }
             if (list.hasNext) {
+                list.reset();
                 while(list.hasNext()) {
                     var e = list.next();
                     if(e) fn(e);
