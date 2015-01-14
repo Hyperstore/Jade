@@ -34,7 +34,6 @@ export class DomainModel {
      * Domain model constructor
      * @param store : the store the domain belong to
      * @param name : domain name
-     * @param extension : extension name
      */
     constructor(public store:Store, public name:string) {
         this.name = this.name.toLowerCase();
@@ -98,6 +97,10 @@ export class DomainModel {
             id || ++this._sequence).toString();
     }
 
+    /**
+     * Add an adapter
+     * @param adapter
+     */
     addAdapter(adapter:Adapter)
     {
         var self = this;

@@ -176,6 +176,8 @@ module Hyperstore {
             var schema = this.getSchemaInfo(elem);
             var properties = schema.getProperties(true);
             properties.forEach( (p:SchemaProperty) => {
+                if( p.kind === PropertyKind.Calculated)
+                    return;
                 var v = elem.getPropertyValue(p);
                 if( v )
                     this._writer.pushProperty("property", p.name, JSON.stringify(p.serialize(v)));

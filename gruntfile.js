@@ -47,7 +47,8 @@ module.exports = function (grunt) {
     ]);
 
     var commonjsSources = sources.concat([
-        "src/Nodejs/DomainSerializer.ts"
+        "src/Nodejs/DomainSerializer.ts",
+        "src/Nodejs/MongoDbAdapter.ts"
     ]);
 
     grunt.initConfig({
@@ -70,7 +71,7 @@ module.exports = function (grunt) {
                     "/// <reference path='../../../scripts/typings/signalr/signalr.d.ts' />\r\n" +
                     "import Q = require('q');\r\n",
                     process : function(src, filepath) {
-                        var re = /(\/\/.*)/gm;
+                        var re = /^(\s*\/\/.*)/gm;
                         return src.replace(/module\s*\bHyperstore\b\s*\{([\s\S]*)}/i, '$1')
                             .replace(re, '');
                     }
@@ -82,9 +83,10 @@ module.exports = function (grunt) {
                 options: {
                     banner : "/// <reference path='../../../scripts/typings/q/q.d.ts' />\r\n" +
                     "/// <reference path='../../../scripts/typings/node/node.d.ts' />\r\n" +
+                    "/// <reference path='../../../scripts/typings/mongodb/mongodb.d.ts' />\r\n" +
                     "import Q = require('q');\r\n",
                     process : function(src, filepath) {
-                        var re = /(\/\/.*)/gm;
+                        var re = /^(\s*\/\/.*)/gm;
                         return src.replace(/module\s*\bHyperstore\b\s*\{([\s\S]*)}/i, '$1')
                             .replace(re, '');
                     }
@@ -170,7 +172,7 @@ module.exports = function (grunt) {
     grunt.registerTask('build', ['clean',  'concat', 'ts', 'mochaTest', 'uglify']);
 
     // execute jasmine test with code coverage
-    grunt.registerTask('test', ['ts:specs', 'mocha']);
+    grunt.registerTask('test', ['ts:specs', 'mochaTest']);
 
     // generate et publish packages
     //grunt.registerTask('release', ['test', 'build']);

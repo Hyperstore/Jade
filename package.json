@@ -28,7 +28,8 @@
     "grunt-mocha-test": "^0.12.4",
     "grunt-release": "^0.7.0",
     "grunt-ts": "^1.12.1",
-    "mocha": "^2.0.1"
+    "mocha": "^2.0.1",
+    "mongodb": "^1.4.25"
   },
   "repository": {
     "type": "git",

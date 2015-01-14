@@ -53,7 +53,7 @@ describe('Schema tests', function ()
                     AsString : function(self) {
                         return self.Title + " Copies : " + self.Copies;
                     },
-                    Library : {  Library : "*<=1"}
+                    Library : {  Library : "*<=1"} // Opposite
                 },
                 LibraryHasBooks : {
                     $source : "Library",
