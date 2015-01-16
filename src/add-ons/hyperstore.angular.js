@@ -16,107 +16,138 @@
 
 angular.module("hyperstore", [])
 
-.factory('$store', ['$http', function ($http) {
-    var cookie;
-    var offDestroy;
+    .factory('$store', ['$http', function ($http) {
+        var cookie;
+        var offDestroy;
 
-    var unsubscribe = function (store) {
-        if (cookie) {
-            store.removeSessionCompleted(cookie);
-        }
-        cookie = undefined;
-    };
+        var unsubscribe = function (store) {
+            if (cookie) {
+                store.removeSessionCompleted(cookie);
+            }
+            cookie = undefined;
+        };
 
-    return {
-        store: undefined,
+        return {
+            store: undefined,
 
-        loadDomain: function ($scope, domain, url, root) {
-            var defer = $.Deferred();
+            init: function (def) {
+                this.store = this.store || new Hyperstore.Store();
+                return this.store.initAsync(def);
+            },
 
-            $http.get(url).then(function (result) {
-                if (result.status == 200) {
-                    unsubscribe(domain.store);
-
-                    var schema;
-                    var data = result.data;
-                    if (root) {
-                        if (root.schema)
-                            schema = domain.store.getSchemaElement(root.schema);
-                        if (root.get)
-                            data = root.get(data);
-                    }
-                    var list = domain.loadFromJson(data, schema);
-
-                    cookie = domain.store.onSessionCompleted(function () {
-                        if (!$scope.$$phase)
-                            $scope.$digest();
+            enterScope: function ($scope, domain) {
+                unsubscribe(domain.store);
+                cookie = domain.store.onSessionCompleted(function (session) {
+                    var result = session.result;
+                    Hyperstore.Utils.forEach(result.involvedElements, function (mel) {
+                        delete mel.$errors;
                     });
 
-                    offDestroy = $scope.$on("$destroy", function () { offDestroy(); unsubscribe(domain.store); });
-
-                    defer.resolve({ domain: domain, elements: list });
-                }
-                else {
-                    defer.reject();
-                }
-            });
-            return defer.promise();
-        },
-
-        createDomain: function (name, def, adapters) {
-            this.store = this.store || new Hyperstore.Store();
-
-            new Hyperstore.Schema(this.store, undefined, def);
-            var domain = new Hyperstore.DomainModel(this.store, name);
-
-            var defer = $.Deferred();
-
-            var tasks = [];
-            Hyperstore.Utils.forEach(adapters, function (a) {
-                var d = $.Deferred();
-                tasks.push(d.promise());
-                domain.addAdapter.call(domain, a).then(
-                    function (adapter) {
-                        adapter.loadElementsAsync().done(function (result) {
-                            d.resolve(result.maxVersionNumber);
-                        });
+                    for (var k in result.messages) {
+                        var msg = result.messages[k];
+                        var name = msg.propertyName || "$element";
+                        msg.element.$errors = msg.element.$errors || {};
+                        //    ngModel.$setValidity(name, false);
+                        msg.element.$errors[name] = msg.element.$errors[name] || [];
+                        msg.element.$errors[name].push(msg.message);
                     }
-                )
-            });
 
-            $.when.apply($, tasks).done(function (version) {
-                defer.resolve({ domain: domain, version: version });
-            });
-            return defer.promise();
-        }
-    };
-}])
-
-.directive('ngModel', ["$store", function ($store) {
-    return {
-        restrict: 'A',
-        require: '?ngModel',
-        link: function (scope, elem, attrs, ngModel) {
-            var fn = ngModel.$setViewValue;
-            var store = $store.store;
-            ngModel.$setViewValue = function (val) {
-                var session = store.beginSession();
-                fn.call(ngModel, val);
-                session.acceptChanges();
-                var result = session.close();
-                Hyperstore.Utils.forEach(result.involvedElements, function (mel) {
-                    delete mel.$errors;
+                    if (!$scope.$$phase)
+                        $scope.$digest();
                 });
 
-                for (var k in result.messages) {
-                    var msg = result.messages[k];
-                    var name = msg.propertyName || "$element";
-                    msg.element.$errors = msg.element.$errors || {};
-                    ngModel.$setValidity(name, false);
-                    msg.element.$errors[name] = msg.element.$errors[name] || [];
-                    msg.element.$errors[name].push(msg.toString());
-                }
+                offDestroy = $scope.$on("$destroy", function () { offDestroy(); unsubscribe(domain.store); });
+                $scope.$digest();
+            },
+
+            loadDomain: function ($scope, domain, url, root) {
+                var defer = $.Deferred();
+
+                /*   $http.get(url).then(function (result) {
+                 if (result.status == 200) {
+                 unsubscribe(domain.store);
+
+                 var schema;
+                 var data = result.data;
+                 if (root) {
+                 if (root.schema)
+                 schema = domain.store.getSchemaElement(root.schema);
+                 if (root.get)
+                 data = root.get(data);
+                 }
+                 var list = domain.loadFromJson(data, schema);
+
+                 cookie = domain.store.onSessionCompleted(function () {
+                 if (!$scope.$$phase)
+                 $scope.$digest();
+                 });
+
+                 offDestroy = $scope.$on("$destroy", function () { offDestroy(); unsubscribe(domain.store); });
+
+                 defer.resolve({ domain: domain, elements: list });
+                 }
+                 else {
+                 defer.reject();
+                 }
+                 });*/
+                return defer.promise();
+            },
+
+            createDomain: function (name, def, adapters) {
+                this.store = this.store || new Hyperstore.Store();
+
+                new Hyperstore.Schema(this.store, undefined, def);
+                var domain = new Hyperstore.DomainModel(this.store, name);
+
+                var defer = $.Deferred();
+
+                var tasks = [];
+                Hyperstore.Utils.forEach(adapters, function (a) {
+                    var d = $.Deferred();
+                    tasks.push(d.promise());
+                    domain.addAdapter.call(domain, a).then(
+                        function (adapter) {
+                            adapter.loadElementsAsync().done(function (result) {
+                                d.resolve(result.maxVersionNumber);
+                            });
+                        }
+                    )
+                });
+
+                $.when.apply($, tasks).done(function (version) {
+                    defer.resolve({ domain: domain, version: version });
+                });
+                return defer.promise();
             }
-        }
-    }
-}]);
+        };
+    }])
+/*
+ .directive('ngModel', ["$store", function ($store) {
+ return {
+ restrict: 'A',
+ require: '?ngModel',
+ link: function (scope, elem, attrs, ngModel) {
+ var fn = ngModel.$setViewValue;
+ var store = $store.store;
+ ngModel.$setViewValue = function (val) {
+ var session = store.beginSession();
+ fn.call(ngModel, val);
+ session.acceptChanges();
+ var result = session.close();
+ Hyperstore.Utils.forEach(result.involvedElements, function (mel) {
+ delete mel.$errors;
+ });
+
+ for (var k in result.messages) {
+ var msg = result.messages[k];
+ var name = msg.propertyName || "$element";
+ msg.element.$errors = msg.element.$errors || {};
+ ngModel.$setValidity(name, false);
+ msg.element.$errors[name] = msg.element.$errors[name] || [];
+ msg.element.$errors[name].push(msg.message);
+ }
+ }
+ }
+ }
+ }]);
+ */
