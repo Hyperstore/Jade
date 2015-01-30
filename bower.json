@@ -10,7 +10,7 @@
     "**/.*",
     "node_modules",
     "bower_components",
-    "tests"
+    "test"
   ],
   "homepage": "http://www.hyperstore.org",
   "authors": [

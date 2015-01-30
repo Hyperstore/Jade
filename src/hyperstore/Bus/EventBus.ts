@@ -30,7 +30,7 @@ module Hyperstore
         /**
          * Event dispatcher. See [[IEventHandler]]
          */
-        public defaultEventDispatcher:IEventDispatcher;
+        public defaultEventDispatcher:EventDispatcher;
         private cookie;
 
         /**
@@ -39,7 +39,7 @@ module Hyperstore
          * @param store
          * @param eventDispatcher
          */
-        constructor(private store:Store, eventDispatcher?:IEventDispatcher)
+        constructor(private store:Store, eventDispatcher?:EventDispatcher)
         {
             this.cookie = store.onSessionCompleted(s=> this.sendEvents(s));
             this._channels = [];

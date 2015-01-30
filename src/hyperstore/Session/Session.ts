@@ -52,6 +52,7 @@ module Hyperstore
         public sessionId:number;
         public trackingData:TrackingData;
         public result:SessionResult;
+        private _activeDomains : HashTable<string, DomainModel>;
 
         /**
          * @constructor
@@ -91,7 +92,21 @@ module Hyperstore
                     this.mode = config.mode;
                 }
             }
+
+            if( store.hasDomainExtensions)
+                this._activeDomains = store.getActiveDomains();
+
+            store.domains
             this.__nextLevel();
+        }
+
+        /**
+         *
+          * @param domain
+         * @returns {DomainModel}
+         */
+        getDomain(domain:string) {
+            return this._activeDomains.get(domain);
         }
 
         __nextLevel()
@@ -159,7 +174,7 @@ module Hyperstore
                 var d = this.store.eventBus.defaultEventDispatcher;
                 this.events.reverse().forEach(e => {
                         if ((<any>e).getReverseEvent)
-                            d.handleEvent((<any>e).getReverseEvent())
+                            d.handleEvent((<any>e).getReverseEvent(this.sessionId))
                     }
                 );
             }
@@ -218,6 +233,7 @@ module Hyperstore
             if (this.mode & SessionMode.Rollback) return;
             if (this.closed)   throw "Can not reused a closed session";
 
+            evt.correlationId = this.sessionId;
             this.events.push(evt);
             this.trackingData.__onEvent(evt);
             if (evt.version > this.result.maxVersionNumber)

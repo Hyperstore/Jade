@@ -63,6 +63,10 @@ module Hyperstore
             return this._keys[key] !== undefined;
         }
 
+        _fastInsert(key:TKey, elem:TElem)  {
+            this._keys[key] = this._values.push( elem ) - 1;
+        }
+
         add(key:TKey, elem:TElem)  {
             var n = this._keys[key];
             if( n !== undefined)
@@ -156,11 +160,9 @@ module Hyperstore
         static newGuid():string
         {
             var d = Utils.date.getTime();
-            var uuid = 'xxxxxxxx-xxxx-4xxx-yxxx-xxxxxxxxxxxx'.replace(
-                /[xy]/g, function (c)
+            var uuid = 'xxxxxxxx-xxxx-4xxx-yxxx-xxxxxxxxxxxx'.replace(/[xy]/g, function (c)
                 {
-                    var r = (
-                        d + Math.random() * 16) % 16 | 0;
+                    var r = (d + Math.random() * 16) % 16 | 0;
                     d = Math.floor(d / 16);
                     return (
                         c === 'x'

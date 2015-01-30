@@ -34,7 +34,7 @@ module Hyperstore
          *
          * Initialized from [[EventBus.defaultEventDispatcher]]
          */
-        public dispatcher:IEventDispatcher;
+        public dispatcher:EventDispatcher;
 
         constructor()
         {

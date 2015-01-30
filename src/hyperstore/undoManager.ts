@@ -21,7 +21,7 @@ module Hyperstore
 
     interface IUndoDomainInfo
     {
-        dispatcher: IEventDispatcher;
+        dispatcher: EventDispatcher;
         filter;
     }
 
@@ -128,7 +128,7 @@ module Hyperstore
          * @param domain - A valid domain
          * @param dispatcher An optional [[EventDispatcher]] to override the [[EventBus.defaultEventDispatcher]].
          */
-        registerDomain(domain:DomainModel, dispatcher?:IEventDispatcher)
+        registerDomain(domain:DomainModel, dispatcher?:EventDispatcher)
         {
             this._infos[domain.name] = {
                 dispatcher: dispatcher || this.store.eventBus.defaultEventDispatcher,

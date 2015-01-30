@@ -1,5 +1,6 @@
 /// <reference path="../scripts/typings/q/q.d.ts" />
 /// <reference path="../scripts/typings/node/node.d.ts" />
+/// <reference path="../scripts/typings/mongodb/mongodb.d.ts" />
 export interface ISchemaDefinition {
     defineSchema(schema: Schema): any;
 }
@@ -142,7 +143,9 @@ export declare class Session {
     public sessionId: number;
     public trackingData: TrackingData;
     public result: SessionResult;
+    private _activeDomains;
     constructor(store: Store, config?: SessionConfiguration);
+    public getDomain(domain: string): DomainModel;
     public __nextLevel(): void;
     public acceptChanges(): void;
     public close(): SessionResult;
@@ -199,22 +202,22 @@ export interface IUndoableEvent {
 export declare class AbstractEvent {
     public eventName: string;
     public domain: string;
-    public correlationId: number;
     public version: number;
+    public correlationId: number;
     public TL: boolean;
-    constructor(eventName: string, domain: string, correlationId: number, version: number);
+    constructor(eventName: string, domain: string, version: number, correlationId?: number);
     public toString(): string;
 }
 export declare class AddEntityEvent extends AbstractEvent implements IUndoableEvent {
     public id: string;
     public schemaId: string;
-    constructor(domain: string, id: string, schemaId: string, correlationId: number, version: number);
+    constructor(domain: string, id: string, schemaId: string, version: number, correlationId?: number);
     public getReverseEvent(correlationId: number): RemoveEntityEvent;
 }
 export declare class RemoveEntityEvent extends AbstractEvent implements IUndoableEvent {
     public id: string;
     public schemaId: string;
-    constructor(domain: string, id: string, schemaId: string, correlationId: number, version: number);
+    constructor(domain: string, id: string, schemaId: string, version: number, correlationId?: number);
     public getReverseEvent(correlationId: number): AddEntityEvent;
 }
 export declare class AddRelationshipEvent extends AbstractEvent implements IUndoableEvent {
@@ -224,7 +227,7 @@ export declare class AddRelationshipEvent extends AbstractEvent implements IUndo
     public startSchemaId: string;
     public endId: string;
     public endSchemaId: string;
-    constructor(domain: string, id: string, schemaId: string, startId: string, startSchemaId: string, endId: string, endSchemaId: string, correlationId: number, version: number);
+    constructor(domain: string, id: string, schemaId: string, startId: string, startSchemaId: string, endId: string, endSchemaId: string, version: number, correlationId?: number);
     public getReverseEvent(correlationId: number): RemoveRelationshipEvent;
 }
 export declare class RemoveRelationshipEvent extends AbstractEvent implements IUndoableEvent {
@@ -234,7 +237,7 @@ export declare class RemoveRelationshipEvent extends AbstractEvent implements IU
     public startSchemaId: string;
     public endId: string;
     public endSchemaId: string;
-    constructor(domain: string, id: string, schemaId: string, startId: string, startSchemaId: string, endId: string, endSchemaId: string, correlationId: number, version: number);
+    constructor(domain: string, id: string, schemaId: string, startId: string, startSchemaId: string, endId: string, endSchemaId: string, version: number, correlationId?: number);
     public getReverseEvent(correlationId: number): AddRelationshipEvent;
 }
 export declare class ChangePropertyValueEvent extends AbstractEvent implements IUndoableEvent {
@@ -243,7 +246,7 @@ export declare class ChangePropertyValueEvent extends AbstractEvent implements I
     public propertyName: string;
     public value: any;
     public oldValue: any;
-    constructor(domain: string, id: string, schemaId: string, propertyName: string, value: any, oldValue: any, correlationId: number, version: number);
+    constructor(domain: string, id: string, schemaId: string, propertyName: string, value: any, oldValue: any, version: number, correlationId?: number);
     public getReverseEvent(correlationId: number): ChangePropertyValueEvent;
 }
 export declare class RemovePropertyEvent extends AbstractEvent implements IUndoableEvent {
@@ -251,7 +254,7 @@ export declare class RemovePropertyEvent extends AbstractEvent implements IUndoa
     public schemaId: string;
     public propertyName: string;
     public value: any;
-    constructor(domain: string, id: string, schemaId: string, propertyName: string, value: any, correlationId: number, version: number);
+    constructor(domain: string, id: string, schemaId: string, propertyName: string, value: any, version: number, correlationId?: number);
     public getReverseEvent(correlationId: number): ChangePropertyValueEvent;
 }
 export interface SessionInfo {
@@ -260,20 +263,30 @@ export interface SessionInfo {
     events: AbstractEvent[];
     mode: SessionMode;
 }
-export interface IEventDispatcher {
-    handleEvent(event: AbstractEvent): any;
-}
 export interface IEventHandler {
     eventName: string;
     execute(domain: DomainModel, event: any): any;
 }
-export declare class EventDispatcher implements IEventDispatcher {
+export interface __HandlerInfo {
+    domain: string;
+    handler: IEventHandler;
+}
+export declare class EventDispatcher {
     public store: Store;
     private _handlers;
     constructor(store: Store);
     public registerHandler(handler: IEventHandler, domain?: string): void;
     public handleEvent(event: AbstractEvent): void;
+    public _getDomain(domainName: string): DomainModel;
+    public _getHandlers(key: string): __HandlerInfo[];
     private executeHandlers(key, event);
+}
+export declare class DomainEventDispatcher extends EventDispatcher {
+    public domain: DomainModel;
+    private _dispatcherToUse;
+    constructor(domain: DomainModel, _dispatcherToUse?: EventDispatcher);
+    public _getHandler(key: string): __HandlerInfo[];
+    public _getDomain(domainName: string): DomainModel;
 }
 export declare class EventManager {
     private domain;
@@ -326,12 +339,14 @@ export declare class Store {
     public init(config?: any, p?: Q.Deferred<any>): any;
     private populateDomain(def, domain);
     public dispose(): void;
-    public unloadDomain(domain: DomainModel): void;
+    public unloadDomain(domain: DomainModel, commitChanges?: boolean): void;
     public domains : DomainModel[];
     public onSessionCompleted(action: (s: Session) => any): number;
     public removeSessionCompleted(cookie: number): void;
     public __sendSessionCompletedEvent(session: Session): void;
     private primitiveSchemaDefinition();
+    public hasDomainExtensions : boolean;
+    public getActiveDomains(): HashTable<string, DomainModel>;
     public getDomain(name: string): DomainModel;
     public __addDomain(domain: DomainModel): void;
     public beginSession(config?: SessionConfiguration): Session;
@@ -348,14 +363,13 @@ export declare class Store {
 export declare class DomainModel {
     public store: Store;
     public name: string;
-    private _sequence;
+    public extension: string;
     public events: EventManager;
     private _cache;
-    public eventDispatcher: IEventDispatcher;
+    public eventDispatcher: EventDispatcher;
     private _adapters;
-    public extension: string;
     private graph;
-    constructor(store: Store, name: string);
+    constructor(store: Store, name: string, extension?: string);
     public dispose(): void;
     public validate(schemaElement?: SchemaElement): DiagnosticMessage[];
     public createId(id?: string): string;
@@ -367,9 +381,10 @@ export declare class DomainModel {
     public getRelationships(schemaElement?: SchemaRelationship, start?: ModelElement, end?: ModelElement): ICursor;
     public getPropertyValue(ownerId: string, property: SchemaProperty): PropertyValue;
     public setPropertyValue(ownerId: string, property: SchemaProperty, value: any, version?: number): PropertyValue;
-    private updateSequence(id);
     public create(schemaElement: SchemaElement, id?: string, version?: number): ModelElement;
     public createRelationship(schemaRelationship: SchemaRelationship, start: ModelElement, endId: string, endSchemaId: string, id?: string, version?: number): ModelRelationship;
+    public onEventRaised(evt: AbstractEvent): void;
+    private _raiseEvent(evt);
     public remove(id: string, version?: number): void;
     public elementExists(id: string): boolean;
     public get(id: string): ModelElement;
@@ -379,7 +394,10 @@ export declare class DomainModel {
 }
 export declare class DomainModelScope extends DomainModel {
     public domain: DomainModel;
+    private _events;
     constructor(domain: DomainModel, extension: string);
+    public onEventRaised(evt: AbstractEvent): void;
+    public apply(dispatcher?: EventDispatcher): void;
 }
 export interface ICursor {
     hasNext(): boolean;
@@ -391,7 +409,7 @@ export declare class Cursor implements ICursor {
     public hasNext(): boolean;
     public next(): any;
     static emptyCursor: Cursor;
-    public firstOrDefault(): any;
+    public firstOrDefault(callback?: any): any;
     public forEach(callback: any): void;
     public count(callback?: any): number;
     public concat(list: ICursor): ICursor;
@@ -426,17 +444,24 @@ export interface IRelationshipMetadata extends IEntityMetadata {
 export declare class ModelElement {
     private _info;
     public getInfo(): IEntityMetadata;
+    public getId(): string;
+    public getDomain(): DomainModel;
+    public getSchemaElement(): SchemaElement;
     public isDisposed : boolean;
     public dispose(): void;
+    public getParent(): ModelElement;
     public getPropertyValue(property: SchemaProperty): any;
     public setPropertyValue(property: SchemaProperty, value: any): PropertyValue;
     public __initialize(domain: DomainModel, id: string, schemaElement: SchemaElement, startId?: string, startSchemaId?: string, endId?: string, endSchemaId?: string): IEntityMetadata;
-    public stringify(): string;
-    public getRelationships(schemaElement?: SchemaRelationship, direction?: Direction): ModelRelationship[];
+    public getRelationships(schemaElement?: SchemaRelationship, direction?: Direction): Cursor;
 }
 export declare class ModelRelationship extends ModelElement {
     private __start;
     private __end;
+    public getStartId(): string;
+    public getStartSchemaElementId(): string;
+    public getEndId(): string;
+    public getEndSchemaElementId(): string;
     public getStart(): ModelElement;
     public getEnd(): ModelElement;
     public __initialize(domain: DomainModel, id: string, schemaElement: SchemaElement, startId?: string, startSchemaId?: string, endId?: string, endSchemaId?: string): IEntityMetadata;
@@ -445,10 +470,12 @@ export declare class ModelElementCollection extends Cursor {
     public source: ModelElement;
     public end: ModelElement;
     public schemaRelationship: SchemaRelationship;
-    public domain: DomainModel;
     public filter: any;
     public cursor: any;
+    private _lastCursorDomain;
     private _items;
+    private _filter;
+    public getDomain(): DomainModel;
     public setFilter(where: (mel: ModelElement) => boolean): void;
     public items : ModelElement[];
     constructor(source: ModelElement, schemaRelationship: SchemaRelationship, opposite?: boolean, filter?: (mel: ModelElement) => boolean);
@@ -519,19 +546,20 @@ export interface Message {
 export declare class EventBus {
     private store;
     private _channels;
-    public defaultEventDispatcher: IEventDispatcher;
+    public defaultEventDispatcher: EventDispatcher;
     private cookie;
-    constructor(store: Store, eventDispatcher?: IEventDispatcher);
+    constructor(store: Store, eventDispatcher?: EventDispatcher);
     public dispose(): void;
     public addChannel(channel: AbstractChannel): void;
     public start(callback?: (channel: any) => any): void;
     private sendEvents(s);
 }
 export declare class AbstractChannel {
-    public domain: DomainModel;
     public eventBus: EventBus;
-    public dispatcher: IEventDispatcher;
-    constructor(domain: DomainModel);
+    public domain: DomainModel;
+    public dispatcher: EventDispatcher;
+    constructor();
+    public associate(domain: DomainModel): void;
     public start(callback?: (channel: any) => any): void;
     public close(): void;
     public _sendEvents(session: Session): void;
@@ -592,7 +620,7 @@ export declare class UndoManager {
     public clear(): void;
     public undo(toSavePoint?: number): void;
     public redo(toSavePoint?: number): void;
-    public registerDomain(domain: DomainModel, dispatcher?: IEventDispatcher): void;
+    public registerDomain(domain: DomainModel, dispatcher?: EventDispatcher): void;
     private performPop(mainStack, altStack, mode, toSavePoint?);
     private push(session);
 }
@@ -609,6 +637,7 @@ export declare class HashTable<TKey, TElem> extends Cursor {
     public next(): TElem;
     public dispose(): void;
     public keyExists(key: TKey): boolean;
+    public _fastInsert(key: TKey, elem: TElem): void;
     public add(key: TKey, elem: TElem): void;
     public get(key: TKey): TElem;
     public remove(key: TKey): void;

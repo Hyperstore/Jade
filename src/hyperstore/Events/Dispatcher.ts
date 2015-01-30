@@ -17,15 +17,6 @@
 /// <reference path="../_references.ts" />
 module Hyperstore
 {
-
-    /**
-     * Event dispatcher manage [[EventHandler]]. There is one dispatcher by channel initialized from [[EventBus.defaultEventDispatcher]].
-     */
-    export interface IEventDispatcher
-    {
-        handleEvent(event:AbstractEvent);
-    }
-
     /**
      * Interface for event handler.
      *

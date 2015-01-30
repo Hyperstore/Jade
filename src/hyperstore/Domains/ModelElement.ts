@@ -46,7 +46,11 @@ module Hyperstore {
         }
 
         getDomain() {
-            return this._info.domain;
+            var store = this._info.domain.store;
+            if( !store.hasDomainExtensions) // optim
+                return this._info.domain;
+
+            return Session.current ? Session.current.getDomain(this._info.domain.name) : store.getDomain(this._info.domain.name);
         }
 
         getSchemaElement() {
@@ -94,7 +98,8 @@ module Hyperstore {
                 property = this._info.schemaElement.getProperty(<any>property, true);
             if (!property)
                 return undefined;
-            var pv = this._info.domain.getPropertyValue(this._info.id, property);
+
+            var pv = this.getDomain().getPropertyValue(this._info.id, property);
             if (!pv) {
                 return undefined;
             }
@@ -114,7 +119,7 @@ module Hyperstore {
             if (typeof(property) === "string")
                 property = this._info.schemaElement.getProperty(<any>property, true);
 
-            return this._info.domain.setPropertyValue(this._info.id, property, value);
+            return this.getDomain().setPropertyValue(this._info.id, property, value);
         }
 
         /**
@@ -232,10 +237,10 @@ module Hyperstore {
         getRelationships(schemaElement?:SchemaRelationship, direction:Direction = Direction.Outgoing): Cursor {
             var list;
             if ((direction & Direction.Outgoing) !== 0) {
-                list = this._info.domain.getRelationships(schemaElement, this);
+                list = this.getDomain().getRelationships(schemaElement, this);
             }
             if ((direction & Direction.Incoming) !== 0) {
-                var list2 = this._info.domain.getRelationships(schemaElement, undefined, this);
+                var list2 = this.getDomain().getRelationships(schemaElement, undefined, this);
                 if (list && list.any()) {
                     list =  list.concat(list2);
                 }
@@ -276,7 +281,7 @@ module Hyperstore {
             if (this.__start === undefined) {
                 var info = <IRelationshipMetadata>this.getInfo();
                 if( info.startId )
-                    this.__start = info.domain.store.get(info.startId);
+                    this.__start = this.getDomain().store.get(info.startId);
             }
             return this.__start;
         }
@@ -293,7 +298,7 @@ module Hyperstore {
             if (this.__end === undefined) {
                 var info = <IRelationshipMetadata>this.getInfo();
                 if( info.endId )
-                    this.__end = info.domain.store.get(info.endId);
+                    this.__end = this.getDomain().store.get(info.endId);
             }
             return this.__end;
         }

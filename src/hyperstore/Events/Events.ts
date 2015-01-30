@@ -45,10 +45,10 @@ module Hyperstore
          *
          * @param eventName - event name. See [[EventManager]]
          * @param domain - domain of element
-         * @param correlationId - session id
          * @param version - element version
+         * @param correlationId - session id
          */
-        constructor(public eventName:string, public domain:string, public correlationId:number, public version:number)
+        constructor(public eventName:string, public domain:string, public version:number, public correlationId?:number)
         { }
 
         toString():string
@@ -67,17 +67,17 @@ module Hyperstore
          * @param domain - domain of element
          * @param id - element id
          * @param schemaId - element schema id
-         * @param correlationId - session id
          * @param version - element version
+         * @param correlationId - session id
          */
-        constructor(domain:string, public id:string, public schemaId:string, correlationId:number, version:number)
+        constructor(domain:string, public id:string, public schemaId:string, version:number, correlationId?:number)
         {
-            super(EventManager.AddEntityEvent, domain, correlationId, version);
+            super(EventManager.AddEntityEvent, domain, version, correlationId);
         }
 
         getReverseEvent(correlationId:number)
         {
-            return new RemoveEntityEvent(this.domain, this.id, this.schemaId, correlationId, this.version);
+            return new RemoveEntityEvent(this.domain, this.id, this.schemaId, this.version, correlationId);
         }
     }
 
@@ -91,17 +91,17 @@ module Hyperstore
          * @param domain - domain of element
          * @param id - element id
          * @param schemaId - element schema id
-         * @param correlationId - session id
          * @param version - element version
+         * @param correlationId - session id
          */
-        constructor(domain:string, public id:string, public schemaId:string, correlationId:number, version:number)
+        constructor(domain:string, public id:string, public schemaId:string, version:number, correlationId?:number)
         {
-            super(EventManager.RemoveEntityEvent, domain, correlationId, version);
+            super(EventManager.RemoveEntityEvent, domain, version, correlationId);
         }
 
         getReverseEvent(correlationId:number)
         {
-            return new AddEntityEvent(this.domain, this.id, this.schemaId, correlationId, this.version);
+            return new AddEntityEvent(this.domain, this.id, this.schemaId, this.version, correlationId);
         }
     }
 
@@ -119,21 +119,21 @@ module Hyperstore
          * @param startSchemaId - start schema id
          * @param endId - end element id
          * @param endSchemaId - end schema id
-         * @param correlationId - session id
          * @param version - relationship version
+         * @param correlationId - session id
          */
         constructor(
             domain:string, public id:string, public schemaId:string, public startId:string, public startSchemaId:string, public endId:string, public endSchemaId:string,
-            correlationId:number, version:number)
+            version:number, correlationId?:number)
         {
-            super(EventManager.AddRelationshipEvent, domain, correlationId, version);
+            super(EventManager.AddRelationshipEvent, domain, version, correlationId);
         }
 
         getReverseEvent(correlationId:number)
         {
             return new RemoveRelationshipEvent(
                 this.domain, this.id, this.schemaId, this.startId, this.startSchemaId, this.endId, this.endSchemaId,
-                correlationId, this.version
+                this.version, correlationId
             );
         }
     }
@@ -152,21 +152,21 @@ module Hyperstore
          * @param startSchemaId - start schema id
          * @param endId - end element id
          * @param endSchemaId - end schema id
-         * @param correlationId - session id
          * @param version - relationship version
+         * @param correlationId - session id
          */
         constructor(
             domain:string, public id:string, public schemaId:string, public startId:string, public startSchemaId:string, public endId:string, public endSchemaId:string,
-            correlationId:number, version:number)
+            version:number, correlationId?:number)
         {
-            super(EventManager.RemoveRelationshipEvent, domain, correlationId, version);
+            super(EventManager.RemoveRelationshipEvent, domain, version, correlationId);
         }
 
         getReverseEvent(correlationId:number)
         {
             return new AddRelationshipEvent(
                 this.domain, this.id, this.schemaId, this.startId, this.startSchemaId, this.endId, this.endSchemaId,
-                correlationId, this.version
+                this.version, correlationId
             );
         }
     }
@@ -184,22 +184,22 @@ module Hyperstore
          * @param propertyName - property name
          * @param value - new value
          * @param oldValue - old value
-         * @param correlationId - session id
          * @param version - property value version
+         * @param correlationId - session id
          */
         constructor(
             domain:string, public id:string, public schemaId:string, public propertyName:string, public value:any, public oldValue:any,
-            correlationId:number, version:number)
+            version:number, correlationId?:number )
         {
-            super(EventManager.ChangePropertyValueEvent, domain, correlationId, version);
+            super(EventManager.ChangePropertyValueEvent, domain, version, correlationId);
 
         }
 
         getReverseEvent(correlationId:number)
         {
             return new ChangePropertyValueEvent(
-                this.domain, this.id, this.schemaId, this.propertyName, this.oldValue, this.value, correlationId,
-                this.version
+                this.domain, this.id, this.schemaId, this.propertyName, this.oldValue, this.value,
+                this.version, correlationId
             );
         }
     }
@@ -216,22 +216,22 @@ module Hyperstore
          * @param schemaId - element schema id
          * @param propertyName - property name
          * @param value - new value
-         * @param correlationId - session id
          * @param version - property value version
+         * @param correlationId - session id
          */
         constructor(
             domain:string, public id:string, public schemaId:string, public propertyName:string, public value:any,
-            correlationId:number, version:number)
+            version:number, correlationId?:number)
         {
-            super(EventManager.RemovePropertyEvent, domain, correlationId, version);
+            super(EventManager.RemovePropertyEvent, domain, version, correlationId);
             this.TL = false;
         }
 
         getReverseEvent(correlationId:number)
         {
             return new ChangePropertyValueEvent(
-                this.domain, this.id, this.schemaId, this.propertyName, this.value, undefined, correlationId,
-                this.version
+                this.domain, this.id, this.schemaId, this.propertyName, this.value, undefined,
+                this.version, correlationId
             );
         }
     }

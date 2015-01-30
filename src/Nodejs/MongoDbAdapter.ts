@@ -16,7 +16,7 @@
 
 /// <reference path="../../Scripts/typings/mongodb/mongodb.d.ts" />
 
-import mongo = require('mongodb');
+/*import mongo = require('mongodb');
 
 
 export class MongoDbAdapter extends Adapter
@@ -140,4 +140,4 @@ export class MongoDbAdapter extends Adapter
             }
         );
     }
-}
+}*/

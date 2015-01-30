@@ -185,7 +185,7 @@ module Hyperstore
                     break;
                 case EventManager.RemoveEntityEvent:
                     var info = this._trackings[evt.id];
-                    if (!info)
+                    if (info)
                     {
                         info.state = TrackingState.Removed;
                     }
@@ -215,7 +215,7 @@ module Hyperstore
                     break;
                 case EventManager.RemoveRelationshipEvent:
                     var info = this._trackings[evt.id];
-                    if (!info)
+                    if (info)
                     {
                         info.state = TrackingState.Removed;
                     }

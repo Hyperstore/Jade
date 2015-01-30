@@ -45,12 +45,14 @@ module Hyperstore
     class DomainManager implements ICursor {
         private _domains;
         private _keys;
+        private _extensionsCount:number;
 
         private _ix:number;
 
         constructor() {
             this._keys = {};
             this._domains = [];
+            this._extensionsCount = 0;
         }
 
         reset() {
@@ -65,21 +67,38 @@ module Hyperstore
             return this._ix++ < this._keys.length;
         }
 
+        hasExtensions() : boolean {
+            return this._extensionsCount > 0;
+        }
+
         addDomain(domain) {
+            if( domain.extension)
+                this._extensionsCount++;
             this._keys[domain.name] = this._domains.push( domain ) - 1;
         }
 
         public unload(domain:DomainModel)
         {
             domain.dispose();
-            var i = this._keys[name];
+            var i = this._keys[domain.name];
             if(i)
             {
-                if (domain.extension)
-                    this._domains[i] = (<any>domain).domain;
+                this._domains.splice(i);
+                i = undefined;
+                if (domain.extension) {
+                    this._extensionsCount--;
+                    var parent = (<any>domain).domain;
+                    for(var x=0; this._domains.length;x++) {
+                        if( this._domains[x] === parent ) {
+                            i=x;
+                            break;
+                        }
+                    }
+                    if(i===undefined) throw "Inconsistant domain list when unloading an extension";
+                    this._keys[domain.name] = i;
+                }
                 else
                 {
-                    this._domains.splice(i);
                     delete this._keys[domain.name];
                 }
             }
@@ -344,14 +363,18 @@ module Hyperstore
         }
 
         /**
-         * Unload a domain. All domain elements are unaccessible.
+         * Unload a domain. All domain elements will be unreachable at the end of the current session.
          *
          * You can reload the same domain.
          *
-         * @param domain
+         * @param domain - Domain or extension to unload
+         * @param commitChanges - For an extension, persists changes in the parent domain.
          */
-        public unloadDomain(domain:DomainModel)
+        public unloadDomain(domain:DomainModel, commitChanges:boolean=false)
         {
+            var scope = <DomainModelScope>domain;
+            if( scope.apply && commitChanges )
+                scope.apply();
             this._domains.unload(domain);
         }
 
@@ -407,6 +430,20 @@ module Hyperstore
                     new Primitive(schema, "boolean", "{value} must be a boolean", (val, old, ctx) => !val || typeof(val) === "boolean", false, ConstraintKind.Check);
                 }
             };
+        }
+
+        get hasDomainExtensions() : boolean {
+            return this._domains.hasExtensions();
+        }
+
+        getActiveDomains() : HashTable<string,DomainModel> {
+            var dic = new HashTable<string,DomainModel>();
+            this._domains.reset();
+            while(this._domains.hasNext()) {
+                var d = this._domains.next();
+                dic._fastInsert(d.name, d);
+            }
+            return dic;
         }
 
         /**
