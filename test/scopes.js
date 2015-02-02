@@ -41,11 +41,13 @@ var store;
             expect(lib.Books.count()).to.equal(0);
 
             var scope = new hyperstore.DomainModelScope(domain, "xx");
-            lib.Name = "Test2";
-            expect(lib.Name).to.equal("Test2");
+            var lib2 = scope.get(lib.getId());
+            expect(lib2.Name).to.equal("test");
+            lib2.Name = "Test2";
+            expect(lib2.Name).to.equal("Test2");
             var b = meta.schemas.Lib.Book.create(scope);
-            lib.Books.add(b);
-            expect(lib.Books.count()).to.equal(1);
+            lib2.Books.add(b);
+            expect(lib2.Books.count()).to.equal(1);
             store.unloadDomain(scope);
 
             expect(lib.Books.count()).to.equal(0);
@@ -56,8 +58,9 @@ var store;
             var lib = meta.schemas.Lib.Library.create(domain);
             lib.Name = "test";
             var scope = new hyperstore.DomainModelScope(domain, "xx");
-            lib.Name = "Test2";
-            expect(lib.Name).to.equal("Test2");
+            var lib2 = scope.get(lib.getId());
+            lib2.Name = "Test2";
+            expect(lib2.Name).to.equal("Test2");
             store.unloadDomain(scope, true); // Commit before unload
             expect(lib.Name).to.equal("Test2");
         });

@@ -462,7 +462,8 @@ export class DomainModel {
             throw "Invalid element " + ownerId;
         }
 
-        var node = this.graph.getPropertyNode(owner, property.name);
+        var pid = owner.id + "." + property.name;
+        var node = this.graph.getPropertyNode(pid);
         var value = undefined;
 
         if (!node)
@@ -494,19 +495,20 @@ export class DomainModel {
             throw "Invalid element " + ownerId;
         }
 
-        var node = this.graph.getPropertyNode(ownerNode, property.name);
+        var pid = ownerId + "." + property.name;
+        var node = this.graph.getPropertyNode(pid);
         var oldValue = undefined;
 
         if (!node)
         {
-            node = this.graph.addPropertyNode(ownerNode, property.name, property.schemaProperty.id, value, version || Utils.getUtcNow());
+            node = this.graph.addPropertyNode(pid, property.schemaProperty.id, value, version || Utils.getUtcNow());
         }
         else
         {
             oldValue = node.value;
             node.value = value;
             node.version = version || Utils.getUtcNow();
-            this.graph.updatePropertyNode(ownerNode, node);
+            this.graph.updatePropertyNode(node);
         }
 
         var pv = new PropertyValue(value, oldValue, node.version);
@@ -787,24 +789,24 @@ export class DomainModel {
                 this._keys[node.id] = this._nodes.push( node ) - 1;
         }
 
-        updatePropertyNode(owner:GraphNode, node:GraphNode)
+        updatePropertyNode(node:GraphNode)
         {
             // when a node is update but doesn't exist yet in the extension
             // needsUpdate flag is set on the getPropertyNode of the hypergraphex
             if( (<any>node).needsUpdate)
-                owner.properties[node.id] = node;
+                this._properties[node.id] = node;
         }
 
-        addPropertyNode(owner:GraphNode, id:string, schemaId:string, value:any, version:number):GraphNode
+        addPropertyNode(id:string, schemaId:string, value:any, version:number):GraphNode
         {
             var node = new GraphNode(
                 id, schemaId, NodeType.Property, version, undefined, undefined, undefined, undefined, value
             );
-            return owner.properties[node.id] = node;
+            return this._properties[node.id] = node;
         }
 
-        getPropertyNode(owner:GraphNode, name:string) : GraphNode {
-            return owner.properties[name];
+        getPropertyNode(id:string) : GraphNode {
+            return this._properties[id];
         }
 
         addRelationship(id:string, schemaId:string, startId:string, startSchemaId:string, endId:string, endSchemaId:string, version:number):GraphNode
@@ -1049,14 +1051,12 @@ export class DomainModel {
             return this._keys[id] || this._superHyperGraph.getKey(id);
         }
 
-        getPropertyNode(owner:GraphNode, name:string) : GraphNode {
-            var node = super.getPropertyNode(owner, name);
+        getPropertyNode(pid:string) : GraphNode {
+            var node = super.getPropertyNode(pid);
             if( node )
                 return node;
 
-            owner = this._superHyperGraph.getNode(owner.id);
-            if( !owner) return owner;
-            node = this._superHyperGraph.getPropertyNode(owner, name);
+            node = this._superHyperGraph.getPropertyNode(pid);
             if( !node) return node;
             // add a flag to force the update if this read is for an update
             node = node.clone();
@@ -1088,7 +1088,7 @@ export class DomainModel {
     export class Cursor implements ICursor {
         reset() {}
         hasNext():boolean {return false;}
-        next() {return undefined;}
+        next():any {return undefined;}
 
         static emptyCursor = new Cursor();
 

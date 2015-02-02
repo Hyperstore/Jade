@@ -30,12 +30,11 @@ export class SchemaInfo
     // -------------------------------------------------------------------------------------
     constructor(public schema:Schema, public kind:SchemaKind, public id:string)
     {
-        this.name = id.indexOf('.') <= 0 || (
-        schema.name && id.substr(0, schema.name.length) !== schema.name)
-            ? id
-            : id.substr(schema.name.length + 1);
+        this.name = id.indexOf('.') <= 0 || (schema.name && id.substr(0, schema.name.length) !== schema.name)
+                    ? id
+                    : id.substr(schema.name.length + 1);
 
-        this.id = schema.name ? schema.name + ":" + this.name : id;
+        this.id = schema.name ? schema.name + "." + this.name : id;
     }
 
     // -------------------------------------------------------------------------------------

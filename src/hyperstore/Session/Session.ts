@@ -53,6 +53,7 @@ module Hyperstore
         public trackingData:TrackingData;
         public result:SessionResult;
         private _activeDomains : HashTable<string, DomainModel>;
+        private _store: Store;
 
         /**
          * @constructor
@@ -96,7 +97,7 @@ module Hyperstore
             if( store.hasDomainExtensions)
                 this._activeDomains = store.getActiveDomains();
 
-            store.domains
+            this._store = store;
             this.__nextLevel();
         }
 
@@ -105,8 +106,8 @@ module Hyperstore
           * @param domain
          * @returns {DomainModel}
          */
-        getDomain(domain:string) {
-            return this._activeDomains.get(domain);
+        getDomain(domain:string, activeOnly:boolean=false) {
+            return this._activeDomains ? this._activeDomains.get(domain) : activeOnly ? undefined : this._store.getDomain(domain);
         }
 
         __nextLevel()

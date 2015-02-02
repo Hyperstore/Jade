@@ -144,8 +144,9 @@ export declare class Session {
     public trackingData: TrackingData;
     public result: SessionResult;
     private _activeDomains;
+    private _store;
     constructor(store: Store, config?: SessionConfiguration);
-    public getDomain(domain: string): DomainModel;
+    public getDomain(domain: string, activeOnly?: boolean): DomainModel;
     public __nextLevel(): void;
     public acceptChanges(): void;
     public close(): SessionResult;
@@ -345,8 +346,8 @@ export declare class Store {
     public removeSessionCompleted(cookie: number): void;
     public __sendSessionCompletedEvent(session: Session): void;
     private primitiveSchemaDefinition();
-    public hasDomainExtensions : boolean;
     public getActiveDomains(): HashTable<string, DomainModel>;
+    public hasDomainExtensions : boolean;
     public getDomain(name: string): DomainModel;
     public __addDomain(domain: DomainModel): void;
     public beginSession(config?: SessionConfiguration): Session;
@@ -470,12 +471,10 @@ export declare class ModelElementCollection extends Cursor {
     public source: ModelElement;
     public end: ModelElement;
     public schemaRelationship: SchemaRelationship;
-    public filter: any;
     public cursor: any;
-    private _lastCursorDomain;
     private _items;
-    private _filter;
-    public getDomain(): DomainModel;
+    public filter: (mel: ModelElement) => boolean;
+    public domain: DomainModel;
     public setFilter(where: (mel: ModelElement) => boolean): void;
     public items : ModelElement[];
     constructor(source: ModelElement, schemaRelationship: SchemaRelationship, opposite?: boolean, filter?: (mel: ModelElement) => boolean);

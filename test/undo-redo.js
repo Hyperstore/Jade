@@ -61,7 +61,7 @@ describe('Undo/Redo manager', function () {
             undoManager.redo(); // re create
 
             expect(lib.Books.items.length).to.equal(1);
-            b = domain.get("test:2");
+            b = domain.get(b.getId());
             expect(b.Title).to.equal("test");
         });
     });

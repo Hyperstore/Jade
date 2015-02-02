@@ -49,7 +49,7 @@ module Hyperstore
             }
         }
 
-        next() {
+        next() : TElem {
             return this._current;
         }
 

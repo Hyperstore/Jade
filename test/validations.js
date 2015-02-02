@@ -116,14 +116,14 @@ describe('Validation tests', function ()
                         }
                     },
                     arrayOf: {
-                        type: "string",
+                        valueType: "string",
                         $constraints : {
-                            "Invalid {propertyName}. Must be an array of {$type}": function (val) {
+                            "Invalid {propertyName}. Must be an array of {$valueType}": function (val) {
                                 if (!val) return true;
                                 if (!val.length) return false;
                                 var ok = true;
                                 val.forEach(function (v) {
-                                    if (typeof v !== this.type) ok = false;
+                                    if (typeof v !== this.valueType) ok = false;
                                 });
                                 return ok;
                             }

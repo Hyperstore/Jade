@@ -432,10 +432,6 @@ module Hyperstore
             };
         }
 
-        get hasDomainExtensions() : boolean {
-            return this._domains.hasExtensions();
-        }
-
         getActiveDomains() : HashTable<string,DomainModel> {
             var dic = new HashTable<string,DomainModel>();
             this._domains.reset();
@@ -447,12 +443,22 @@ module Hyperstore
         }
 
         /**
+         * is there any extensions loaded ?
+         * @returns {boolean}
+         */
+        get hasDomainExtensions(): boolean {
+            return this._domains.hasExtensions();
+        }
+
+        /**
          * get a loaded domain by name or undefined if not exists
          * @param name
          * @returns {*}
          */
         getDomain(name:string):DomainModel
         {
+            if( Session.current) // optim
+                return Session.current.getDomain(name, true) || this._domains.getDomain(name);
             return this._domains.getDomain(name);
         }
 
