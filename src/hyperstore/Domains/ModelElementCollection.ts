@@ -30,7 +30,7 @@ class ModelElementArray
         this.all = [];
 
         var opposite = !!this._collection.source;
-        var cursor = this._collection.getDomain().getRelationships(this._collection.schemaRelationship,
+        var cursor = this._collection.domain.getRelationships(this._collection.schemaRelationship,
                                                                this._collection.source,
                                                                this._collection.end);
         while(cursor.hasNext())
@@ -47,24 +47,21 @@ class ModelElementArray
     constructor(private _collection:ModelElementCollection)
     {
         var self = this;
-        this._sessionCompletedCookie = this._collection.getDomain().store.onSessionCompleted(
-            function (s)
+        this._sessionCompletedCookie = this._collection.domain.events.on(
+            EventManager.SessionCompleted, function (s)
             {
                 if (s.aborted)
                 {
                     return;
                 }
 
-                var domain = self._collection.getDomain();
+                var domain = self._collection.domain;
                 var srcId = self._collection.source && self._collection.source.getInfo().id;
                 var endId = self._collection.end && self._collection.end.getInfo().id;
 
                 Utils.forEach(
                     s.events, function (e)
                     {
-                        if( domain.name !== e.domain)
-                            return;
-
                         if (e.eventName !== EventManager.AddRelationshipEvent &&
                             e.eventName !== EventManager.RemoveRelationshipEvent)
                         {
@@ -105,7 +102,7 @@ class ModelElementArray
      */
     dispose()
     {
-        this._collection.getDomain().store.removeSessionCompleted(this._sessionCompletedCookie);
+        this._collection.domain.events.remove(this._sessionCompletedCookie);
         this.all = null;
     }
 
@@ -131,21 +128,18 @@ class ModelElementArray
     export class ModelElementCollection extends Cursor
     {
         source:ModelElement;
-        end:ModelElement
+        end:ModelElement;
         schemaRelationship:SchemaRelationship;
-        filter;
         cursor;
-        private _lastCursorDomain;
         private _items : ModelElementArray;
-        private _filter:(mel:ModelElement) => boolean;
-
-        getDomain() {
-            return this.source && this.source.getDomain() || this.end.getDomain();
-        }
+        filter:(mel:ModelElement) => boolean;
+        domain : DomainModel;
 
         public setFilter(where:(mel:ModelElement) => boolean)
         {
-            this._filter = where;
+            this.filter = where;
+            if( this._items)
+                this._items.reset();
         }
 
         /**
@@ -181,6 +175,7 @@ class ModelElementArray
             this.source = opposite ? undefined : source;
             this.end = opposite ? source : undefined;
             this.schemaRelationship = schemaRelationship;
+            this.domain = source.getDomain();
             this.setFilter(filter);
         }
 
@@ -196,15 +191,9 @@ class ModelElementArray
         }
 
         reset() {
-            var domain = this.getDomain();
-            if( !this.cursor || this._lastCursorDomain !== domain) {
-                this.cursor = Cursor.from(domain.getRelationships(this.schemaRelationship, this.source, this.end));
-                if (this._filter)
-                    this.cursor = this.cursor.map(this._filter);
-                if (this._items)
-                    this._items.reset();
-                this._lastCursorDomain = domain;
-            }
+            this.cursor = Cursor.from(this.domain.getRelationships(this.schemaRelationship, this.source, this.end));
+            if(this.filter)
+                this.cursor = this.cursor.map(this.filter);
             this.cursor.reset();
         }
 
@@ -233,12 +222,11 @@ class ModelElementArray
             var source = this.source ? this.source : mel;
             var end = this.end ? this.end : mel;
 
-            var domain = this.getDomain();
-            var cursor = domain.getRelationships(this.schemaRelationship, source, end);
+            var cursor = this.domain.getRelationships(this.schemaRelationship, source, end);
             if (cursor.hasNext())
             {
                 var rel = cursor.next();
-                domain.remove(rel.getId());
+                this.domain.remove(rel.getId());
             }
         }
 
@@ -257,7 +245,7 @@ class ModelElementArray
             var source = this.source ? this.source : mel;
             var end = (this.end ? this.end : mel).getInfo();
 
-            this.getDomain().createRelationship(this.schemaRelationship, source, end.id, end.schemaElement.id);
+            this.domain.createRelationship(this.schemaRelationship, source, end.id, end.schemaElement.id);
         }
     }
 }
