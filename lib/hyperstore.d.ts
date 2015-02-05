@@ -46,7 +46,7 @@ export declare class Schema {
     public store: Store;
     public name: string;
     public constraints: ConstraintsManager;
-    constructor(store: Store, name?: string, def?: ISchemaDefinition, result?: any);
+    constructor(store: Store, name?: string, def?: ISchemaDefinition);
     public __addSchemaElement(schemaInfo: SchemaInfo): void;
 }
 export declare class SchemaInfo {
@@ -111,6 +111,20 @@ export declare class SchemaValueObject extends SchemaInfo {
 }
 export declare class Primitive extends SchemaValueObject {
     constructor(schema: Schema, id: string, message?: string, condition?: (val: any, old: any, ctx: ConstraintContext) => boolean, asError?: boolean, kind?: ConstraintKind);
+}
+export declare class Loader {
+    public store: Store;
+    private _schemas;
+    private _configs;
+    constructor(store: Store);
+    public loadSchemas(schemas: any): any;
+    private _parseSchema(config);
+    public _resolveSchema(id: string): any;
+}
+export declare class SchemaLoaderException {
+    public message: string;
+    public object: any;
+    constructor(message: string, object: any);
 }
 export declare enum SessionMode {
     Normal = 0,
@@ -328,16 +342,20 @@ export interface IStoreConfiguration {
 }
 export declare class Store {
     private schemasBySimpleName;
-    private schemas;
+    private schemaElements;
+    private _schemas;
     private _domains;
     private _subscriptions;
     public storeId: string;
     public defaultDomainModel: DomainModel;
     public eventBus: EventBus;
     public language: string;
-    constructor();
-    public initAsync(config?: any): Q.Promise<any>;
-    public init(config?: any, p?: Q.Deferred<any>): any;
+    constructor(id?: string);
+    public __addSchema(name: string, schema: Schema): void;
+    public getSchema(name: string): Schema;
+    public loadSchemas(schemas: any): any;
+    public createDomainAsync(config?: any): Q.Promise<DomainModel>;
+    public createDomain(config?: any, p?: Q.Deferred<any>): DomainModel;
     private populateDomain(def, domain);
     public dispose(): void;
     public unloadDomain(domain: DomainModel, commitChanges?: boolean): void;
@@ -524,6 +542,7 @@ export declare class ConstraintsManager {
     public __checkElements(elements: any): DiagnosticMessage[];
     public validate(elements: DomainModel): any;
     private checkOrValidateElements(elements, kind);
+    public __dump(): void;
     private checkCondition(ctx, schemaElement);
 }
 export declare class DiagnosticMessage {

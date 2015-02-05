@@ -7,27 +7,29 @@ describe('Serialization tests', function ()
 {
     var config =
     {
-        schemas: {
-            test: {
-                Container : {
-                    Items : {  Item: "1=>*"}
-                },
-                Item : {
-                    Num : "number",
-                    Flag: "boolean",
-                    Str : "string"
+        id: "Test",
+        Container: {
+            references: {
+                Items: {
+                    end: "Item",
+                    kind: "1=>*"
                 }
+            }
+        },
+        Item: {
+            properties: {
+                Num: "number",
+                Flag: "boolean",
+                Str: "string"
             }
         }
     };
 
     var store;
-    var root;
-    var meta;
 
     beforeEach(function() {
         store = new hyperstore.Store();
-        meta = store.init(config);
+        store.loadSchemas(config);
     });
 
 

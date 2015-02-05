@@ -1,190 +1,74 @@
 var hyperstore = require('../lib/hyperstore.js');
 var expect = require('chai').expect;
+var standard = require('../lib/standards.js').schema;
 
 'use strict';
 
 describe('Validation tests', function ()
 {
-  /*  var test = {
-        constraints : {
-            "Property {propertyName} is required": {
-                name: "required", // unique id
+    var testSchema =
+    {
+        $import : {
+            std: "Standards"
+        },
+        id:"Test",
+        constraints: {
+            "required": {
+                message: "Property {propertyName} is required",
                 check: function (val) {
                     return val != undefined;
                 }
             }
         },
-        types: {
-            enum: {
-                $values: [],
-                constraints: {
-                    "Invalid property {propertyName} must be one of {$values}": function (val) {
-                        return this.values.indexOf(val) !== -1;
-                    }
-                }
-            },
-            range: {
-                type:"number",
-                $min: 0,
-                $max: 1,
-                constraints : {
-                    "Invalid {propertyName} value must be between {$min} and {$max}": function (val) {
-                        return val >= this.min && val <= this.max;
-                    }
-                }
-            },
-            arrayOf: {
-                type: "string",
-                constraints : {
-                    "Invalid {propertyName}. Must be an array of {$type}": function (val) {
-                        if (!val) return true;
-                        if (!val.length) return false;
-                        var ok = true;
-                        val.forEach(function (v) {
-                            if (typeof v !== this.type) ok = false;
-                        });
-                        return ok;
-                    }
+        Container : {
+            references: {
+                Items: {
+                    end: "Item",
+                    kind : "1=>*"
                 }
             }
         },
-        schemas : {
-            "name" :{
-                library : {
-                    extends : "",
-                    properties : {
-                        "title" : {
-                            type : "email",
-                            default : "jdjdjd",
-                            constraints : {
-                                "$import" : ["required"],
-                                "kdoekd dokedd" : function(val) {},
-                                "jdkdkdkd " : {
-                                    check : function() {},
-                                    error:true
-                                }
-                            }
-                        },
-                        relationships : {
-                            "LibraryHasBooks" : {
-                                end : "Book",
-                                cardinality : "OneToMany",
-                                Embedded : true
-                            }
-                        }
-                    },
-                    constraints : {
-
-                    }
-                }
-            }
-        }
-    };*/
-
-
-    var config =
-    {
-        schemas: {
-            std: {
-                // Shared constraints can be referenced with the $ref property name.
-                $constraints: {
-                    "Property {propertyName} is required": {
-                        name: "required", // unique id
-                        check: function (val) {
-                            return val != undefined;
-                        }
-                    }
-                },
-
-                $types: {
-                    enum: {
-                        values: [],
-                        $constraints: {
-                            "Invalid property {propertyName} must be one of {$values}": function (val) {
-                                return this.values.indexOf(val) !== -1;
-                            }
-                        }
-                    },
-                    range: {
-                        $type:"number",
-                        min: 0,
-                        max: 1,
-                        $constraints : {
-                            "Invalid {propertyName} value must be between {$min} and {$max}": function (val) {
-                                return val >= this.min && val <= this.max;
-                            }
-                        }
-                    },
-                    arrayOf: {
-                        valueType: "string",
-                        $constraints : {
-                            "Invalid {propertyName}. Must be an array of {$valueType}": function (val) {
-                                if (!val) return true;
-                                if (!val.length) return false;
-                                var ok = true;
-                                val.forEach(function (v) {
-                                    if (typeof v !== this.valueType) ok = false;
-                                });
-                                return ok;
-                            }
-                        }
-                    }
-                }
-            },
-            test: {
-                $types : {
-                    identity : {
-                        $type : "string",
-                        $constraints : {
-                            "$ref" : "required",
-                            "Duplicate value {value} for {propertyName}" : function(val, old, ctx) {
-                                var domain = ctx.element.getInfo().domain;
-                                var others = domain.getElements(ctx.element.schemaElement);
-                                var pname = ctx.propertyName;
-                                return !others.any( function(e) {return e[pname] === val && e.id !== ctx.element.id});
-                            }
-                        }
-                    }
-                },
-                Container : {
-                    Items : {  Item: "1=>*"}
-                },
-                Item : {
-                    Num : {$type:"number", $constraints: {"$ref":"required"}},
-                    Key : "identity",
-                    Flag: "boolean",
-                    Values : "enum(values:['A', 'B', 'C'])",
-                    Range : "range(min:1, max:10)"
-                }
-            }
-        },
-        domains : {
-            test: {
-                "Container" : {
-                    Root : {}
-                }
+        Item : {
+            properties: {
+                Num: {type: "number", constraints: {"$ref": "required"}},
+                Key: "identity",
+                Flag: "boolean",
+                Values: {type: "enum", values: ['A', 'B', 'C']},
+                Range: {type: "range", min: 1, max: 10}
             }
         }
     };
 
     var store;
     var root;
-    var meta;
+    var domain;
 
     beforeEach(function() {
         store = new hyperstore.Store();
-        meta = store.init(config);
-        root = meta.domains.test.getElements("Container").firstOrDefault();
+        store.loadSchemas([testSchema, standard]);
+        domain = store.createDomain({name:"Test", root : {
+            Container : {
+                Items : {
+                    Key : "1",
+                    Flag:true
+                }
+            }
+        } });
+        root = domain.getElements("Container").firstOrDefault();
     });
 
     it('should failed on wrong primitives values', function() {
+
+        var schema = store.getSchema("Test");
+        schema.constraints.__dump();
+
         var session = store.beginSession();
-        var item = meta.domains.test.create("Item");
+        var item = domain.create("Item");
         item.Num = "str";
         session.acceptChanges();
         var r = session.close();
         expect(r.hasErrorsOrWarnings).to.equal(true);
-        expect(r.messages.length).to.equal(3);
+        expect(r.messages.length).to.equal(3); // Num : str is not a number, Values
         session = store.beginSession();
         item.Num = 2;
         item.Values = "A";
@@ -196,9 +80,9 @@ describe('Validation tests', function ()
 
     it('should failed on wrong range values', function() {
         var session = store.beginSession();
-        var item = meta.domains.test.create("Item");
+        var item = domain.create("Item");
         item.Values = "A";
-
+        item.Num=0;
         item.Range = "str";
         session.acceptChanges();
         var r = session.close();
@@ -220,13 +104,13 @@ describe('Validation tests', function ()
 
     it('on demand validations', function() {
         var session = store.beginSession();
-        var item = meta.domains.test.create("Item");
+        var item = domain.create("Item");
         session.acceptChanges();
         var r = session.close();
         expect(r.hasErrorsOrWarnings).to.equal(true);
         var cx = r.messages.length;
 
-        var diags = meta.domains.test.validate();
+        var diags = domain.validate();
         expect(diags.length).to.equal(cx);
     });
 });

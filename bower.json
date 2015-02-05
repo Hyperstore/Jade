@@ -2,8 +2,7 @@
   "name": "hyperstore",
   "version": "0.9.0",
   "main": [
-    ".built/amd/hyperstore.js",
-    ".built/amd/hyperstore.min.js"
+    ".built/amd/*.js"
   ],
   "ignore": [
     ".*",
@@ -12,6 +11,9 @@
     "bower_components",
     "test"
   ],
+  "dependencies" : {
+    "Q":"*"
+  },
   "homepage": "http://www.hyperstore.org",
   "authors": [
     "Alain Metge"

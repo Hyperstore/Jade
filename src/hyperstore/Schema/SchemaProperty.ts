@@ -39,6 +39,8 @@ export class SchemaProperty
      */
     constructor(public name:string, public schemaProperty:SchemaInfo, public defaultValue?:any, public kind:PropertyKind = PropertyKind.Normal)
     {
+        if(!schemaProperty)
+            throw "Invalid schema property for property " + name;
     }
 
     deserialize(ctx:SerializationContext):any

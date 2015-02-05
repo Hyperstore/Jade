@@ -1,46 +1,30 @@
 ﻿var Hyperstore = require('../lib/hyperstore.js');
 var expect = require('chai').expect;
+var schemaTest = require('./schema_Test.js').schema;
 
 describe('Undo/Redo manager', function () {
         'use strict';
 
         var store;
         var lib;
-        var cfg;
-        var meta;
+        var domain;
 
         beforeEach(function()
         {
-            cfg = {
-                schemas : {
-                    Test : {
-                        Library: {
-                            Name : "string",
-                            Books: ["Book"]
-                        },
-                        Book   : {
-                            Title: ""
-                        }
-                    }
-                },
-                domains : {
-                    Test : {}
-                }
-            };
             store = new Hyperstore.Store();
-            meta = store.init(cfg);
-            lib = meta.domains.Test.create(meta.schemas.Test.Library);
+            store.loadSchemas(schemaTest);
+            domain = new Hyperstore.DomainModel(store, 'D');
+            lib = domain.create("Library");
             lib.Name = "test";
         });
 
         it('should perform undo and redo', function () {
 
             var undoManager = new Hyperstore.UndoManager(store);
-            undoManager.registerDomain(meta.domains.Test);
+            undoManager.registerDomain(domain);
 
             var session = store.beginSession();
-            var domain = meta.domains.Test;
-            var b =  domain.create(meta.schemas.Test.Book);
+            var b =  domain.create("Book");
             b.Title = "test";
             lib.Books.add(b);
             session.acceptChanges();

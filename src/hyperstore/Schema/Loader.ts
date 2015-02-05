@@ -18,93 +18,121 @@
 
 module Hyperstore
 {
-    class SchemaState {
-        schema : Schema;
+    class SchemaState
+    {
+        schema:Schema;
         constraints;
-        config;
         id:string;
+        meta;
 
-        static Pending = new SchemaState(null,"$pending");
+        static Pending = new SchemaState(null, "$pending");
 
-        constructor(store: Store, public config) {
-            this.constraints = {};
-            this.id = config.$id;
-            this.schema = new Schema(store, this.id);
+        constructor(store:Store, public config)
+        {
+            if (store)
+            {
+                this.constraints = {};
+                this.id = config.id;
+                this.schema = new Schema(store, this.id);
+                this.meta = {};
+            }
         }
     }
 
-    export class Loader {
-        private _schemas : HashTable<string,SchemaState>;
-        private _configs : any[];
+    export class Loader
+    {
+        private _schemas:HashTable<string,SchemaState>;
+        private _configs:any[];
 
-        constructor(public store:Store) {
+        constructor(public store:Store)
+        {
         }
 
-        loadSchemas(schemas:any[]) {
+        loadSchemas(schemas):any
+        {
+            var meta = {};
+            if (!schemas) return meta;
+
+            if (!Array.isArray(schemas)) schemas = [schemas];
             this._configs = schemas;
             this._schemas = new HashTable<string,any>();
-            this._configs.forEach( schema => {
-                this._parseSchema(schema);
-            });
+            this._configs.forEach(
+                    schema =>
+                {
+                    var state = this._parseSchema(schema);
+                    meta[state.id] = state.meta;
+                }
+            );
+            return meta;
         }
 
-        _parseSchema(config) : SchemaState {
-            this._schemas.add(state.id, SchemaState.Pending);
+        private _parseSchema(config):SchemaState
+        {
+            if (!config.id)
+                throw new SchemaLoaderException("id is required for schema ", config);
+            var state = this._schemas.get(config.id);
+            if (state) return state;
+
+            this._schemas.add(config.id, SchemaState.Pending);
             var parser = new SchemaParser(this);
-            var state = parser.parse(config);
+            state = parser.parse(config);
             this._schemas.add(state.id, state);
             return state;
         }
 
-        _resolveSchema(id:string) : SchemaState {
+        _resolveSchema(id:string):any
+        {
             var state = this._schemas.get(id);
-            if( state ) return state;
+            if (state) return state;
 
             Utils.forEach(this._configs, cfg => {
-                if (cfg.$id === id) {
-                   return this._parseSchema(cfg);
+                if (cfg.id === id)
+                {
+                    state = this._parseSchema(cfg);
                 }
             });
 
-            return undefined;
+            return state;
         }
     }
 
-    export class SchemaLoaderException {
-        constructor(public message:string, public object) {
+    export class SchemaLoaderException
+    {
+        constructor(public message:string, public object)
+        {
         }
     }
 
-    class SchemaParser {
-        private _imports : HashTable<string, SchemaState>;
+    class SchemaParser
+    {
+        private _imports:HashTable<string, SchemaState>;
         private _state:SchemaState;
-        private pendings : any[];
+        private pendings:any[];
 
-        constructor(private _loader:Loader) {
+        constructor(private _loader:Loader)
+        {
             this._imports = new HashTable<string, SchemaState>();
         }
 
-        parse(schema) : SchemaState {
-            if(!schema) return undefined;
+        parse(schema):SchemaState
+        {
+            if (!schema) return undefined;
 
-            var id = schema.$id;
-            if( !id )
-                throw new SchemaLoaderException("$id is required for schema ", schema);
-
+            var id = schema.id;
             this._state = new SchemaState(this._loader.store, schema);
 
             this.parseImports(schema);
             // Global constraints
-            this.parseConstraints(schema.$constraints, ct=> this._state.constraints[ct.name] = ct);
-            this.parseTypes(schema.$types);
+            this.parseConstraints(schema.constraints, ct=> this._state.constraints[ct.name] = ct);
+            this.parseTypes(schema.types);
 
             this.pendings = [];
             for (var name in schema)
             {
-                if (name[0] !== "$")
+                if (name[0] !== "$" && name !== "constraints" && name !== "types" && name !== "id")
                 {
                     var o = schema[name];
-                    if (o.$source)
+                    if (o.source)
                         this.parseRelationship(o, name);
                     else
                         this.parseEntity(o, name);
@@ -112,650 +140,81 @@ module Hyperstore
             }
 
             this.pendings.forEach(p=>this.createRelationship(p));
-
             return this._state;
         }
 
         private parseEntity(o, name:string)
         {
             var base;
-            if (o.$extend)
+            if (o.extends)
             {
-                base = this._resolveType(o.$extend);
+                base = this._resolveType(o.extends);
                 if (!base)
-                    throw new SchemaLoaderException("Unknown extended entity " + o.$extend, this._state.config) ;
+                    throw new SchemaLoaderException("Unknown extended entity " + o.extends, this._state.config);
             }
 
             var entity = new SchemaEntity(this._state.schema, name, base);
-            this.parseConstraints(o.$constraints, c=> entity.addConstraint(c.message, c.condition, c.error, c.kind));
+            this.parseConstraints(o.constraints, c=> entity.addConstraint(c.message, c.condition, c.error, c.kind));
+            this._state.meta[name] = entity;
 
-            Utils.forEach(o.$properties, prop =>
+            for (var prop in o.properties)
             {
-                if (prop[0] === "$")
-                    return;
+                if (prop[0] !== "$" && o.properties.hasOwnProperty(prop))
+                    this.parseProperty(prop, o.properties[prop], entity);
+            }
 
-                this.parseProperty(prop, o[prop], entity);
-            });
-        }
-
-        private parseProperty(name:string, definition, entity:SchemaElement)
-        {
-            if (typeof(definition) === "function")
+            for (var prop in o.references)
             {
-                entity.defineProperty(name, null, definition, PropertyKind.Calculated);
-                return;
-            }
-            if (typeof(definition) === "string")
-            {
-                entity.defineProperty(name, this._resolveType(definition));
-                return;
-            }
-
-            var t = <any>typeof(o);
-            if (t === "object")
-            {
-                // primitive or default value
-                // ex : { $type: "string", $default? : "xxx", $constraints? : {} }
-                if (o.$type)
-                {
-                    t = this.parsePropertyType(o.$type);
-                    if( !t )
-                        throw "Unknown type " + o.$type;
-
-                    if (t.kind !== SchemaKind.ValueObject && t.kind !== SchemaKind.Primitive)
-                    {
-                        throw "Invalid type '" + o + "' Only value object or primitive is allowed for property " +
-                        name + ". Use reference instead.";
-                    }
-                    var p = entity.defineProperty(name, t, o.$default);
-                    this.parseConstraints(o.$constraints,
-                            c => p.addConstraint(c.message, c.condition, c.error, c.kind)
-                    );
-                }
-                else
-                {
-                    // relationship
-                    // ex : { $end : "Book", $kind : "1=>*", name?: "libHasBooks", $constraints?: {} }
-                    if (o.$end)
-                    {
-                        this.pendings.push(
-                            {
-                                src     : entity.id,
-                                end     : o.$end,
-                                type    : o.$kind,
-                                name    : o.$relationship,
-                                property: name,
-                                const   : o.$constraints
-                            }
-                        );
-                        return;
-                    }
-
-                    // One to many reference
-                    if (Utils.isArray(o))
-                    {
-                        // ex : ["Book"]
-                        this.pendings.push(
-                            {
-                                src     : entity.id,
-                                end     : o[0],
-                                property: name,
-                                type    : "1=>*"
-                            }
-                        );
-                        return;
-                    }
-
-                    // specified reference
-                    // ex : { Book : "*=>*"}
-                    var cx = 0;
-                    for (var key in o)
-                    {
-                        if( !o.hasOwnProperty(key))
-                            continue;
-                        cx++;
-                        if (cx > 1)
-                            throw "Invalid reference definition. Object must contain only one field. ex: { Book : '1=>*'} ";
-
-                        this.pendings.push(
-                            {
-                                src     : entity.id,
-                                end     : key,
-                                type    : o[key],
-                                property: name
-                            }
-                        );
-                    }
-                }
-            }
-            // calculated property
-            // ex : function() {return 1;}
-            else if (t === "function")
-            {
-                entity.defineProperty(name, null, o, PropertyKind.Calculated);
-            }
-            else
-            {
-                t = this.parsePropertyType(o);
-                if( !t )
-                    throw "Unknown type " + o;
-
-                if (t.kind !== SchemaKind.ValueObject && t.kind !== SchemaKind.Primitive)
-                {
-                    // OneToOne
-                    this.pendings.push(
-                        {
-                            src     : entity.id,
-                            end     : t.id,
-                            property: name,
-                            type    : "1->1"
-                        }
-                    );
-                    return;
-                }
-                entity.defineProperty(name, t, undefined);
-            }
-        }
-
-        private _resolveConstraint(name:string) {
-            if(!name) return undefined;
-
-            var parts = name.split('.');
-            if( parts.length == 1) {
-                return this._state.constraints[parts[0]];
-            }
-
-            var state = this._imports.get(parts[0]);
-            if( state) {
-                return state.constraints[parts[1]];
-            }
-            return undefined;
-        }
-
-        private _resolveType(name:string) {
-            if(!name) return undefined;
-
-            var parts = name.split('.');
-            if( parts.length == 1) {
-                name = this._state.id + "." + name;
-            }
-            else {
-                var state = this._imports.get(parts[0]);
-                if( !state) {
-                    return undefined;
-                }
-                name = state.id + "." + name;
-            }
-
-            return this._loader.store.getSchemaInfo(name);
-        }
-
-        private parseTypes(values)
-        {
-            if(!values)
-                return;
-
-            for(var name in values) {
-                if( !values.hasOwnProperty(name))
+                if (prop[0] === "$" || !o.references.hasOwnProperty(prop))
                     continue;
 
-                var val = values[name];
-                var valueObject = new SchemaValueObject(this._state.schema, name);
-
-                this.extends(valueObject, val, p => {
-                    if(p === "$type") {
-                        var s = this._resolveType(val[p]);
-                        if(!s)
-                            throw new SchemaLoaderException("Unknown type " + val[p], values);
-                        valueObject.parent = s;
-                    }
-                    else if(p==="$constraints") {
-                        this.parseConstraints(val.$constraints,
-                                c=>valueObject.addConstraint(c.message, c.condition, c.error, c.kind)
-                        );
-                    }
-                });
-            }
-        }
-
-        private extends(v, o, callback?) {
-            if(!o)
-                return;
-            for(var p in o) {
-                if( o.hasOwnProperty(p) )
-                {
-                    if(p[0] === "$") {
-                        if(callback) callback( p );
-                    }
-                    else
-                        v[p] = o[p];
-                }
-            }
-        }
-
-        private parseConstraints(constraints, callback)
-        {
-            if (!constraints)
-                return;
-
-            // $default
-            var defaultValues = constraints.$default || {kind: "check", error: false};
-            defaultValues.kind = defaultValues.kind === "check" ? ConstraintKind.Check : ConstraintKind.Validate;
-
-            for (var name in constraints)
-            {
-                if( !name || !constraints.hasOwnProperty(name))
-                    continue;
-
-                var def = constraints[name];
-                var constraint;
-                if( typeof(def) === "function") {
-                    callback({
-                        message: name,
-                        kind: defaultValues.kind,
-                        error: defaultValues.error,
-                        condition: def
-                    });
-                    continue;
-                }
-
-                if(  name[0] === '$' ) {
-                    if( name !== "$use")
-                        continue;
-
-                    var refs = Array.isArray(def) ? def : [def];
-                    for(var i=0;i<refs.length;i++) {
-                        var ct = this._resolveConstraint(refs[i]);
-                        if( !ct )
-                            throw new SchemaLoaderException("Unknown constraint " + refs[i], constraints);
-                        callback(ct);
-                    }
-                    continue;
-                }
-
-                if( typeof(def) !== "object")
-                    throw new SchemaLoaderException("Invalid constraint definition " + name, constraints);
-
-                var ct = {
-                        name: name,
-                        message: def.message,
-                        kind: def.check ? ConstraintKind.Check : ConstraintKind.Validate,
-                        error: def.error || defaultValues.error,
-                        condition: def.validate || def.check
-                    };
-
-                if(!ct.message)
-                    throw new SchemaLoaderException("Message is required for constraint " + name, constraints);
-
-                if(!ct.condition || typeof(ct.condition) !== "function")
-                    throw new SchemaLoaderException("A check or validate function is required for constraint " + name, constraints);
-
-                callback(ct);
-            }
-        }
-
-        private parseImports(schema) {
-            var imports = schema.$imports;
-            if( !imports) return;
-
-            if( !Array.isArray(imports)) imports = [imports];
-
-            imports.forEach( item, item => {
-                var id = imports[item];
-                var state = this._loader._resolveSchema(imports[item]);
-                if( !state )
-                    throw new SchemaLoaderException("Unknown schema import " + id, schema);
-                if( state === SchemaState.Pending)
-                    throw new SchemaLoaderException("Circular reference " + id, schema);
-                this._imports.add(item, state);
-            });
-        }
-    }
-
-    // ----------------------------------------------------------------
-    // Store config json parser
-    // ----------------------------------------------------------------
-    class DslParser
-    {
-        private _meta:any;
-
-        constructor(private schema:Schema, private context) {
-            this.context.dsls[schema.name] = true; // cyclic reference guard
-            this._meta = context.meta.schemas[schema.name] = {};
-        }
-
-        private pendings : any[];
-
-        /**
-         *
-         * @param dsl
-         */
-        parse(dsl)
-        {
-            if (!dsl )
-                return;
-
-            var uri;
-            // external reference
-            // var obj = require('xxxx);
-            // $import = obj;
-            if( dsl.$imports) {
-                for(var i=0;i <dsl.$imports.length;i++) {
-                    this.parseConstraintDeclarations(dsl.$imports[i].$constraints);
-
-                    var schemas = dsl.$imports[i].schemas;
-                    if( !schemas )
-                        continue;
-
-                    for(var schemaName in schemas) {
-                        if( this.context.dsls[schemaName])
-                            continue;
-                        var schema = new Schema(this.schema.store,schemaName );
-                        var def = schemas[schemaName];
-                        var p = new DslParser(schema, this.context);
-                        p.parse(def);
-                    }
-                }
-            }
-
-            // Relationship must be created after all entities
-            this.pendings = [];
-
-            this.parseConstraintDeclarations(dsl.$constraints);
-
-            // valueObjects must be processed first
-            this.parseValueObjects(dsl.$types);
-
-            for (var name in dsl)
-            {
-                if (name[0] !== "$")
-                {
-                    var o = dsl[name];
-                    if (o.$source)
-                        this.parseRelationship(o, name);
-                    else
-                        this.parseEntity(o, name);
-                }
-            }
-
-            this.pendings.forEach(p=>this.createRelationship(p));
-        }
-
-        private parseConstraintDeclarations(val) {
-            this.parseConstraints(val, (ct) => {
-               var name = ct.name;
-                if( !name)
-                    throw "Global constraint must have a name.";
-                this.context.constraints[name] = ct;
-            });
-        }
-
-        private parseEntity(o, name:string)
-        {
-            var base;
-            if (o.$extend)
-            {
-                base = this.schema.store.getSchemaEntity(o.$extend);
-                if (!base)
-                    throw "Unknown extended entity " + o.$extend;
-            }
-
-            var entity = new SchemaEntity(this.schema, name, base);
-            this._meta[name] = entity;
-            for (var prop in o)
-            {
-                if( !o.hasOwnProperty(prop))
-                    continue;
-
-                if (prop[0] === "$")
-                {
-                    if (prop === "$constraints")
-                        this.parseConstraints(o.$constraints,
-                                              c=> entity.addConstraint(c.message, c.condition, c.error, c.kind)
-                                              );
-                    continue;
-                }
-
-                this.parseProperty(prop, o[prop], entity);
-            }
-        }
-
-        private parseKeyValue(str) {
-            var kv = {};
-            var i=0;
-            while(i < str.length) {
-                var pos = str.indexOf(':', i);
-                var key = str.substring(i, pos).trim();
-                key = key.replace(/"/g, '');
-                i=pos+1;
-                var block = 0;
-                while(i<str.length) {
-                    var ch = str.charAt(i);
-                    if( ch === '[' || ch == '{') {block++;}
-                    else if( ch === ']' || ch === '}') {
-                        block--;
-                    }
-                    else if( ch === ',' && block === 0 )
-                        break;
-                    i++;
-                }
-                var val = str.substring(pos+1, i).trim().replace(/'/g, '"');
-                i++; // Skip ,
-                kv[key] = val;
-            }
-            return kv;
-        }
-
-        private parsePropertyType(text:string) {
-
-            var t = <any>typeof(text);
-            // specified type
-            // ex : "number" (primitive or valueObject)
-            //      "Book" One to one reference
-            //      "range(min:1, max:2)"
-            if (t === "string" && text.length > 0)
-            {
-                var re = /(.*)\((.*)\)/;
-                var r = re.exec(text);
-                if (r !== null)
-                {
-                    var t2 = this.schema.store.getSchemaInfo(r[1]);
-                    if (t2.kind !== SchemaKind.ValueObject)
-                        throw "Type initializer can ony be used with valueObject. Incorrect type " + t;
-                    var vo = Object.create(t2);
-                    if( r.length === 3 && r[2])
+                var d = o.references[prop];
+                this.pendings.push(
                     {
-                        // min:1, max:2 => {"min":1, "max":2}
-                        //re = /["']?(\w*)["']?\s*:\s*([^,]*)/g; // TODO
-                        //var txt = '{' + r[2].replace(re, '"$1": $2') + '}';
-                        //var init = JSON.parse(txt);
-                        this.extends(vo, this.parseKeyValue(r[2]));
+                        src     : entity.id,
+                        end     : d.end,
+                        kind    : d.kind || "OneToMany",
+                        name    : d.name,
+                        property: prop,
+                        const   : d.constraints
                     }
-
-                    return vo;
-                }
-                t = text;
-            }
-
-            return this.schema.store.getSchemaInfo(t);
-        }
-
-        private parseProperty(name:string, o, entity:SchemaElement)
-        {
-            var t = <any>typeof(o);
-            if (t === "object")
-            {
-                // primitive or default value
-                // ex : { $type: "string", $default? : "xxx", $constraints? : {} }
-                if (o.$type)
-                {
-                    t = this.parsePropertyType(o.$type);
-                    if( !t )
-                        throw "Unknown type " + o.$type;
-
-                    if (t.kind !== SchemaKind.ValueObject && t.kind !== SchemaKind.Primitive)
-                    {
-                        throw "Invalid type '" + o + "' Only value object or primitive is allowed for property " +
-                        name + ". Use reference instead.";
-                    }
-                    var p = entity.defineProperty(name, t, o.$default);
-                    this.parseConstraints(o.$constraints,
-                                          c => p.addConstraint(c.message, c.condition, c.error, c.kind)
-                                          );
-                }
-                else
-                {
-                    // relationship
-                    // ex : { $end : "Book", $kind : "1=>*", name?: "libHasBooks", $constraints?: {} }
-                    if (o.$end)
-                    {
-                        this.pendings.push(
-                            {
-                                src     : entity.id,
-                                end     : o.$end,
-                                type    : o.$kind,
-                                name    : o.$relationship,
-                                property: name,
-                                const   : o.$constraints
-                            }
-                        );
-                        return;
-                    }
-
-                    // One to many reference
-                    if (Utils.isArray(o))
-                    {
-                        // ex : ["Book"]
-                        this.pendings.push(
-                            {
-                                src     : entity.id,
-                                end     : o[0],
-                                property: name,
-                                type    : "1=>*"
-                            }
-                        );
-                        return;
-                    }
-
-                    // specified reference
-                    // ex : { Book : "*=>*"}
-                    var cx = 0;
-                    for (var key in o)
-                    {
-                        if( !o.hasOwnProperty(key))
-                            continue;
-                        cx++;
-                        if (cx > 1)
-                            throw "Invalid reference definition. Object must contain only one field. ex: { Book : '1=>*'} ";
-
-                        this.pendings.push(
-                            {
-                                src     : entity.id,
-                                end     : key,
-                                type    : o[key],
-                                property: name
-                            }
-                        );
-                    }
-                }
-            }
-            // calculated property
-            // ex : function() {return 1;}
-            else if (t === "function")
-            {
-                entity.defineProperty(name, null, o, PropertyKind.Calculated);
-            }
-            else
-            {
-                t = this.parsePropertyType(o);
-                if( !t )
-                    throw "Unknown type " + o;
-
-                if (t.kind !== SchemaKind.ValueObject && t.kind !== SchemaKind.Primitive)
-                {
-                    // OneToOne
-                    this.pendings.push(
-                        {
-                            src     : entity.id,
-                            end     : t.id,
-                            property: name,
-                            type    : "1->1"
-                        }
-                    );
-                    return;
-                }
-                entity.defineProperty(name, t, undefined);
-            }
-        }
-
-        private parseConstraints(constraints, callback)
-        {
-            if (!constraints)
-                return;
-
-            var def = constraints.$default || {kind: "check", error: false};
-            def.kind = def.kind === "check" ? ConstraintKind.Check : ConstraintKind.Validate;
-            for (var msg in constraints)
-            {
-                if( !constraints.hasOwnProperty(msg))
-                    continue;
-
-                var c = constraints[msg];
-                if(  msg[0] === '$') {
-                    if( msg !== "$ref")
-                        continue;
-                    var refs = Array.isArray(c) ? c : [c];
-                    for(var i=0;i<refs.length;i++) {
-                        var ct = this.context.constraints[refs[i]];
-                        if( ct)
-                            callback(ct);
-                    }
-                    continue;
-                }
-                else {
-                    ct = {
-                        name: c.name,
-                        message: msg,
-                        kind: c.check ? ConstraintKind.Check : c.validate ? ConstraintKind.Validate : def.kind,
-                        error: c.error || def.error,
-                        condition: c.validate || c.check || c
-                    };
-                }
-                // TODO validate constraint
-                callback(ct);
+                );
             }
         }
 
         private parseRelationship(o, name:string)
         {
             var base;
-            if (o.$extend)
+            if (o.extends)
             {
-                base = this.schema.store.getSchemaRelationship(o.$extend);
+                base = this._resolveType(o.extends);
                 if (!base)
-                    throw "Unknown extended relationship " + o.$extend;
+                    throw "Unknown extended relationship " + o.extends;
             }
 
             this.pendings.push(
                 {
-                    src  : o.$source,
-                    end  : o.$end,
-                    type : o.$kind,
+                    src  : o.source,
+                    end  : o.end,
+                    kind : o.kind,
                     obj  : o,
                     base : base,
                     name : name,
-                    const: o.$constraints
+                    const: o.constraints
                 }
             );
         }
 
         private createRelationship(def)
         {
-            // TODO optional redefinition (inutile de redefinir les propriétes pour une relation explicite)
-            var src = this.schema.store.getSchemaElement(def.src);
-            var end = this.schema.store.getSchemaElement(def.end);
+            var src = this._state.schema.store.getSchemaElement(def.src);
+            var end = <SchemaElement>this._resolveType(def.end);
+            if (!end)
+                throw new SchemaLoaderException(
+                    "Unknown end reference " + def.end + " for relationship " + def.name, this._state.schema
+                );
 
-            var c = this.parseCardinality(def.type);
+            var c = this.parseCardinality(def.kind);
             if (c.opposite)
             {
                 var t = src;
@@ -763,22 +222,34 @@ module Hyperstore
                 end = t;
             }
 
-            var name = def.name || src.name + (c.embedded ? 'Has' : 'References') + end.name;
-            var rel = this.schema.store.getSchemaRelationship(name, false);
+            var name = def.name || src.name + (
+                    c.embedded ? 'Has' : 'References') + end.name;
+            var rel = this._state.schema.store.getSchemaRelationship(name, false);
             if (rel)
             {
-                if (rel.cardinality !== c.type || rel.startSchemaId !== src.id || rel.endSchemaId !== end.id ||
-                    rel.embedded !== c.embedded)
+                if (rel.cardinality !== c.type
+                    || rel.startSchemaId !== src.id
+                    || rel.endSchemaId !== end.id
+                    || rel.embedded !== c.embedded
+                )
                     throw "Relationship mismatch with a previous definition for " + name;
+
                 rel.baseElement = rel.baseElement || def.base;
             }
             else
             {
-                rel = new SchemaRelationship(this.schema, name, src.id, end.id, c.embedded || false, c.type, undefined, undefined, def.base);
-                this._meta[name] = rel;
+                rel = new SchemaRelationship(
+                    this._state.schema,
+                    name,
+                    src.id,
+                    end.id,
+                    c.embedded || false, c.type, undefined, undefined,
+                    def.base
+                );
+                this._state.meta[name] = rel;
             }
 
-            this.parseConstraints(def.const, c => rel.addConstraint(c.message, c.condition, c.error, c.kind));
+            this.parseConstraints(def.const, c => rel.addConstraint(c.message, c.condition, c.error, c.type));
 
             if (def.property)
             {
@@ -813,7 +284,7 @@ module Hyperstore
             var op = m[2] === "<";
             var src = m[op ? 4 : 1];
             var end = m[op ? 1 : 4];
-            var type = DslParser.cardinalities[src + end];
+            var type = SchemaParser.cardinalities[src + end];
 
             return {
                 opposite: op,
@@ -822,44 +293,234 @@ module Hyperstore
             }
         }
 
-        private parseValueObjects(values)
+        private parseProperty(name:string, definition, entity:SchemaElement)
         {
-            if(!values)
+            if (typeof(definition) === "function")
+            {
+                entity.defineProperty(name, "any", definition, PropertyKind.Calculated);
+                return;
+            }
+            if (typeof(definition) === "string")
+            {
+                var t = this._resolveType(definition);
+                if(!t)
+                    throw  new SchemaLoaderException(
+                        "Invalid type " + definition.type + " for property " + name, this._state.schema
+                    );
+                entity.defineProperty(name, t);
+                return;
+            }
+
+            if (typeof(definition) !== "object")
+                throw new SchemaLoaderException("Invalid property definition " + name, this._state.schema);
+
+            t = this._resolveType(definition.type);
+            if (!t)
+                throw  new SchemaLoaderException("Unknown type " + definition.type, this._state.schema);
+
+            if (t.kind !== SchemaKind.ValueObject && t.kind !== SchemaKind.Primitive)
+            {
+                throw  new SchemaLoaderException(
+                    "Invalid type '" + definition.type + "' Only value object or primitive is allowed for property " +
+                    name + ". Use reference instead.", this._state.schema
+                );
+            }
+
+            this.extends(
+                t, definition, p =>
+                {
+                    return (
+                           p === "type" || p === "constraints" || p === "default") ? null : p;
+                }
+            );
+
+            var p = entity.defineProperty(name, t, definition.default);
+            this.parseConstraints(
+                definition.constraints, c => p.addConstraint(c.message, c.condition, c.error, c.kind)
+            );
+        }
+
+        private _resolveConstraint(name:string)
+        {
+            if (!name) return undefined;
+
+            var parts = name.split('.');
+            if (parts.length == 1)
+            {
+                return this._state.constraints[parts[0]];
+            }
+
+            var state = this._imports.get(parts[0]);
+            if (state)
+            {
+                return state.constraints[parts[1]];
+            }
+            return undefined;
+        }
+
+        private _resolveType(name:string)
+        {
+            if (!name) return undefined;
+            var fullName;
+            var parts = name.split('.');
+            if (parts.length == 1)
+            {
+                fullName = this._state.id + ":" + name;
+            }
+            else
+            {
+                var state = this._imports.get(parts[0]);
+                if (!state)
+                {
+                    return undefined;
+                }
+                fullName = state.id + ":" + name;
+            }
+
+            return this._loader.store.getSchemaInfo(fullName, false) || this._loader.store.getSchemaInfo(name, false);
+        }
+
+        private parseTypes(values)
+        {
+            if (!values)
                 return;
 
-            for(var name in values) {
-                if( !values.hasOwnProperty(name))
+            for (var name in values)
+            {
+                if (!values.hasOwnProperty(name))
                     continue;
 
                 var val = values[name];
-                var valueObject = new SchemaValueObject(this.schema, name);
+                var valueObject = new SchemaValueObject(this._state.schema, name);
 
-                this.extends(valueObject, val, p => {
-                    if(p === "$type") {
-                        var s = this.schema.store.getSchemaInfo(val[p]);
-                        valueObject.parent = s;
+                this.extends(
+                    valueObject, val, p =>
+                    {
+                        if (p === "type")
+                        {
+                            var s = this._resolveType(val[p]);
+                            if (!s)
+                                throw new SchemaLoaderException("Unknown type " + val[p], values);
+                            valueObject.parent = s;
+                            return null;
+                        }
+                        else if (p === "constraints")
+                        {
+                            this.parseConstraints(
+                                val.constraints,
+                                c=>valueObject.addConstraint(c.message, c.condition, c.error, c.kind)
+                            );
+                            return null;
+                        }
+                        return p;
                     }
-                    else if(p==="$constraints") {
-                        this.parseConstraints(val.$constraints,
-                                              c=>valueObject.addConstraint(c.message, c.condition, c.error, c.kind)
-                                              );
-                    }
-                });
+                );
             }
         }
 
-        private extends(v, o, callback?) {
-            if(!o)
+        private extends(v, o, callback?)
+        {
+            if (!o)
                 return;
-            for(var p in o) {
-                if( o.hasOwnProperty(p) )
+            for (var p in o)
+            {
+                if (o.hasOwnProperty(p))
                 {
-                    if(p[0] === "$") {
-                        if(callback) callback( p );
-                    }
-                    else
-                        v[p] = o[p];
+                    if (callback && !callback(p))
+                        continue;
+
+                    v[p] = o[p];
                 }
+            }
+        }
+
+        private parseConstraints(constraints, callback)
+        {
+            if (!constraints)
+                return;
+
+            // $default
+            var defaultValues = constraints.$default || {kind: "check", error: false};
+            defaultValues.kind = defaultValues.kind === "check" ? ConstraintKind.Check : ConstraintKind.Validate;
+
+            for (var name in constraints)
+            {
+                if (!name || !constraints.hasOwnProperty(name))
+                    continue;
+
+                var def = constraints[name];
+                var constraint;
+                if (typeof(
+                        def) === "function")
+                {
+                    callback(
+                        {
+                            message  : name,
+                            kind     : defaultValues.kind,
+                            error    : defaultValues.error,
+                            condition: def
+                        }
+                    );
+                    continue;
+                }
+
+                if (name[0] === '$')
+                {
+                    if (name !== "$ref")
+                        continue;
+
+                    var refs = Array.isArray(def) ? def : [def];
+                    for (var i = 0; i < refs.length; i++)
+                    {
+                        var ct = this._resolveConstraint(refs[i]);
+                        if (!ct)
+                            throw new SchemaLoaderException("Unknown constraint " + refs[i], constraints);
+                        callback(ct);
+                    }
+                    continue;
+                }
+
+                if (typeof(
+                        def) !== "object")
+                    throw new SchemaLoaderException("Invalid constraint definition " + name, constraints);
+
+                var ct2 = {
+                    name     : name,
+                    message  : def.message,
+                    kind     : def.check ? ConstraintKind.Check : ConstraintKind.Validate,
+                    error    : def.error || defaultValues.error,
+                    condition: def.validate || def.check
+                };
+
+                if (!ct2.message)
+                    throw new SchemaLoaderException("Message is required for constraint " + name, constraints);
+
+                if (!ct2.condition || typeof(
+                        ct2.condition) !== "function")
+                    throw new SchemaLoaderException(
+                        "A check or validate function is required for constraint " + name, constraints
+                    );
+
+                callback(ct2);
+            }
+        }
+
+        private parseImports(schema)
+        {
+            var imports = schema.$import;
+            if (!imports) return;
+
+            for (var alias in imports)
+            {
+                if(!imports.hasOwnProperty(alias))
+                    continue;
+                var id = imports[alias];
+                var state = <SchemaState>this._loader._resolveSchema(id);
+                if (!state)
+                    throw new SchemaLoaderException("Unknown schema import " + id, schema);
+                if (state === SchemaState.Pending)
+                    throw new SchemaLoaderException("Circular reference " + id, schema);
+                this._imports.add(alias, state);
             }
         }
     }

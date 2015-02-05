@@ -13,6 +13,7 @@ module.exports = function (grunt) {
         "src/hyperstore/Schema/SchemaProperty.ts" ,
         "src/hyperstore/Schema/SchemaRelationship.ts" ,
         "src/hyperstore/Schema/SchemaValueObject.ts" ,
+        "src/hyperstore/Schema/Loader.ts" ,
         "src/hyperstore/Util/Promise.ts" ,
         "src/hyperstore/Session/Session.ts" ,
         "src/hyperstore/Session/SessionResult.ts" ,
@@ -59,6 +60,26 @@ module.exports = function (grunt) {
             options: { force: true },
             all: {
                 src: ['.built/', 'lib']
+            }
+        },
+
+        copy : {
+            commonjs : {
+                options: {
+                    process : function(content, path) {
+                        return content + "exports.schema=domain;";
+                    }
+                },
+                expand: "true", cwd: 'src/Domains/', src:'*', dest: 'lib/', filter:"isFile", flatten:true
+            },
+            amd : {
+                options: {
+                    process : function(content, path) {
+                        return "define(['require', 'exports'], function(require, exports) {\r\n" +
+                                content + "exports.schema=domain;});";
+                    }
+                },
+                expand: "true", cwd: 'src/Domains/', src:'*', dest: '.built/amd/', filter:"isFile", flatten:true
             }
         },
 
@@ -162,7 +183,7 @@ module.exports = function (grunt) {
     grunt.registerTask('default', ['build']);
     
     // build create uglify files targeting amd & commonjs modules.
-    grunt.registerTask('build', ['clean',  'concat', 'ts', 'mochaTest', 'uglify']);
+    grunt.registerTask('build', ['clean', 'concat', 'ts', "copy", 'mochaTest', 'uglify']);
 
     // execute jasmine test with code coverage
     grunt.registerTask('test', ['ts:specs', 'mochaTest']);
@@ -170,8 +191,8 @@ module.exports = function (grunt) {
     // generate et publish packages
     //grunt.registerTask('release', ['test', 'build']);
 
-
     grunt.loadNpmTasks('grunt-ts');
+    grunt.loadNpmTasks('grunt-contrib-copy');
     grunt.loadNpmTasks('grunt-contrib-clean');
     grunt.loadNpmTasks('grunt-contrib-concat');
     grunt.loadNpmTasks('grunt-contrib-uglify');

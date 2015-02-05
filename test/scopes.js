@@ -1,22 +1,6 @@
 ﻿var hyperstore = require('../lib/hyperstore.js');
 var expect = require('chai').expect;
-
-var cfg = {
-    schemas : {
-        Lib : {
-            Library :
-            {
-                Name : {$type:"string"},
-                Books : {Book : "1=>*"}
-            },
-            Book : {
-                Title : "string",
-                Copies : "number"
-            }
-        }
-    }
-};
-var meta;
+var schemaTest = require('./schema_Test.js').schema;
 var domain;
 var store;
 
@@ -25,7 +9,7 @@ var store;
 
         beforeEach(function() {
             store = new hyperstore.Store();
-            meta = store.init(cfg);
+            store.loadSchemas(schemaTest);
             domain = new hyperstore.DomainModel(store, 'D');
         });
 
@@ -36,7 +20,7 @@ var store;
         });
 
         it("Update a value don't impact initial domain", function() {
-            var lib = meta.schemas.Lib.Library.create(domain);
+            var lib = domain.create("Library");
             lib.Name = "test";
             expect(lib.Books.count()).to.equal(0);
 
@@ -45,7 +29,7 @@ var store;
             expect(lib2.Name).to.equal("test");
             lib2.Name = "Test2";
             expect(lib2.Name).to.equal("Test2");
-            var b = meta.schemas.Lib.Book.create(scope);
+            var b = scope.create("Book");
             lib2.Books.add(b);
             expect(lib2.Books.count()).to.equal(1);
             store.unloadDomain(scope);
@@ -55,7 +39,7 @@ var store;
         });
 
         it("Extension changes commit", function() {
-            var lib = meta.schemas.Lib.Library.create(domain);
+            var lib = domain.create("Library");
             lib.Name = "test";
             var scope = new hyperstore.DomainModelScope(domain, "xx");
             var lib2 = scope.get(lib.getId());

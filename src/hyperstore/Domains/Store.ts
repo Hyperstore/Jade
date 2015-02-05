@@ -151,7 +151,8 @@ module Hyperstore
     export class Store
     {
         private schemasBySimpleName;
-        private schemas;
+        private schemaElements;
+        private _schemas;
         private _domains:DomainManager;
         private _subscriptions;
         public storeId:string;
@@ -167,158 +168,147 @@ module Hyperstore
          */
         public language:string;
 
-        constructor()
+        /**
+         * Create a new store instance
+         * @param id store id
+         */
+        constructor(id?:string)
         {
+            this._schemas = {};
             this._subscriptions = [];
             this.eventBus = new EventBus(this);
-            this.schemas = {};
+            this.schemaElements = {};
             this.schemasBySimpleName = {};
             this._domains = new DomainManager();
             new Schema(this, "$", this.primitiveSchemaDefinition());
-            this.storeId = Utils.newGuid();
+            this.storeId = id || Utils.newGuid();
         }
 
         /**
-         * create a new store. You can create many independent store. They can communicate between them with the eventBus.
-         *
-         * @param config - Contains all informations to initialize a new store.
-         * @example
-         * Sample to define a new config object
-         *
-         * <code>
-         *    var hyperstore = require('hyperstore');
-         *    module.exports = (function() {
-     *    "use strict";
-     *
-     *      return {
-     *         defaultDomainModel : 'test',
-     *         // schemas definition
-     *         schemas: {
-     *              // Define a schema named mySchema
-     *   	        mySchema : {
-     *                  defineSchema: function (schema) {
-     *                      this.libSchema = new hyperstore.SchemaEntity(schema, 'Library');
-     *                      this.libSchema.defineProperty('name', 'string');
-     *                  }
-     *              }
-     *          },
-     *          domains : {
-     *              // load a domain named test
-     *              test: {
-     *                  // adapters : [],
-     *              }
-     *          }
-     *      };
-     *    })();
-         * </code>
+         * internal use only
+         * @param name
+         * @param schema
+         * @private
          */
-        initAsync(config?:any):Q.Promise<any> {
-            var p = Q.defer<any>();
-            this.init(config, p);
+        __addSchema(name:string, schema:Schema) {
+            if( this.getSchema(name))
+                throw "Duplicate schema " + name;
+            this._schemas[name] = schema;
+        }
+
+        /**
+         * get schema by name
+         * @param name
+         * @returns {any}
+         */
+        getSchema(name:string):Schema {
+            return this._schemas[name];
+        }
+
+        /**
+         * load schemas
+         * @param schemas - One (or an array of) schema configuration
+         * @returns an object containing all created schemas
+         */
+        loadSchemas(schemas) {
+            if(!schemas) return null;
+            if (typeof (schemas) === 'function')
+                schemas = schemas();
+
+            var loader = new Loader(this);
+            return loader.loadSchemas(schemas);
+        }
+
+        createDomainAsync(config?:any):Q.Promise<DomainModel> {
+            var p = Q.defer<DomainModel>();
+            this.createDomain(config, p);
             return p.promise;
         }
 
-        init(config?:any, p?:Q.Deferred<any>):any
+        createDomain(config?:any, p?:Q.Deferred<any>):DomainModel
         {
-            var meta = {schemas:{}, domains:{}};
-
             if (!config)
-            {
-                if(p) p.resolve(meta);
-                return meta;
-            }
-
-            if (typeof config === 'function')
-                config = config();
-
-            if (!config.schemas)
-            {
-                this.storeId = config;
-                if(p) p.resolve(meta);
-                return meta;
-            }
+                return null;
 
             this["config"] = config;
 
-            if (config.storeId)
-                this.storeId = config.storeId;
+            var domainName = config.name;
 
+            var domain = new DomainModel(this, domainName);
 
-            if (config.schemas)
+            var self = this;
+            var tasks;
+            // Adapters must be asynchronous
+            if (config.adapters)
             {
-                for (var schemaName in config.schemas)
+                tasks = [];
+                // Get adapter list
+                var adapters = typeof(
+                    config.adapters) === "function" ? config.adapters() : config.adapters;
+                // Initialize and load data
+                adapters.forEach(
+                        a=>
+                    {
+                        domain.addAdapter(a)
+                        tasks.push(a.loadElementsAsync());
+                    }
+                );
+
+                // If any adapter,
+                if (tasks)
                 {
-                    if (!config.schemas.hasOwnProperty(schemaName))
-                        continue;
-                    var def = config.schemas[schemaName];
-                    new Schema(this, schemaName, def, meta);
-                }
-            }
+                    if (!p) throw Error("You must use initAsync when using adapters.");
 
-            if (config.domains) {
-                for (var domainName in config.domains) {
-                    if (!config.domains.hasOwnProperty(domainName))
-                        continue;
-
-                    var def = config.domains[domainName];
-                    var domain = new DomainModel(this, domainName);
-                    meta.domains[domainName] = domain;
-
-                    var self = this;
-                    var tasks;
-                    // Adapters must be asynchronous
-                    if (def.$adapters) {
-                        tasks = [];
-                        // Get adapter list
-                        var adapters = typeof(def.$adapters) === "function" ? def.$adapters() : def.$adapters;
-                        // Initialize and load data
-                        adapters.forEach(a=>
+                    Q.all(tasks)
+                        .then(
+                        function ()
                         {
-                            domain.addAdapter(a)
-                            tasks.push(a.loadElementsAsync());
-                        });
-
-                        // If any adapter,
-                        if (tasks) {
-                            if (!p) throw Error("You must use initAsync when using adapters.");
-
-                            Q.all(tasks)
-                                .then(function () {
-                                    self.populateDomain(def, domain);
-                                    if( def.$channels) {
-                                        var channels = typeof(def.$channels) === "function" ? def.$channels() : def.$channels;
-                                        // Initialize channels
-                                        channels.forEach(channel=>
-                                        {
-                                            channel.associate(domain);
-                                            domain.store.eventBus.addChannel(channel);
-                                        });
+                            self.populateDomain(config, domain);
+                            if (config.channels)
+                            {
+                                var channels = typeof(
+                                    config.channels) === "function" ? config.channels() : config.channels;
+                                // Initialize channels
+                                channels.forEach(
+                                        channel=>
+                                    {
+                                        channel.associate(domain);
+                                        domain.store.eventBus.addChannel(channel);
                                     }
-                                    p.resolve(meta);
-                                })
-                                .fail(function(err) {
-                                   p.reject(err);
-                                });
+                                );
+                            }
+                            p.resolve(domain);
                         }
-                    }
-
-                    if(!tasks) {
-                        var result = this.populateDomain(def, domain);
-                        if (p) p.resolve(meta);
-                    }
+                    )
+                        .fail(
+                        function (err)
+                        {
+                            p.reject(err);
+                        }
+                    );
                 }
-
-                this.defaultDomainModel = this.getDomain(config.defaultDomainModel);
             }
-            return meta;
+
+            if (!tasks)
+            {
+                var result = this.populateDomain(config, domain);
+                if (p) p.resolve(domain);
+            }
+
+            this.defaultDomainModel = this.getDomain(config.defaultDomainModel);
+
+            return domain;
         }
 
-        private populateDomain(def, domain:DomainModel) : SessionResult {
-            if( !def || domain.getElements().hasNext()) // already initialize
+        private populateDomain(def, domain:DomainModel) : SessionResult
+        {
+            if (!def || domain.getElements().hasNext()) // already initialize
                 return;
 
-            if (def.$seed) {
-                if (typeof(def.$seed) === "function")
+            if (def.$seed)
+            {
+                if (typeof(
+                        def.$seed) === "function")
                 {
                     var session = domain.store.beginSession();
                     try
@@ -332,19 +322,24 @@ module Hyperstore
                         return r;
                     }
                 }
-                else if (typeof(def.$seed) === "string")
+                else if (typeof(
+                        def.$seed) === "string")
                 {
                     // url
                 }
                 return;
             }
 
-            for (var name in def)
+            if (def.data)
             {
-                if( !def.hasOwnProperty(name))
-                    continue;
-                var root = domain.store.getSchemaElement(name);
-                domain.loadFromJson(def[name], root);
+                for (var name in def.data)
+                {
+                    if (!def.data.hasOwnProperty(name))
+                        continue;
+                    var root = domain.store.getSchemaElement(name);
+                    domain["root"] = Utils.firstOrDefault(domain.loadFromJson(def.data[name], root));
+                    break;
+                }
             }
         }
 
@@ -357,9 +352,10 @@ module Hyperstore
             this.eventBus = undefined;
             this._domains.dispose();
             this._domains = undefined;
-            this.schemas = undefined;
+            this.schemaElements = undefined;
             this.schemasBySimpleName = undefined;
             this._subscriptions = undefined;
+            this._schemas = null;
         }
 
         /**
@@ -425,6 +421,7 @@ module Hyperstore
             return {
                 defineSchema: function (schema)
                 {
+                    new Primitive(schema, "any"),
                     new Primitive(schema, "string", "{value} must be a string", (val, old, ctx) => !val || typeof(val) === "string", false, ConstraintKind.Check);
                     new Primitive(schema, "number", "{value} must be a number", (val, old, ctx) => !val || typeof(val) === "number", false, ConstraintKind.Check);
                     new Primitive(schema, "boolean", "{value} must be a boolean", (val, old, ctx) => !val || typeof(val) === "boolean", false, ConstraintKind.Check);
@@ -494,12 +491,12 @@ module Hyperstore
         public __addSchemaElement(schemaInfo:SchemaInfo)
         {
             var id = schemaInfo.id.toLowerCase();
-            if (this.schemas[id])
+            if (this.schemaElements[id])
             {
                 throw "Duplicate schema " + schemaInfo.id;
             }
 
-            this.schemas[id] = schemaInfo;
+            this.schemaElements[id] = schemaInfo;
             var pos = id.indexOf(':');
             var simpleName = pos < 0 ? id : id.substr(pos + 1);
 
@@ -535,7 +532,7 @@ module Hyperstore
             }
             else
             {
-                schemaElement = this.schemas[schemaName.toLowerCase()];
+                schemaElement = this.schemaElements[schemaName.toLowerCase()];
             }
 
             if (!schemaElement && throwException)
@@ -566,7 +563,7 @@ module Hyperstore
             }
 
             var list = [];
-            this.schemas.forEach(v=>
+            this.schemaElements.forEach(v=>
                 {
                     if (v.kind === SchemaKind.Relationship)
                     {

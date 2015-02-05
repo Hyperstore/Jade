@@ -34,7 +34,7 @@ export class SchemaInfo
                     ? id
                     : id.substr(schema.name.length + 1);
 
-        this.id = schema.name ? schema.name + "." + this.name : id;
+        this.id = schema.name ? schema.name + ":" + this.name : id;
     }
 
     // -------------------------------------------------------------------------------------

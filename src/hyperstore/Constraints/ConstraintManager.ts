@@ -184,6 +184,27 @@ module Hyperstore
             return ctx.messages;
         }
 
+        __dump() {
+            for(var id in this._constraints) {
+                console.log("Constraints for " + id);
+                var constraints = this._constraints[id];
+                for (var key in constraints)
+                {
+                    if (!constraints.hasOwnProperty(key))
+                        continue;
+                    var constraint = constraints[key];
+                    var str = "Constraint";
+                    if( constraint.propertyName)
+                        str += " for property " + constraint.propertyName;
+                    else
+                        str += " for entity";
+                    str += " message = '" + constraint.message + "'";
+                    //str += " condition " + constraint.execute.toString();
+                    console.log(str);
+                }
+            }
+        }
+
         private checkCondition(ctx:ConstraintContext, schemaElement:SchemaElement)
         {
             var constraints = this._constraints[schemaElement.id];
