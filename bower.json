@@ -12,7 +12,7 @@
     "test"
   ],
   "dependencies" : {
-    "Q":"*"
+    "q":"*"
   },
   "homepage": "http://www.hyperstore.org",
   "authors": [
