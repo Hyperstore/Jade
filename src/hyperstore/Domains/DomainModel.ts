@@ -387,7 +387,7 @@ export class DomainModel {
                          {
                              tmpSchema = this.store.getSchemaElement(info.schemaId);
                          }
-                         if (!tmpSchema.isA(schemaElement.id))
+                         if (schemaElement && !tmpSchema.isA(schemaElement.id))
                          {
                              return null;
                          }
@@ -412,7 +412,7 @@ export class DomainModel {
                          {
                              tmpSchema = this.store.getSchemaElement(info.schemaId);
                          }
-                        if (!tmpSchema.isA(schemaElement.id))
+                        if (schemaElement && !tmpSchema.isA(schemaElement.id))
                         {
                             return null;
                         }
@@ -432,7 +432,7 @@ export class DomainModel {
                     {
                         tmpSchema = this.store.getSchemaElement(info.schemaId);
                     }
-                    if (tmpSchema.isA(schemaElement.id))
+                    if (!schemaElement || tmpSchema.isA(schemaElement.id))
                     {
                         return this.getFromCache(
                             tmpSchema, info.startId, info.startSchemaId, info.endId, info.endSchemaId, info.id
@@ -720,6 +720,24 @@ export class DomainModel {
             // simulate graph property as protected
             that.graph = new HypergraphEx(domain);
             this._events = [];
+        }
+
+        /**
+         * get all local changes
+         * @returns {ITrackedElement[]}
+         */
+        getChanges() : Cursor {
+            var tracking = new TrackingData();
+            this._events.forEach(e=> {
+                tracking.__onEvent(e);
+            });
+            tracking.__prepareTrackedElements(this.store);
+            return new MapCursor(Cursor.from(tracking.involvedTrackedElements), (e:ITrackedElement) =>
+            {
+                if(e.state === TrackingState.Unknown || e.state === TrackingState.Updated && !e.properties)
+                    return null;
+                return e;
+            });
         }
 
         onEventRaised(evt:AbstractEvent) {

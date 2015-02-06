@@ -415,6 +415,7 @@ export declare class DomainModelScope extends DomainModel {
     public domain: DomainModel;
     private _events;
     constructor(domain: DomainModel, extension: string);
+    public getChanges(): Cursor;
     public onEventRaised(evt: AbstractEvent): void;
     public apply(dispatcher?: EventDispatcher): void;
 }
@@ -620,10 +621,9 @@ export declare class DomainSerializer {
     private saveInternal(entities?, relationships?);
     private serializeEntities(entities);
     private serializeRelationships(relationships);
-    private getSchemaMoniker(mel);
+    private getSchemaMoniker(id);
     private serializeProperties(elem);
-    private getSchemaInfo(mel, findInMoniker?);
-    private getId(element);
+    private getId(id);
 }
 export declare class UndoManager {
     private store;

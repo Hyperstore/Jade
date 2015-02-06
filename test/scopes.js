@@ -19,6 +19,33 @@ var store;
 
         });
 
+        it("Can get all changes", function() {
+            var lib = domain.create("Library");
+            lib.Name = "test";
+
+            var scope = new hyperstore.DomainModelScope(domain, "xx");
+            var lib2 = scope.get(lib.getId());
+            lib2.Name = "Test2";
+            var b = scope.create("Book");
+            lib2.Books.add(b);
+
+            var changes = scope.getChanges();
+            expect(changes.count()).to.equal(3);
+            changes.reset();
+            changes.hasNext();
+            var chg = changes.next();
+            expect(chg.state === hyperstore.TrackingState.Updated);
+            expect(chg.properties.length === 1);
+            changes.hasNext();
+            chg = changes.next();
+            expect(chg.state === hyperstore.TrackingState.Added);
+            changes.hasNext();
+            chg = changes.next();
+            expect(chg.state === hyperstore.TrackingState.Added);
+            var json = hyperstore.DomainSerializer.save(scope);
+            store.unloadDomain(scope);
+       });
+
         it("Update a value don't impact initial domain", function() {
             var lib = domain.create("Library");
             lib.Name = "test";

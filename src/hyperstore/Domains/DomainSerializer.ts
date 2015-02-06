@@ -27,7 +27,7 @@ module Hyperstore {
 
     interface MonikerEntry {
         moniker:string;
-        schema:SchemaElement;
+        key:string;
         schemaName:string;
     }
 
@@ -99,8 +99,7 @@ module Hyperstore {
                 schemas.push(s);
                 var list = group.get(schemaName);
                 Utils.forEach(list, m=> {
-                    var parts = m.schema.id.split(":");
-                    elements.push({id:m.moniker, name:parts[1]})
+                    elements.push({id:m.moniker, name:m.key})
                 });
             });
 
@@ -141,7 +140,8 @@ module Hyperstore {
             this._writer.newScope("entities");
             while (entities.hasNext()) {
                 var e = entities.next();
-                this._writer.pushElement("entity", this.getId(e), this.getSchemaMoniker(e));
+                var info = e.getInfo();
+                this._writer.pushElement("entity", this.getId(info.id), this.getSchemaMoniker(info.schemaElement.id));
                 this.serializeProperties(e);
             }
             this._writer.reduceScope();
@@ -151,29 +151,29 @@ module Hyperstore {
             this._writer.newScope("relationships");
             while (relationships.hasNext()) {
                 var relationship = relationships.next();
+                var info = <IRelationshipMetadata>relationship.getInfo();
+                var startSchema =
                 this._writer.pushElement("relationship",
-                    this.getId(relationship), this.getSchemaMoniker(relationship),
-                    this.getId(relationship.start), this.getSchemaMoniker(relationship.start),
-                    this.getId(relationship.end), this.getSchemaMoniker(relationship.end)); // TODO end can be null
+                    this.getId(info.id), this.getSchemaMoniker(info.schemaElement.id),
+                    this.getId(info.startId), this.getSchemaMoniker(info.startSchemaId),
+                    this.getId(info.endId), this.getSchemaMoniker(info.endSchemaId));
                 this.serializeProperties(relationship);
             }
             this._writer.reduceScope();
         }
 
-        private getSchemaMoniker(mel:ModelElement) : string {
-            var schemaElement = mel.getInfo().schemaElement;
-            var moniker = this._monikers.get(schemaElement.id);
+        private getSchemaMoniker(id:string) : string {
+            var moniker = this._monikers.get(id);
             if( moniker ) return moniker.moniker;
-            var schema = this.getSchemaInfo(mel, false);
             this._monikerSeq++;
-            var parts = schema.id.split(':');
+            var parts = id.split(':');
             var monikerId = "" + this._monikerSeq;
-            this._monikers.add(schemaElement.id, {moniker: monikerId, schema:schema, schemaName:parts[0]});
+            this._monikers.add(id, {moniker: monikerId, key:parts[1], schemaName:parts[0]});
             return monikerId;
         }
 
         private serializeProperties(elem:ModelElement) {
-            var schema = this.getSchemaInfo(elem);
+            var schema = elem.getInfo().schemaElement;
             var properties = schema.getProperties(true);
             properties.forEach( (p:SchemaProperty) => {
                 if( p.kind === PropertyKind.Calculated)
@@ -184,19 +184,7 @@ module Hyperstore {
             });
         }
 
-        private getSchemaInfo(mel:ModelElement, findInMoniker:boolean = false):SchemaElement {
-            var schemaElement = mel.getInfo().schemaElement;
-
-            if (this._monikers != null && findInMoniker) {
-                var moniker = this._monikers.get(schemaElement.id);
-                if (moniker)
-                    return moniker.schema;
-            }
-            return schemaElement;
-        }
-
-        private getId(element:ModelElement) {
-            var id = element.getInfo().id;
+        private getId(id:string) {
             var parts = id.split(':');
             if (parts[0] === this._domain.name)
                 return parts[1];

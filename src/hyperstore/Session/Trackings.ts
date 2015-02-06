@@ -71,8 +71,7 @@ module Hyperstore
         {
             var list = {};
 
-            Utils.forEach(
-                this.involvedTrackedElements, t=>
+            Utils.forEach(this.involvedTrackedElements, t=>
                 {
                     if (list[t.id])
                     {
@@ -250,6 +249,7 @@ module Hyperstore
                     var pv = new PropertyValue(evt.value, evt.oldValue, evt.version);
 
                     info.properties[evt.propertyName] = pv;
+
                     if (evt.version > info.version)
                     {
                         info.version = evt.version;
