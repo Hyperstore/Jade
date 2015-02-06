@@ -47,11 +47,11 @@ exports.schema = {
                 end: "Library",
                 kind: "*<=1"
             } // Opposite
-        },
-        LibraryHasBooks: {
-            source: "Library",
-            end: "Book",
-            kind: "1=>*"
         }
+    },
+    LibraryHasBooks: {
+        source: "Library",
+        end: "Book",
+        kind: "1=>*"
     }
 };

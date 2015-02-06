@@ -82,12 +82,17 @@ module Hyperstore
 
         _resolveSchema(id:string):any
         {
+            var configs = this._configs;
+            if(typeof(id) === "object") {
+                configs = [<any>id];
+                id = configs[0].id;
+            }
+
             var state = this._schemas.get(id);
             if (state) return state;
 
-            Utils.forEach(this._configs, cfg => {
-                if (cfg.id === id)
-                {
+            Utils.forEach(configs, cfg => {
+                if (cfg.id === id) {
                     state = this._parseSchema(cfg);
                 }
             });

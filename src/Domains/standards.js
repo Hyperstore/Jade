@@ -1,10 +1,14 @@
 /*var standard_fr = {
-    "http://www.hyperstore.org/schemas/standards" : {
-        "constraints.required.message": "Propriété {propertyName} est requise.",
-        "types.email.constraints.check_format.message": "Addresse mail invalide."
-    }
-};
-*/
+ "Standards" : {
+ "constraints.required.message": "Propriété {propertyName} est requise.",
+ "types.email.constraints.check_format.message": "Addresse mail invalide."
+ }
+ };
+ */
+
+// ***************************************************************************************
+// Shared types and constraints
+// ***************************************************************************************
 var domain =
 {
     id: "Standards",
@@ -17,11 +21,22 @@ var domain =
             }
         }
     },
+    // Shared types
     types: {
+        // Identity is a string with a constraint checking if there is no another sibling element with
+        // a property with the same value
         "identity": {
+            type: "string",
             constraints : {
                 "duplicate": {
                     message: "Duplicate value {value} for {propertyName}",
+                    // Property condition
+                    // val : current value
+                    // old : old value
+                    // ctx : check context
+                    //   - propertyName : current checked property
+                    //   - element : current owner element
+                    //   - log(msg,messageType?) - log a new diagnostic message
                     check: function (val, old, ctx) {
                         if (!val) return true;
                         var element = ctx.element.getInfo();
@@ -33,12 +48,13 @@ var domain =
                             rel.getStart().getRelationships(rel.getInfo().schemaElement) : // sibling elements
                             element.domain.getElements(element.schemaElement); // all same type elements
                         return !others.any(function (e) {
-                            return e.name === val && e.id !== element.id
+                            return e[ctx.propertyName] === val && e.getId() !== element.id;
                         });
                     }
                 }
             }
         },
+        // Check the max length of a string
         maxLength: {
             type: "string",
             max: 0,
@@ -48,6 +64,7 @@ var domain =
                 }
             }
         },
+        // check email format
         email: {
             type: "string",
             optional: true,
@@ -61,6 +78,7 @@ var domain =
                 }
             }
         },
+        // Value must be one of a values list
         enum: {
             values: [],
             constraints: {
@@ -72,6 +90,7 @@ var domain =
                 }
             }
         },
+        // Value must be a number between min and max
         range: {
             type: "number",
             min: 0,
@@ -86,6 +105,7 @@ var domain =
                 }
             }
         },
+        // Value must be an array where all elements are of a specified type
         arrayOf: {
             valueType: "string",
             optional: false,
@@ -106,3 +126,4 @@ var domain =
         }
     }
 };
+exports.schema=domain;
