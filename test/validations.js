@@ -9,7 +9,7 @@ describe('Validation tests', function ()
     var testSchema =
     {
         $import : {
-            std: "Standards"
+            std: standard
         },
         id:"Test",
         constraints: {

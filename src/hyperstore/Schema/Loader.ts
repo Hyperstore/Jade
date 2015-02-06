@@ -212,6 +212,7 @@ module Hyperstore
 
         private createRelationship(def)
         {
+            // TODO miss extends
             var src = this._state.schema.store.getSchemaElement(def.src);
             var end = <SchemaElement>this._resolveType(def.end);
             if (!end)
@@ -266,7 +267,9 @@ module Hyperstore
 
             for (var prop in def.obj)
             {
-                if (!def.obj.hasOwnProperty(prop) || prop[0] === "$")
+                if (!def.obj.hasOwnProperty(prop) || prop[0] === "$"
+                    || prop === "end" || prop === "kind" || prop === "extends"
+                    || prop === "source" || prop === "constraints")
                     continue;
                 this.parseProperty(prop, def.obj[prop], rel);
             }
