@@ -19,7 +19,7 @@ module Hyperstore {
 
     interface ISerializerWriter {
         newScope(tag:string);
-        pushElement(name:string, id:string, schemaId:string, startId?:string, endStartId?:string, endId?:string, endSchemaId?:string);
+        pushElement(name:string, state:TrackingState, id:string, schemaId:string, startId?:string, endStartId?:string, endId?:string, endSchemaId?:string);
         pushProperty(tag:string, name:string, value:any);
         reduceScope();
         save(domain:DomainModel, monikers:MonikerEntry[]):string;
@@ -51,15 +51,22 @@ module Hyperstore {
             this._stack.push(scope);
         }
 
-        pushElement(name:string, id:string, schemaId:string, startId?:string, endStartId?:string, endId?:string, endSchemaId?:string) {
+        pushElement(name:string, state:TrackingState, id:string, schemaId:string, startId?:string, endStartId?:string, endId?:string, endSchemaId?:string) {
 
             var scope = this.stackHead();
             var node:any = {id:id, schema:schemaId};
-            if( startId) {
-                node.startId=startId;
-                node.endStartId = endStartId;
-                node.endId = endId;
-                node.endSchemaId = endSchemaId;
+            if(state === TrackingState.Removed) {
+                node.state = "deleted";
+            }
+            else
+            {
+                if (startId)
+                {
+                    node.startId = startId;
+                    node.endStartId = endStartId;
+                    node.endId = endId;
+                    node.endSchemaId = endSchemaId;
+                }
             }
             scope.push(node);
             this._current = node;
@@ -113,6 +120,10 @@ module Hyperstore {
         private _domain:DomainModel;
         private _monikerSeq : number;
 
+        /**
+         * do not use directly - Use the static method save
+         * @param domain
+         */
         constructor(domain:DomainModel) {
             this._writer = new JSONWriter();
             this._domain = domain;
@@ -120,15 +131,107 @@ module Hyperstore {
             this._monikers = new HashTable<string,MonikerEntry>();
         }
 
-        static save(domain:DomainModel, entities?:ICursor, relationships?:ICursor):string {
+        static save(domain:DomainModel, entities?:Cursor, relationships?:Cursor):string
+        {
+            if (!domain || !(
+                domain instanceof DomainModel))
+                throw "domain must be a valid instance of DomainModel";
             var ser = new DomainSerializer(domain);
+            return ser.saveDomain(entities, relationships);
+        }
+
+        private saveDomain( entities?:Cursor, relationships?:Cursor) {
+            var that = this;
+            return this.saveInternal(
+                (entities || this._domain.getEntities()).map(function(e) {
+                    var info = e.getInfo();
+                    return {
+                        id:info.id,
+                        schemaId :info.schemaElement.id,
+                        properties: that.getPropertyValues(info.id, info.schemaElement)
+                    }
+                }),
+                (relationships  || this._domain.getRelationships()).map(function(r) {
+                    var info = <IRelationshipMetadata>r.getInfo();
+                    return {
+                        id:info.id,
+                        schemaId :info.schemaElement.id,
+                        startId:info.startId, startSchemaId:info.startSchemaId,
+                        endId:info.endId, endSchemaId:info.endSchemaId,
+                        properties: that.getPropertyValues(info.id, info.schemaElement)
+                    }
+                })
+            );
+        }
+
+        private getPropertyValues(id:string, schema:SchemaElement) {
+            var props = [];
+            var properties = schema.getProperties(true);
+            properties.forEach( (p:SchemaProperty) =>
+                {
+                    if (p.kind !== PropertyKind.Calculated)
+                    {
+                        var v = this._domain.getPropertyValue(id, p);
+                        if (v)
+                            props.push({name: p.name, value: JSON.stringify(p.serialize(v.value)), version:v.version});
+                    }
+                }
+            );
+            return props;
+        }
+
+        /**
+         * Save only changes from a DomainModelScope
+         * @param domain
+         * @returns {string}
+         */
+        static saveChanges(domain:DomainModelScope) {
+            if(!domain || !(domain instanceof DomainModelScope))
+                throw "domain must be a valid instance of DomainModelScope";
+            var ser = new DomainSerializer(domain);
+            var changes = domain.getChanges();
+            var that = this;
+            var entities = changes.map(c=> {
+                if(c.startId)
+                    return;
+                return {
+                    id:c.id,
+                    schemaId :c.schemaId,
+                    state:c.state,
+                    properties: DomainSerializer.preparePropertyValues(c.properties)
+                }
+            });
+            var relationships = changes.map(c=> {
+                if(!c.startId)
+                    return;
+                return {
+                    id:c.id,
+                    schemaId :c.schemaId,
+                    state:c.state,
+                    startId:c.startId,
+                    startSchemaId:c.startSchemaId,
+                    endId:c.endId,
+                    endSchemaId:c.endSchemaId,
+                    properties: DomainSerializer.preparePropertyValues(c.properties)
+                }
+            });
             return ser.saveInternal( entities, relationships );
         }
 
-        private saveInternal(entities?:ICursor, relationships?:ICursor):string {
+        private static preparePropertyValues(properties) {
+            var props = [];
+            for(var p in properties)
+            {
+                var pv = properties[p];
+                props.push({name: p, value: pv.value, version:pv.version});
+            }
+            return props;
+        }
+
+        private saveInternal(entities?:Cursor, relationships?:Cursor):string {
             try {
-                this.serializeEntities(entities || this._domain.getEntities());
-                this.serializeRelationships(relationships || this._domain.getRelationships());
+                this.serializeEntities(entities );
+                this.serializeRelationships(relationships);
                 return this._writer.save(this._domain, this._monikers.values);
             }
             finally {
@@ -136,28 +239,27 @@ module Hyperstore {
             }
         }
 
-        private serializeEntities(entities:ICursor) {
+        private serializeEntities(entities:Cursor) {
             this._writer.newScope("entities");
+            entities.reset();
             while (entities.hasNext()) {
                 var e = entities.next();
-                var info = e.getInfo();
-                this._writer.pushElement("entity", this.getId(info.id), this.getSchemaMoniker(info.schemaElement.id));
+                this._writer.pushElement("entity", e.state, this.getId(e.id), this.getSchemaMoniker(e.schemaId));
                 this.serializeProperties(e);
             }
             this._writer.reduceScope();
         }
 
-        private serializeRelationships(relationships:ICursor) {
+        private serializeRelationships(relationships:Cursor) {
             this._writer.newScope("relationships");
+            relationships.reset();
             while (relationships.hasNext()) {
-                var relationship = relationships.next();
-                var info = <IRelationshipMetadata>relationship.getInfo();
-                var startSchema =
-                this._writer.pushElement("relationship",
-                    this.getId(info.id), this.getSchemaMoniker(info.schemaElement.id),
-                    this.getId(info.startId), this.getSchemaMoniker(info.startSchemaId),
-                    this.getId(info.endId), this.getSchemaMoniker(info.endSchemaId));
-                this.serializeProperties(relationship);
+                var r = relationships.next();
+                this._writer.pushElement("relationship", r.state,
+                    this.getId(r.id), this.getSchemaMoniker(r.schemaId),
+                    this.getId(r.startId), this.getSchemaMoniker(r.startSchemaId),
+                    this.getId(r.endId), this.getSchemaMoniker(r.endSchemaId));
+                this.serializeProperties(r);
             }
             this._writer.reduceScope();
         }
@@ -172,15 +274,9 @@ module Hyperstore {
             return monikerId;
         }
 
-        private serializeProperties(elem:ModelElement) {
-            var schema = elem.getInfo().schemaElement;
-            var properties = schema.getProperties(true);
-            properties.forEach( (p:SchemaProperty) => {
-                if( p.kind === PropertyKind.Calculated)
-                    return;
-                var v = elem.getPropertyValue(p);
-                if( v )
-                    this._writer.pushProperty("property", p.name, JSON.stringify(p.serialize(v)));
+        private serializeProperties(elem) {
+            elem.properties.forEach( p => {
+                    this._writer.pushProperty("property", p.name, p.value);
             });
         }
 

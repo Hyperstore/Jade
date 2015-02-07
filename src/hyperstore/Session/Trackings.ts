@@ -186,7 +186,7 @@ module Hyperstore
                     var info = this._trackings[evt.id];
                     if (info)
                     {
-                        info.state = TrackingState.Removed;
+                        delete this._trackings[evt.id];
                     }
                     else
                     {
@@ -216,7 +216,7 @@ module Hyperstore
                     var info = this._trackings[evt.id];
                     if (info)
                     {
-                        info.state = TrackingState.Removed;
+                        delete this._trackings[evt.id];
                     }
                     else
                     {

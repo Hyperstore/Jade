@@ -60,7 +60,7 @@ describe('Validation tests', function ()
     it('should failed on wrong primitives values', function() {
 
         var schema = store.getSchema("Test");
-        schema.constraints.__dump();
+      //  schema.constraints.__dump();
 
         var session = store.beginSession();
         var item = domain.create("Item");

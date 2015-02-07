@@ -333,6 +333,73 @@ export declare class PropertyValue {
     public version: number;
     constructor(value: any, oldValue: any, version: number);
 }
+export declare class DomainModel {
+    public store: Store;
+    public name: string;
+    public extension: string;
+    public events: EventManager;
+    private _cache;
+    public eventDispatcher: EventDispatcher;
+    private _adapters;
+    private _graph;
+    constructor(store: Store, name: string, extension?: string);
+    public dispose(): void;
+    public getGraph(): any;
+    public validate(schemaElement?: SchemaElement): DiagnosticMessage[];
+    public createId(id?: string): string;
+    static _seq: number;
+    public addAdapter(adapter: Adapter): void;
+    private findSchemaId(schemas, id);
+    public loadFromJson(def: any, rootSchema?: SchemaElement): ModelElement[];
+    private parseJson(obj, schema, refs);
+    private loadFromHyperstoreJson(def);
+    public getRelationships(schemaElement?: SchemaRelationship, start?: ModelElement, end?: ModelElement): Cursor;
+    public getPropertyValue(ownerId: string, property: SchemaProperty): PropertyValue;
+    public setPropertyValue(ownerId: string, property: SchemaProperty, value: any, version?: number): PropertyValue;
+    public create(schemaElement: SchemaElement, id?: string, version?: number): ModelElement;
+    public createRelationship(schemaRelationship: SchemaRelationship, start: ModelElement, endId: string, endSchemaId: string, id?: string, version?: number): ModelRelationship;
+    public onEventRaised(evt: AbstractEvent): void;
+    private _raiseEvent(evt);
+    public remove(id: string, version?: number): void;
+    public elementExists(id: string): boolean;
+    public get(id: string): ModelElement;
+    public getEntities(schemaElement?: SchemaElement): Cursor;
+    public getElements(schemaElement?: SchemaElement, kind?: NodeType): Cursor;
+    private getFromCache(schemaElement, startId?, startSchemaId?, endId?, endSchemaId?, id?);
+}
+export declare class DomainModelScope extends DomainModel {
+    public domain: DomainModel;
+    private _events;
+    constructor(domain: DomainModel, extension: string);
+    public getChanges(): Cursor;
+    public onEventRaised(evt: AbstractEvent): void;
+    public apply(dispatcher?: EventDispatcher): void;
+}
+export declare class Cursor {
+    public reset(): void;
+    public hasNext(): boolean;
+    public next(): any;
+    static emptyCursor: Cursor;
+    public firstOrDefault(callback?: any): any;
+    public forEach(callback: any): void;
+    public count(callback?: any): number;
+    public concat(list: Cursor): Cursor;
+    public any(callback?: any): boolean;
+    public toArray(): any[];
+    public map(callback: any): Cursor;
+    static from(obj: any): Cursor;
+}
+export declare enum Direction {
+    Incoming = 1,
+    Outgoing = 2,
+    Both = 3,
+}
+export declare enum NodeType {
+    Entity = 1,
+    Relationship = 2,
+    EntityOrRelationship = 3,
+    Property = 4,
+}
 export interface IStoreConfiguration {
     defaultDomainModel?: string;
     storeId?: string;
@@ -377,77 +444,7 @@ export declare class Store {
     public getSchemaEntity(schemaName: string, throwException?: boolean): SchemaEntity;
     public runInSession(action: () => void): void;
     public get(id: string): ModelElement;
-    public getElements(schemaElement?: SchemaElement, kind?: NodeType): ICursor;
-}
-export declare class DomainModel {
-    public store: Store;
-    public name: string;
-    public extension: string;
-    public events: EventManager;
-    private _cache;
-    public eventDispatcher: EventDispatcher;
-    private _adapters;
-    private graph;
-    constructor(store: Store, name: string, extension?: string);
-    public dispose(): void;
-    public validate(schemaElement?: SchemaElement): DiagnosticMessage[];
-    public createId(id?: string): string;
-    public addAdapter(adapter: Adapter): void;
-    private findSchemaId(schemas, id);
-    public loadFromJson(def: any, rootSchema?: SchemaElement): ModelElement[];
-    private parseJson(obj, schema, refs);
-    private loadFromHyperstoreJson(def);
-    public getRelationships(schemaElement?: SchemaRelationship, start?: ModelElement, end?: ModelElement): ICursor;
-    public getPropertyValue(ownerId: string, property: SchemaProperty): PropertyValue;
-    public setPropertyValue(ownerId: string, property: SchemaProperty, value: any, version?: number): PropertyValue;
-    public create(schemaElement: SchemaElement, id?: string, version?: number): ModelElement;
-    public createRelationship(schemaRelationship: SchemaRelationship, start: ModelElement, endId: string, endSchemaId: string, id?: string, version?: number): ModelRelationship;
-    public onEventRaised(evt: AbstractEvent): void;
-    private _raiseEvent(evt);
-    public remove(id: string, version?: number): void;
-    public elementExists(id: string): boolean;
-    public get(id: string): ModelElement;
-    public getEntities(schemaElement?: SchemaElement): ICursor;
-    public getElements(schemaElement?: SchemaElement, kind?: NodeType): ICursor;
-    private getFromCache(schemaElement, startId?, startSchemaId?, endId?, endSchemaId?, id?);
-}
-export declare class DomainModelScope extends DomainModel {
-    public domain: DomainModel;
-    private _events;
-    constructor(domain: DomainModel, extension: string);
-    public getChanges(): Cursor;
-    public onEventRaised(evt: AbstractEvent): void;
-    public apply(dispatcher?: EventDispatcher): void;
-}
-export interface ICursor {
-    hasNext(): boolean;
-    next: any;
-    reset(): any;
-}
-export declare class Cursor implements ICursor {
-    public reset(): void;
-    public hasNext(): boolean;
-    public next(): any;
-    static emptyCursor: Cursor;
-    public firstOrDefault(callback?: any): any;
-    public forEach(callback: any): void;
-    public count(callback?: any): number;
-    public concat(list: ICursor): ICursor;
-    public any(callback?: any): boolean;
-    public toArray(): any[];
-    public map(callback: any): ICursor;
-    static from(obj: any): ICursor;
-}
-export declare enum Direction {
-    Incoming = 1,
-    Outgoing = 2,
-    Both = 3,
-}
-export declare enum NodeType {
-    Entity = 1,
-    Relationship = 2,
-    EntityOrRelationship = 3,
-    Property = 4,
+    public getElements(schemaElement?: SchemaElement, kind?: NodeType): Cursor;
 }
 export interface IEntityMetadata {
     id: string;
@@ -617,7 +614,11 @@ export declare class DomainSerializer {
     private _domain;
     private _monikerSeq;
     constructor(domain: DomainModel);
-    static save(domain: DomainModel, entities?: ICursor, relationships?: ICursor): string;
+    static save(domain: DomainModel, entities?: Cursor, relationships?: Cursor): string;
+    private saveDomain(entities?, relationships?);
+    private getPropertyValues(id, schema);
+    static saveChanges(domain: DomainModelScope): string;
+    private static preparePropertyValues(properties);
     private saveInternal(entities?, relationships?);
     private serializeEntities(entities);
     private serializeRelationships(relationships);
@@ -680,7 +681,7 @@ export declare class Utils {
     static selectMany(list: any, fn: any): any[];
     static groupBy(list: any, fn: any): {};
 }
-export declare class Query implements ICursor {
+export declare class Query extends Cursor {
     private _config;
     private _schema;
     private _iterator;
@@ -698,6 +699,6 @@ export declare class Query implements ICursor {
     public next(): any;
 }
 export declare class FileDomainSerializer {
-    static save(filePath: string, domain: DomainModel, entities?: ICursor, relationships?: ICursor): Q.Promise<any>;
+    static save(filePath: string, domain: DomainModel, entities?: Cursor, relationships?: Cursor): Q.Promise<any>;
     static load(filePath: string, domain: DomainModel): Q.Promise<any>;
 }

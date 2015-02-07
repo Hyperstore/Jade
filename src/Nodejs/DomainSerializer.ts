@@ -5,7 +5,7 @@ import fs = require('fs');
 
 export class FileDomainSerializer  {
 
-    static save(filePath:string, domain:DomainModel, entities?:ICursor, relationships?:ICursor):Q.Promise<any> {
+    static save(filePath:string, domain:DomainModel, entities?:Cursor, relationships?:Cursor):Q.Promise<any> {
         var txt = DomainSerializer.save(domain, entities, relationships );
         var defer = Q.defer<any>();
         fs.writeFile(filePath, txt, {encoding:'utf8'}, function(err) {

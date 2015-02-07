@@ -14,9 +14,25 @@ var store;
         });
 
         //Spec - 1
-        it('Load a new scope', function () {
-           // var scope = new hyperstore.DomainModelScope(domain, "xx");
+        it('Remove elements', function () {
+            domain.loadFromJson({Name:"My library", Books:[ {Title:"Book1"}, {Title:"Book2"}]}, "Library");
 
+            var scope = new hyperstore.DomainModelScope(domain, "xx");
+            var lib2 = scope.getElements("Library").firstOrDefault();
+            var b = scope.create("Book");
+            lib2.Books.add(b);
+
+            scope.remove(lib2.getId());
+            var changes = scope.getChanges();
+            expect(scope.getElements().count()).to.equal(0);
+            expect(domain.getEntities().count()).to.equal(3);
+            var jsonChanges = hyperstore.DomainSerializer.saveChanges(scope);
+            store.unloadDomain(scope);
+
+            scope = new hyperstore.DomainModelScope(domain, "xx");
+            expect(scope.getEntities().count()).to.equal(3);
+            scope.loadFromJson(jsonChanges);
+            expect(scope.getElements().count()).to.equal(0);
         });
 
         it("Can get all changes", function() {
@@ -52,7 +68,8 @@ var store;
             expect(lib.Books.count()).to.equal(0);
 
             var scope = new hyperstore.DomainModelScope(domain, "xx");
-            var lib2 = scope.get(lib.getId());
+            var lib2 = scope.getElements("Library").firstOrDefault();
+            expect(lib).to.not.be.undefined;
             expect(lib2.Name).to.equal("test");
             lib2.Name = "Test2";
             expect(lib2.Name).to.equal("Test2");

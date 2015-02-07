@@ -382,7 +382,7 @@ module Hyperstore
                 {
                     return undefined;
                 }
-                fullName = state.id + ":" + name;
+                fullName = state.id + ":" + parts[1];
             }
 
             return this._loader.store.getSchemaInfo(fullName, false) || this._loader.store.getSchemaInfo(name, false);

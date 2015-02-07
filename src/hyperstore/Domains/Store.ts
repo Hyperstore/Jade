@@ -42,7 +42,7 @@ module Hyperstore
         domains? : any;
     }
 
-    class DomainManager implements ICursor {
+    class DomainManager extends Cursor {
         private _domains;
         private _keys;
         private _extensionsCount:number;
@@ -50,6 +50,7 @@ module Hyperstore
         private _ix:number;
 
         constructor() {
+            super();
             this._keys = {};
             this._domains = [];
             this._extensionsCount = 0;
@@ -674,7 +675,7 @@ module Hyperstore
          * @param kind
          * @returns {ModelElement[]}
          */
-        getElements(schemaElement?:SchemaElement, kind:NodeType = NodeType.EntityOrRelationship): ICursor
+        getElements(schemaElement?:SchemaElement, kind:NodeType = NodeType.EntityOrRelationship): Cursor
         {
             return new SelectManyCursor(this._domains, function (domain)
                 {
@@ -685,10 +686,11 @@ module Hyperstore
     }
 
 
-    class SelectManyCursor implements ICursor {
-        private _iter:ICursor;
+    class SelectManyCursor extends Cursor {
+        private _iter:Cursor;
 
-        constructor(private _cursor:ICursor, private _select) {
+        constructor(private _cursor:Cursor, private _select) {
+            super();
             this.reset();
         }
 

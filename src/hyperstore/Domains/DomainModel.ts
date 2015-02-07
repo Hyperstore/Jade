@@ -25,7 +25,7 @@ export class DomainModel {
     private _cache:{};
     public eventDispatcher:EventDispatcher;
     private _adapters:Adapter[];
-    private graph:Hypergraph;
+    private _graph:Hypergraph;
 
     /**
      * Domain model constructor
@@ -36,7 +36,7 @@ export class DomainModel {
     constructor(public store:Store, public name:string, public extension?:string) {
         this.name = this.name.toLowerCase();
         this.extension = extension;
-        this.graph = new Hypergraph(this);
+        this._graph = new Hypergraph(this);
         store.__addDomain(this);
         this.events = new EventManager(this.name);
         this._cache = {};
@@ -46,12 +46,16 @@ export class DomainModel {
     dispose() {
         Utils.forEach(this._adapters, a=> a.dispose());
 
-        this.graph.dispose();
-        this.graph = undefined;
+        this._graph.dispose();
+        this._graph = undefined;
         this.events.dispose();
         this.events = undefined;
         this._cache = undefined;
         this.eventDispatcher = undefined;
+    }
+
+    getGraph() : any {
+        return this._graph;
     }
 
     /**
@@ -86,9 +90,10 @@ export class DomainModel {
      */
     createId(id?:string):string
     {
-        return this.name + ":" + (id || Utils.newGuid()).toString();
+        id = id || (DomainModel._seq++).toString();
+        return this.name + ":" + (id || Utils.newGuid());
     }
-
+    static _seq:number=0;
     /**
      * Add an adapter
      * @param adapter
@@ -279,7 +284,7 @@ export class DomainModel {
             {
                 var entity = def.entities[k];
                 var entityId = this.createId(entity["id"]);
-                if (entity.state && entity.state === "D")
+                if (entity.state && entity.state === "deleted")
                 {
                     this.remove(entityId, entity.v);
                     continue;
@@ -314,7 +319,7 @@ export class DomainModel {
                 {
                     var relationship = def.relationships[k];
                     var entityId = this.createId(relationship["id"]);
-                    if (relationship.state && relationship.state === "D")
+                    if (relationship.state && relationship.state === "deleted")
                     {
                         this.remove(entityId, relationship.v);
                         continue;
@@ -364,7 +369,7 @@ export class DomainModel {
      * @param end : Select incoming relationships of 'end'
      * @returns {ModelElement[]}
      */
-    getRelationships(schemaElement?:SchemaRelationship, start?:ModelElement, end?:ModelElement):ICursor
+    getRelationships(schemaElement?:SchemaRelationship, start?:ModelElement, end?:ModelElement):Cursor
     {
         var currentSchema = <SchemaElement>schemaElement;
         var tmpSchema = currentSchema;
@@ -372,61 +377,56 @@ export class DomainModel {
         if (start)
         {
             var metadata = start.getInfo();
-            var node = this.graph.getNode(metadata.id);
-            if (node)
+            var edges = this._graph.getEdges(metadata.id, Direction.Outgoing);
+            if (edges)
             {
-                return node.outgoings
-                    .map( info =>
+                return edges.map( info => {
+                     if (end && end.getInfo().id !== info.endId)
                      {
-                         if (end && end.getInfo().id !== info.endId)
-                         {
-                             return null;
-                         }
-
-                         if (!tmpSchema || info.schemaId !== tmpSchema.id)
-                         {
-                             tmpSchema = this.store.getSchemaElement(info.schemaId);
-                         }
-                         if (schemaElement && !tmpSchema.isA(schemaElement.id))
-                         {
-                             return null;
-                         }
-
-                         return this.getFromCache(
-                             tmpSchema, metadata.id, metadata.schemaElement.id, info.endId,
-                             info.endSchemaId, info.id
-                         );
+                         return null;
                      }
-                );
+
+                     if (!tmpSchema || info.schemaId !== tmpSchema.id)
+                     {
+                         tmpSchema = this.store.getSchemaElement(info.schemaId);
+                     }
+                     if (schemaElement && !tmpSchema.isA(schemaElement.id))
+                     {
+                         return null;
+                     }
+
+                     return this.getFromCache(
+                         tmpSchema, metadata.id, metadata.schemaElement.id, info.endId,
+                         info.endSchemaId, info.id
+                     );
+                 });
             }
         }
         else if (end)
         {
             var metadata = start.getInfo();
-            var node = this.graph.getNode(metadata.id);
-            if (node)
+            var edges = this._graph.getEdges(metadata.id, Direction.Incoming);
+            if (edges)
             {
-                return node.incomings
-                    .map( info => {
-                         if (!tmpSchema || info.schemaId !== tmpSchema.id)
-                         {
-                             tmpSchema = this.store.getSchemaElement(info.schemaId);
-                         }
-                        if (schemaElement && !tmpSchema.isA(schemaElement.id))
-                        {
-                            return null;
-                        }
+                return edges.map(info => {
+                    if (!tmpSchema || info.schemaId !== tmpSchema.id)
+                    {
+                        tmpSchema = this.store.getSchemaElement(info.schemaId);
+                    }
+                    if (schemaElement && !tmpSchema.isA(schemaElement.id))
+                    {
+                        return null;
+                    }
 
-                        return this.getFromCache(
-                            tmpSchema, info.endId, info.endSchemaId, metadata.id, metadata.schemaElement.id, info.id
-                        );
-                    });
+                    return this.getFromCache(
+                        tmpSchema, info.endId, info.endSchemaId, metadata.id, metadata.schemaElement.id, info.id
+                    );
+                });
             }
         }
         else
         {
-            return this.graph.getNodes(NodeType.Relationship, schemaElement)
-                .map(info=>
+            return this._graph.getNodes(NodeType.Relationship, schemaElement).map(info=>
                 {
                     if (!tmpSchema || info.schemaId !== tmpSchema.id)
                     {
@@ -456,14 +456,14 @@ export class DomainModel {
      */
     getPropertyValue(ownerId:string, property:SchemaProperty):PropertyValue
     {
-        var owner = this.graph.getNode(ownerId);
+        var owner = this._graph.getNode(ownerId);
         if (!owner)
         {
             throw "Invalid element " + ownerId;
         }
 
         var pid = owner.id + "." + property.name;
-        var node = this.graph.getPropertyNode(pid);
+        var node = this._graph.getPropertyNode(pid);
         var value = undefined;
 
         if (!node)
@@ -489,26 +489,26 @@ export class DomainModel {
      */
     setPropertyValue(ownerId:string, property:SchemaProperty, value:any, version?:number):PropertyValue
     {
-        var ownerNode = this.graph.getNode(ownerId);
+        var ownerNode = this._graph.getNode(ownerId);
         if (!ownerNode)
         {
             throw "Invalid element " + ownerId;
         }
 
         var pid = ownerId + "." + property.name;
-        var node = this.graph.getPropertyNode(pid);
+        var node = this._graph.getPropertyNode(pid);
         var oldValue = undefined;
 
         if (!node)
         {
-            node = this.graph.addPropertyNode(pid, property.schemaProperty.id, value, version || Utils.getUtcNow());
+            node = this._graph.addPropertyNode(pid, property.schemaProperty.id, value, version || Utils.getUtcNow());
         }
         else
         {
             oldValue = node.value;
             node.value = value;
             node.version = version || Utils.getUtcNow();
-            this.graph.updatePropertyNode(node);
+            this._graph.updatePropertyNode(node);
         }
 
         var pv = new PropertyValue(value, oldValue, node.version);
@@ -543,7 +543,7 @@ export class DomainModel {
         {
             id = this.createId();
         }
-        var node = this.graph.addNode(id, schemaElement.id, version);
+        var node = this._graph.addNode(id, schemaElement.id, version);
         // after node creation
         var mel = <ModelElement>schemaElement.deserialize(new SerializationContext(this, id));
         this._raiseEvent(
@@ -577,7 +577,7 @@ export class DomainModel {
         }
 
         var src = start.getInfo();
-        var node = this.graph.addRelationship(
+        var node = this._graph.addRelationship(
             id, schemaRelationship.id, src.id, src.schemaElement.id, endId, endSchemaId, version
         );
         // after node creation
@@ -618,18 +618,28 @@ export class DomainModel {
      */
     remove(id:string, version?:number)
     {
-        var events = this.graph.removeNode(id, version);
-        this._raiseEvent(events);
+        var session = this.store.beginSession();
+        try
+        {
+            var events = this._graph.removeNode(id, version);
+            this._raiseEvent(events);
 
-        Utils.forEach(events, e => {
-                var mel = this._cache[e.id];
-                if (mel)
+            Utils.forEach(
+                events, e =>
                 {
-                    mel.dispose();
-                    delete mel;
+                    var mel = this._cache[e.id];
+                    if (mel)
+                    {
+                        mel.dispose();
+                        delete mel;
+                    }
                 }
-            }
-        );
+            );
+            session.acceptChanges();
+        }
+        finally {
+            session.close();
+        }
     }
 
     /**
@@ -639,7 +649,7 @@ export class DomainModel {
      */
     elementExists(id:string):boolean
     {
-        return !!this.graph.getNode(id);
+        return !!this._graph.getNode(id);
     }
 
     /**
@@ -649,7 +659,7 @@ export class DomainModel {
      */
     get(id:string):ModelElement
     {
-        var node = this.graph.getNode(id);
+        var node = this._graph.getNode(id);
         if (!node)
         {
             return undefined;
@@ -666,7 +676,7 @@ export class DomainModel {
      * @param schemaElement - filter on a specific schemaElement
      * @returns {ICursor} - a cursor
      */
-    getEntities(schemaElement?:SchemaElement):ICursor
+    getEntities(schemaElement?:SchemaElement):Cursor
     {
         return this.getElements(schemaElement, NodeType.Entity);
     }
@@ -677,7 +687,7 @@ export class DomainModel {
      * @param kind - filter on a specific node type (entity or relationship)
      * @returns {ICursor} - a cursor
      */
-    getElements(schemaElement?:SchemaElement, kind:NodeType = NodeType.EntityOrRelationship):ICursor
+    getElements(schemaElement?:SchemaElement, kind:NodeType = NodeType.EntityOrRelationship):Cursor
     {
         if (typeof (schemaElement) === "string")
         {
@@ -685,7 +695,7 @@ export class DomainModel {
         }
         var _this = this;
 
-        return this.graph.getNodes(kind, schemaElement)
+        return this._graph.getNodes(kind, schemaElement)
             .map(
             function (node)
             {
@@ -718,7 +728,7 @@ export class DomainModel {
             super(domain.store, domain.name, extension);
             var that:any = this;
             // simulate graph property as protected
-            that.graph = new HypergraphEx(domain);
+            that._graph = new HypergraphEx(domain);
             this._events = [];
         }
 
@@ -856,6 +866,16 @@ export class DomainModel {
             return node;
         }
 
+        getEdges(id:string, direction:Direction) : Cursor {
+            var n = this._keys[id];
+            if (n !== undefined && n !== Hypergraph.DELETED_NODE)
+            {
+                var node = this._nodes[n];
+                return direction === Direction.Incoming ? node.incomings : node.outgoings;
+            }
+            return null;
+        }
+
         getNode(id:string):GraphNode
         {
             var n = this._keys[id];
@@ -887,9 +907,7 @@ export class DomainModel {
                     var evt;
                     if (!node.startId)
                     {
-                        evt = new RemoveEntityEvent(
-                            this.domain.name, node.id, node.schemaId, version
-                        );
+                        evt = new RemoveEntityEvent(this.domain.name, node.id, node.schemaId, version);
                     }
                     else
                     {
@@ -902,12 +920,12 @@ export class DomainModel {
                     events.push(evt)
 
                     // don't replay cascading during rollback or undo/redo
-                    if (Session.current.mode & (
-                        SessionMode.Rollback | SessionMode.UndoOrRedo))
+                    if (Session.current.mode & (SessionMode.Rollback | SessionMode.UndoOrRedo))
                         return null;
 
                     var nodes = [];
-                    node.outgoings.forEach(edge =>
+                    var edges = this.getEdges(node.id, Direction.Outgoing);
+                    edges.forEach(edge =>
                     {
                         if (!sawNodes[edge.id])
                         {
@@ -916,7 +934,8 @@ export class DomainModel {
                         }
                     });
 
-                    node.incomings.forEach(edge =>
+                    edges = this.getEdges(node.id, Direction.Incoming);
+                    edges.forEach(edge =>
                     {
                         if (!sawNodes[edge.id])
                         {
@@ -925,6 +944,7 @@ export class DomainModel {
                         }
                     });
 
+                    // If this is a relationship and embedded, remove end element
                     if (node.startId)
                     {
                         var schema = this.domain.store.getSchemaRelationship(node.schemaId);
@@ -970,32 +990,33 @@ export class DomainModel {
                 return;
             }
 
-            var node = this._nodes[index];
-            this._nodes[index] = null;
+            var node = this.getNode(id);
+            if(!node.needsUpdate)
+                this._nodes[index] = null;
             this._deletedNodes++;
            // if( this.domain.store.keepDeletedNodes)
-                this._keys[id] = Hypergraph.DELETED_NODE;
+            this._keys[id] = Hypergraph.DELETED_NODE;
            // else
            //     delete this._keys[index];
 
             if (node.kind === NodeType.Relationship)
             {
                 var start = this.getNode(node.startId);
-                if (!start)
-                {
-                    throw "Invalid element " + node.startId;
-                }
-
                 if (node.startId == node.endId)
                 {
-                    start.removeEdge(id, Direction.Both);
-                    this.updateNode(start);
+                    if(start) // already deleted
+                    {
+                        start.removeEdge(id, Direction.Both);
+                        this.updateNode(start);
+                    }
                     return node;
                 }
                 else {
-                    start.removeEdge(id, Direction.Outgoing);
-                    this.updateNode(start);
-
+                    if(start)
+                    {
+                        start.removeEdge(id, Direction.Outgoing);
+                        this.updateNode(start);
+                    }
                     var end = this.getNode(node.endId);
                     if (end) {
                         end.removeEdge(id, Direction.Incoming);
@@ -1050,11 +1071,10 @@ export class DomainModel {
             }
         }
 
-        getNodes(kind:NodeType, schema?:SchemaElement): NodesCursor
+        getNodes(kind:NodeType, schema?:SchemaElement): Cursor
         {
             return new NodesCursor(this, kind, schema);
         }
-
     }
 
     class HypergraphEx extends Hypergraph {
@@ -1062,11 +1082,13 @@ export class DomainModel {
 
         constructor(domain:DomainModel) {
             super(domain);
-            this._superHyperGraph = (<any>domain).graph;
+            this._superHyperGraph = (<any>domain)._graph;
         }
 
         getKey(id) {
-            return this._keys[id] || this._superHyperGraph.getKey(id);
+            var idx = this._keys[id];
+            if( idx !== undefined) return idx;
+            return this._superHyperGraph.getKey(id);
         }
 
         getPropertyNode(pid:string) : GraphNode {
@@ -1080,6 +1102,35 @@ export class DomainModel {
             node = node.clone();
             node.needsUpdate = true;
             return node;
+        }
+
+        getNodes(kind:NodeType, schema?:SchemaElement): Cursor
+        {
+            return new ConcatCursor(
+                    new NodesCursor(this, kind, schema),
+                    new MapCursor(
+                        new NodesCursor(this.domain.getGraph(), kind, schema),
+                        n => this._keys[n.id] !== Hypergraph.DELETED_NODE ? n : undefined
+                    )
+            );
+        }
+
+        getEdges(id:string, direction:Direction) : Cursor {
+            var n = this._keys[id];
+            if (n !== undefined )
+            {
+                if( n === Hypergraph.DELETED_NODE ) return null;
+                var node = this._nodes[n];
+                var cursor1 = direction === Direction.Incoming ? node.incomings : node.outgoings;
+                var cursor2 = this._superHyperGraph.getEdges(id, direction);
+                return cursor2 ?
+                       new ConcatCursor(
+                           cursor1,
+                           new MapCursor(cursor2,
+                                         n => this._keys[n.id] !== Hypergraph.DELETED_NODE ? n : undefined))
+                    : cursor1;
+            }
+            return this._superHyperGraph.getEdges(id, direction);
         }
 
         getNode(id:string):GraphNode
@@ -1097,13 +1148,7 @@ export class DomainModel {
         }
     }
 
-    export interface ICursor {
-        hasNext():boolean;
-        next:any;
-        reset();
-    }
-
-    export class Cursor implements ICursor {
+    export class Cursor  {
         reset() {}
         hasNext():boolean {return false;}
         next():any {return undefined;}
@@ -1137,7 +1182,7 @@ export class DomainModel {
             return cx;
         }
 
-        concat(list:ICursor) : ICursor {
+        concat(list:Cursor) : Cursor {
             return new ConcatCursor(this, list);
         }
 
@@ -1156,11 +1201,11 @@ export class DomainModel {
             return list;
         }
 
-        map(callback) : ICursor {
+        map(callback) : Cursor {
             return new MapCursor(this, callback);
         }
 
-        static from(obj) : ICursor {
+        static from(obj) : Cursor {
             if( Array.isArray(obj))
                 return new ArrayCursor(obj);
 
@@ -1172,43 +1217,60 @@ export class DomainModel {
     }
 
     class ConcatCursor extends Cursor {
-        private _cursors : ICursor[];
+        private _cursors : Cursor[];
         private _idx:number;
+        private _set;
+        private _current;
 
-        constructor(...cursors : ICursor[]) {
+        constructor(...cursors : Cursor[]) {
             super();
+            this._cursors = cursors;
             this.reset();
         }
 
         reset() {
+            this._current = undefined;
+            this._set = {};
             this._idx = 0;
-            if( this._cursors.length > 0 )
-                this._cursors[0].reset();
+            this._cursors.forEach( c => c.reset());
         }
 
         hasNext() : boolean {
-            if( this._idx < this._cursors.length) {
-                var r =  this._cursors[this._idx].hasNext();
-                if( r )
-                    return true;
-                this._idx++;
-                if( this._idx < this._cursors.length) {
-                    this._cursors[this._idx].reset();
-                    return this._cursors[this._idx].hasNext();
+
+            while(true)
+            {
+                if (this._idx < this._cursors.length)
+                {
+                    var r = this._cursors[this._idx].hasNext();
+                    if (r)
+                    {
+                        this._current = this._cursors[this._idx].next();
+                        if (!this._set[this._current.id])
+                        {
+                            this._set[this._current.id] = true;
+                            return true;
+                        }
+                        continue;
+                    }
+                    this._idx++;
+                }
+                else
+                {
+                    this._current = undefined;
+                    return false;
                 }
             }
-            return false;
         }
 
         next() {
-            return this._idx < this._cursors.length ? this._cursors[this._idx].next() : undefined;
+            return this._current;
         }
     }
 
     class MapCursor extends Cursor {
         private _current;
 
-        constructor( private _cursor:ICursor, private _filter) {
+        constructor( private _cursor:Cursor, private _filter) {
             super();
             this.reset();
         }
@@ -1221,7 +1283,10 @@ export class DomainModel {
         hasNext() : boolean {
             while(true) {
                 if( !this._cursor.hasNext())
+                {
+                    this._current = undefined;
                     return false;
+                }
                 var r = this._filter(this._cursor.next());
                 if( r ) {
                     this._current = r;
@@ -1235,7 +1300,7 @@ export class DomainModel {
         }
     }
 
-    class ArrayCursor extends Cursor implements ICursor {
+    class ArrayCursor extends Cursor {
         private _index:number;
 
         constructor(private _array) {
@@ -1259,7 +1324,7 @@ export class DomainModel {
         }
     }
 
-    class NodesCursor extends Cursor implements ICursor {
+    class NodesCursor extends Cursor  {
         private _index : number;
         private _current : GraphNode;
 
@@ -1279,13 +1344,15 @@ export class DomainModel {
                     this._current = undefined;
                     return false;
                 }
-                this._index++;
-                var node = this._graph._nodes[this._index-1];
-                if( node && node !== Hypergraph.DELETED_NODE && (node.kind & this._kind) !== 0
-                    && (!this._schema || this._schema.id === node.schemaId))
+                var node = this._graph._nodes[this._index++];
+                if (node && (node.kind & this._kind) !== 0 && (!this._schema || this._schema.id === node.schemaId))
                 {
-                    this._current = node;
-                    return true;
+                    var key = this._graph._keys[node.id];
+                    if( key !== Hypergraph.DELETED_NODE)
+                    {
+                        this._current = node;
+                        return true;
+                    }
                 }
             }
         }

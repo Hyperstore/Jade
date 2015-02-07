@@ -18,9 +18,9 @@
 
 module Hyperstore {
 
-    export class Query implements ICursor {
+    export class Query extends Cursor {
 
-        private _iterator:ICursor;
+        private _iterator:Cursor;
         private _current: ModelElement;
         private _cx:number;
         private _subQueries : Query[];
@@ -28,6 +28,7 @@ module Hyperstore {
         private _iter:number;
 
         constructor(store:Store, private _config:any, private _schema:SchemaElement) {
+            super();
             this._subQueries = [];
             this._cx =  0;
             if( typeof(this._schema) == "string")
