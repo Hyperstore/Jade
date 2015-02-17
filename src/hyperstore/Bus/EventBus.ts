@@ -63,7 +63,6 @@ module Hyperstore
         addChannel(channel:AbstractChannel)
         {
             this._channels.push(channel);
-
         }
 
         /**

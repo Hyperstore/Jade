@@ -168,7 +168,7 @@ module.exports = function (grunt) {
             // Commonjs module compilation from the concatenated ts file
             commonjs: {
                 src: ['.built/src/commonjs/hyperstore.ts'],
-                outDir : 'lib',
+                outDir : '.built/commonjs/',
                 singleFile:true,
                 options: {
                     module : "commonjs",

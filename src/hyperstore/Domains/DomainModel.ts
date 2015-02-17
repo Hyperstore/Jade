@@ -91,7 +91,7 @@ export class DomainModel {
     createId(id?:string):string
     {
         id = id || (DomainModel._seq++).toString();
-        return this.name + ":" + (id || Utils.newGuid());
+        return this.name + Store.IdSeparator + (id || Utils.newGuid());
     }
     static _seq:number=0;
     /**
@@ -130,7 +130,7 @@ export class DomainModel {
                         }
                         else
                         {
-                            schemaId = schema.name + ":" + e.name;
+                            schemaId = schema.name + Store.IdSeparator + e.name;
                         }
 
                         return schemaId;

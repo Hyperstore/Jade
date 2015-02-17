@@ -142,6 +142,10 @@ module Hyperstore
                 throw name + " is required.";
         }
 
+        static splitIdentity(id:string)   {
+            return id ? id.split(Store.IdSeparator) : [null, null];
+        }
+
         // http://stackoverflow.com/questions/7966559/how-to-convert-javascript-date-object-to-ticks
         static getUtcNow():number
         {

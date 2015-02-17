@@ -151,6 +151,11 @@ module Hyperstore
      */
     export class Store
     {
+        // Identity separator
+        public static get IdSeparator() : string {
+            return ":";
+        }
+
         private schemasBySimpleName;
         private schemaElements;
         private _schemas;
@@ -226,8 +231,7 @@ module Hyperstore
             return p.promise;
         }
 
-        createDomain(config?:any, p?:Q.Deferred<any>):DomainModel
-        {
+        createDomain(config?:any, p?:Q.Deferred<any>):DomainModel {
             if (!config)
                 return null;
 
@@ -240,65 +244,55 @@ module Hyperstore
             var self = this;
             var tasks;
             // Adapters must be asynchronous
-            if (config.adapters)
-            {
+            if (config.adapters) {
                 tasks = [];
                 // Get adapter list
-                var adapters = typeof(
-                    config.adapters) === "function" ? config.adapters() : config.adapters;
+                var adapters = typeof(config.adapters) === "function" ? config.adapters() : config.adapters;
+
                 // Initialize and load data
-                adapters.forEach(
-                        a=>
-                    {
+                adapters.forEach(a=> {
                         domain.addAdapter(a)
                         tasks.push(a.loadElementsAsync());
                     }
                 );
-
-                // If any adapter,
-                if (tasks)
-                {
-                    if (!p) throw Error("You must use initAsync when using adapters.");
-
-                    Q.all(tasks)
-                        .then(
-                        function ()
-                        {
-                            self.populateDomain(config, domain);
-                            if (config.channels)
-                            {
-                                var channels = typeof(
-                                    config.channels) === "function" ? config.channels() : config.channels;
-                                // Initialize channels
-                                channels.forEach(
-                                        channel=>
-                                    {
-                                        channel.associate(domain);
-                                        domain.store.eventBus.addChannel(channel);
-                                    }
-                                );
-                            }
-                            p.resolve(domain);
-                        }
-                    )
-                        .fail(
-                        function (err)
-                        {
-                            p.reject(err);
-                        }
-                    );
-                }
             }
 
-            if (!tasks)
-            {
-                var result = this.populateDomain(config, domain);
+            // If any adapter or channels,
+            if (tasks) {
+                if (!p) throw Error("You must use createDomainAsync when using adapters and/or channels.");
+
+                Q.all(tasks).then(function () {
+                        self.populateDomain(config, domain);
+                        self.addChannels(config, domain);
+                        self.defaultDomainModel = this.getDomain(config.defaultDomainModel);
+                        p.resolve(domain);
+                    }
+                ).fail(function (err) {
+                        p.reject(err);
+                    }
+                );
+            }
+            else {
+                this.populateDomain(config, domain);
+                self.addChannels(config, domain);
+                this.defaultDomainModel = this.getDomain(config.defaultDomainModel);
                 if (p) p.resolve(domain);
             }
 
-            this.defaultDomainModel = this.getDomain(config.defaultDomainModel);
-
             return domain;
+        }
+
+        private addChannels(config, domain:DomainModel) {
+            if (config.channels) {
+                var channels = typeof(config.channels) === "function" ? config.channels() : config.channels;
+
+                // Initialize channels
+                channels.forEach(channel=> {
+                        channel.associate(domain);
+                        domain.store.eventBus.addChannel(channel);
+                    }
+                );
+            }
         }
 
         private populateDomain(def, domain:DomainModel) : SessionResult
@@ -306,15 +300,15 @@ module Hyperstore
             if (!def || domain.getElements().hasNext()) // already initialize
                 return;
 
-            if (def.$seed)
+            if (def.seed)
             {
                 if (typeof(
-                        def.$seed) === "function")
+                        def.seed) === "function")
                 {
                     var session = domain.store.beginSession();
                     try
                     {
-                        def.$seed(domain);
+                        def.seed(domain);
                         session.acceptChanges();
                     }
                     finally
@@ -324,7 +318,7 @@ module Hyperstore
                     }
                 }
                 else if (typeof(
-                        def.$seed) === "string")
+                        def.seed) === "string")
                 {
                     // url
                 }

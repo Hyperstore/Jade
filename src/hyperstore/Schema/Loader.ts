@@ -373,7 +373,7 @@ module Hyperstore
             var parts = name.split('.');
             if (parts.length == 1)
             {
-                fullName = this._state.id + ":" + name;
+                fullName = this._state.id + Store.IdSeparator + name;
             }
             else
             {
@@ -382,7 +382,7 @@ module Hyperstore
                 {
                     return undefined;
                 }
-                fullName = state.id + ":" + parts[1];
+                fullName = state.id + Store.IdSeparator + parts[1];
             }
 
             return this._loader.store.getSchemaInfo(fullName, false) || this._loader.store.getSchemaInfo(name, false);

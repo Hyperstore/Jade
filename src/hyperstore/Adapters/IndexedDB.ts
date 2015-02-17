@@ -35,13 +35,11 @@ module Hyperstore
         {
             super();
 
-            this.indexedDB = indexedDB || this.indexedDB || (
-                <any>window).webkitIndexedDB ||
-            (
-                <any>window).mozIndexedDB || (
-                <any>window).OIndexedDB ||
-            (
-                <any>window).msIndexedDB;
+            this.indexedDB = indexedDB || this.indexedDB ||
+            (<any>window).webkitIndexedDB ||
+            (<any>window).mozIndexedDB ||
+            (<any>window).OIndexedDB ||
+            (<any>window).msIndexedDB;
         }
 
         // todo a revoir (ouverture une fois ou pas)
@@ -93,9 +91,10 @@ module Hyperstore
                 q.resolve(this);
                 elements.forEach(
                     function (element:ITrackedElement) {
+                        var key = Utils.splitIdentity(element.id)[1];
                         switch (element.state) {
                             case TrackingState.Added:
-                                var data:any = {id:element.id, schema: element.schemaId, version: element.version};
+                                var data:any = {id:key, schema: element.schemaId, version: element.version};
                                 if (element.startId) {
                                     data.startId = element.startId;
                                     data.endId = element.endId;
@@ -111,7 +110,7 @@ module Hyperstore
                                         var pv = element.properties[pn];
                                         if (pv && pv.value) {
                                             var ps = schemaElement.getProperty(pn, true);
-                                            var data:any = {va: ps.serialize(pv.value), ve: pv.version, id:element.id + pn};
+                                            var data:any = {va: ps.serialize(pv.value), ve: pv.version, id:key + pn};
                                             ostore.put(data);
                                         }
                                     }
@@ -119,12 +118,12 @@ module Hyperstore
                                 break;
 
                             case TrackingState.Removed:
-                                ostore.delete(element.id);
+                                ostore.delete(key);
                                 var schemaElement = self.domain.store.getSchemaElement(element.schemaId);
 
                                 Utils.forEach(
                                     schemaElement.getProperties(true), function (p:SchemaProperty) {
-                                        ostore.delete(element.id + p.name);
+                                        ostore.delete(key + p.name);
                                     }
                                 );
                                 break;
@@ -157,7 +156,7 @@ module Hyperstore
                         var data = cursor.value;
                         if (data.schema) {
                             if (!filter || filter(data.id, data.schema)) {
-                                data.id = cursor.key;
+                                data.id = self.domain.name + Store.IdSeparator + cursor.key;
                                 if (data.startId) {
                                     relationships.push(data);
                                 }
@@ -209,7 +208,8 @@ module Hyperstore
             schema.getProperties(true).forEach(
                 function (p:SchemaProperty)
                 {
-                    var rq = ostore.get(id + p.name);
+                    var key = Utils.splitIdentity(id)[1];
+                    var rq = ostore.get(key + p.name);
                     rq.onsuccess = r =>
                     {
                         var data = rq.result;

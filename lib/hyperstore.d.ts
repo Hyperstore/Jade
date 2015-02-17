@@ -423,6 +423,7 @@ export declare class Store {
     public loadSchemas(schemas: any): any;
     public createDomainAsync(config?: any): Q.Promise<DomainModel>;
     public createDomain(config?: any, p?: Q.Deferred<any>): DomainModel;
+    private addChannels(config, domain);
     private populateDomain(def, domain);
     public dispose(): void;
     public unloadDomain(domain: DomainModel, commitChanges?: boolean): void;
