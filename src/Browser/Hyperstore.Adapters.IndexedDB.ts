@@ -14,16 +14,13 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-/// <reference path="../_references.ts" />
-/// <reference path="../../../Scripts/typings/Q/Q.d.ts" />
-module Hyperstore
-{
-
+/// <reference path="../../.built/dist/hyperstore.d.ts"/>
+/// <reference path="../../Scripts/typings/Q/Q.d.ts" />
     /**
      * Persistence adapter for IndexedDb.
      *
      */
-    export class IndexedDbAdapter extends Adapter
+    export class IndexedDbAdapter extends Hyperstore.Adapter
     {
         private static DB_NAME = "_HY$DB";
         private indexedDB;
@@ -78,7 +75,7 @@ module Hyperstore
             return q.promise;
         }
 
-        persistElements(s:Session, elements:ITrackedElement[])
+        persistElements(s:Hyperstore.Session, elements:Hyperstore.ITrackedElement[])
         {
             var self = this;
             var r = s.result;
@@ -90,10 +87,10 @@ module Hyperstore
                 var ostore = trx.objectStore(IndexedDbAdapter.DB_NAME);
                 q.resolve(this);
                 elements.forEach(
-                    function (element:ITrackedElement) {
-                        var key = Utils.splitIdentity(element.id)[1];
+                    function (element:Hyperstore.ITrackedElement) {
+                        var key = Hyperstore.Utils.splitIdentity(element.id)[1];
                         switch (element.state) {
-                            case TrackingState.Added:
+                            case Hyperstore.TrackingState.Added:
                                 var data:any = {id:key, schema: element.schemaId, version: element.version};
                                 if (element.startId) {
                                     data.startId = element.startId;
@@ -103,7 +100,7 @@ module Hyperstore
                                 ;
                                 ostore.put(data);
 
-                            case TrackingState.Updated:
+                            case Hyperstore.TrackingState.Updated:
                                 if (element.properties) {
                                     var schemaElement = self.domain.store.getSchemaElement(element.schemaId);
                                     for (var pn in element.properties) {
@@ -117,12 +114,12 @@ module Hyperstore
                                 }
                                 break;
 
-                            case TrackingState.Removed:
+                            case Hyperstore.TrackingState.Removed:
                                 ostore.delete(key);
                                 var schemaElement = self.domain.store.getSchemaElement(element.schemaId);
 
-                                Utils.forEach(
-                                    schemaElement.getProperties(true), function (p:SchemaProperty) {
+                                Hyperstore.Utils.forEach(
+                                    schemaElement.getProperties(true), function (p:Hyperstore.SchemaProperty) {
                                         ostore.delete(key + p.name);
                                     }
                                 );
@@ -138,10 +135,10 @@ module Hyperstore
          * @param filter - function to filter element
          * @returns - a promise returning a [[SessionResult]]
          */
-        loadElementsAsync(filter?:(id, schemaId) => boolean):Q.Promise<SessionResult>
+        loadElementsAsync(filter?:(id, schemaId) => boolean):Q.Promise<Hyperstore.SessionResult>
         {
             var self = this;
-            var defer = Q.defer<SessionResult>();
+            var defer = Q.defer<Hyperstore.SessionResult>();
             this.open().then(function(db) {
                 var trx = db.transaction([IndexedDbAdapter.DB_NAME]);
                 var ostore = trx.objectStore(IndexedDbAdapter.DB_NAME);
@@ -156,7 +153,7 @@ module Hyperstore
                         var data = cursor.value;
                         if (data.schema) {
                             if (!filter || filter(data.id, data.schema)) {
-                                data.id = self.domain.name + Store.IdSeparator + cursor.key;
+                                data.id = self.domain.name + Hyperstore.Store.IdSeparator + cursor.key;
                                 if (data.startId) {
                                     relationships.push(data);
                                 }
@@ -168,7 +165,7 @@ module Hyperstore
                         cursor.continue();
                     }
                     else {
-                        var session = self.domain.store.beginSession({mode: SessionMode.Loading});
+                        var session = self.domain.store.beginSession({mode: Hyperstore.SessionMode.Loading});
                         try {
                             // entities
                             for (var i = 0; i < entities.length; i++) {
@@ -201,14 +198,14 @@ module Hyperstore
             return defer.promise;
         }
 
-        private loadProperties(id, schema:SchemaElement, ostore:IDBObjectStore)
+        private loadProperties(id, schema:Hyperstore.SchemaElement, ostore:IDBObjectStore)
         {
             var self = this;
-            var ctx = new SerializationContext(self.domain, id);
+            var ctx = new Hyperstore.SerializationContext(self.domain, id);
             schema.getProperties(true).forEach(
-                function (p:SchemaProperty)
+                function (p:Hyperstore.SchemaProperty)
                 {
-                    var key = Utils.splitIdentity(id)[1];
+                    var key = Hyperstore.Utils.splitIdentity(id)[1];
                     var rq = ostore.get(key + p.name);
                     rq.onsuccess = r =>
                     {
@@ -223,4 +220,3 @@ module Hyperstore
             );
         }
     }
-}

@@ -1,6 +1,6 @@
 var hyperstore = require('../lib/hyperstore.js');
 var expect = require('chai').expect;
-var standard = require('../lib/standards.js').schema;
+var standard = require('../lib/standards.js').Schemas.Standards;
 
 'use strict';
 

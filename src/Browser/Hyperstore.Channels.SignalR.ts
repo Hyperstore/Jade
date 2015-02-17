@@ -14,11 +14,8 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-/// <reference path="../_references.ts" />
-/// <reference path="../../../Scripts/typings/signalr/signalr.d.ts" />
-module Hyperstore
-{
-
+/// <reference path="../../.built/dist/hyperstore.d.ts"/>
+/// <reference path="../../Scripts/typings/signalr/signalr.d.ts" />
     /**
      * SignalR channel - By default, connection is open on the context server.
      * the server hub must be named 'hyperstore' with the following interface :
@@ -35,7 +32,7 @@ module Hyperstore
      * }
      * ~~~
      */
-    export class SignalRChannel extends AbstractChannel
+    export class SignalRChannel extends Hyperstore.AbstractChannel
     {
         private proxy:HubProxy;
 
@@ -49,7 +46,7 @@ module Hyperstore
             //this.hub.logging = true;
         }
 
-        associate(domain:DomainModel) {
+        associate(domain:Hyperstore.DomainModel) {
             super.associate(domain);
             var self = this;
             this.proxy = this.hub.createHubProxy('hyperstore');
@@ -66,7 +63,7 @@ module Hyperstore
                         env.events.forEach(
                             function (e)
                             {
-                                var evt = EventManager.createEvent(e.eventName);
+                                var evt = Hyperstore.EventManager.createEvent(e.eventName);
                                 if (!evt)
                                 {
                                     evt = {};
@@ -101,7 +98,7 @@ module Hyperstore
          * @private
          * @param message
          */
-        sendMessage(message:Message)
+        sendMessage(message:Hyperstore.Message)
         {
             this.proxy.invoke('notify', message);
         }
@@ -139,4 +136,3 @@ module Hyperstore
             this.hub.stop();
         }
     }
-}
