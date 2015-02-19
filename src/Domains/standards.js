@@ -124,8 +124,9 @@
                             if (!val) return this.optional;
                             if (!val.length) return false;
                             var ok = true;
+                            var self = this;
                             val.forEach(function (v) {
-                                if (typeof v !== this.valueType) ok = false;
+                                if (typeof v !== self.valueType) ok = false;
                             });
                             return ok;
                         }

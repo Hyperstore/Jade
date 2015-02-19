@@ -59,8 +59,7 @@ class ModelElementArray
                 var srcId = self._collection.source && self._collection.source.getInfo().id;
                 var endId = self._collection.end && self._collection.end.getInfo().id;
 
-                Utils.forEach(
-                    s.events, function (e)
+                Utils.forEach(s.events, function (e)
                     {
                         if (e.eventName !== EventManager.AddRelationshipEvent &&
                             e.eventName !== EventManager.RemoveRelationshipEvent)

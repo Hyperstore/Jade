@@ -191,8 +191,12 @@ export class DomainModel {
         }
     }
 
-    private parseJson(obj:any, schema:SchemaElement, refs):ModelElement
+    private parseJson(obj:any, rootSchema:SchemaElement, refs):ModelElement
     {
+        var schema = this.introspectSchema(rootSchema, obj);
+        if(!schema)
+            throw "Ambiguous schema finding for " + rootSchema.name + " (Use checkMarkerJson) on " + obj;
+
         var mel = this.create(schema);
         var melInfo = mel.getInfo();
 
@@ -205,8 +209,7 @@ export class DomainModel {
             var prop = melInfo.schemaElement.getProperty(member, true);
             if (prop)
             {
-                mel.setPropertyValue(
-                    prop, prop.deserialize(
+                mel.setPropertyValue(prop, prop.deserialize(
                         new SerializationContext(
                             this, melInfo.id, undefined, undefined, undefined, undefined, val
                         )
@@ -272,6 +275,38 @@ export class DomainModel {
             }
         }
         return mel;
+    }
+
+    /**
+     * try to identify schema from a json object in case of ambiguity (inheritance)
+     * @param schema
+     * @param json
+     */
+    private introspectSchema(schema:SchemaElement, json) : SchemaElement {
+        if (typeof(schema) == "string")
+            schema = this.store.getSchemaEntity(<any>schema);
+
+        if (schema.subElements.length === 0)
+            return schema; // no ambiguity
+
+        // Try fo find the most appropriate schema by checking properties
+        return this.recursiveIntrospect(schema, json);
+    }
+
+    private recursiveIntrospect(schema:SchemaElement, json) : SchemaElement {
+        for(var i=0;i<schema.subElements.length;i++) {
+            var subSchema = this.recursiveIntrospect( schema.subElements[i], json);
+            if (subSchema)
+                return subSchema; // no ambiguity
+        }
+        if((<any>schema).checkJsonMarker) {
+            return (<any>schema).checkJsonMarker(json) ? schema : undefined
+        }
+        for(var p in json){
+            if( json.hasOwnProperty(p) && !schema.getProperty(p,true))
+                return undefined;
+        }
+        return schema;
     }
 
     private loadFromHyperstoreJson(def):Array<ModelElement>

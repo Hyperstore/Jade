@@ -106,6 +106,10 @@ module Hyperstore
         constructor(public message:string, public object)
         {
         }
+
+        toString() {
+            return this.message;
+        }
     }
 
     class SchemaParser
@@ -129,7 +133,6 @@ module Hyperstore
             this.parseImports(schema);
             // Global constraints
             this.parseConstraints(schema.constraints, ct=> this._state.constraints[ct.name] = ct);
-            this.parseTypes(schema.types);
 
             this.pendings = [];
             for (var name in schema)
@@ -185,6 +188,7 @@ module Hyperstore
                     }
                 );
             }
+            this.extends(entity, o.members);
         }
 
         private parseRelationship(o, name:string)
@@ -273,6 +277,8 @@ module Hyperstore
                     continue;
                 this.parseProperty(prop, def.obj[prop], rel);
             }
+
+            this.extends(rel, def.obj.members);
         }
 
         private static cardinalities = {
@@ -310,10 +316,10 @@ module Hyperstore
             }
             if (typeof(definition) === "string")
             {
-                var t = this._resolveType(definition);
+                var t = this._resolveType(definition, name);
                 if(!t)
                     throw  new SchemaLoaderException(
-                        "Invalid type " + definition.type + " for property " + name, this._state.schema
+                        "Invalid type " + definition + " for property " + name, this._state.schema
                     );
                 entity.defineProperty(name, t);
                 return;
@@ -322,7 +328,7 @@ module Hyperstore
             if (typeof(definition) !== "object")
                 throw new SchemaLoaderException("Invalid property definition " + name, this._state.schema);
 
-            t = this._resolveType(definition.type);
+            t = this._resolveType(definition.type, name);
             if (!t)
                 throw  new SchemaLoaderException("Unknown type " + definition.type, this._state.schema);
 
@@ -334,18 +340,13 @@ module Hyperstore
                 );
             }
 
-            this.extends(
-                t, definition, p =>
-                {
-                    return (
-                           p === "type" || p === "constraints" || p === "default") ? null : p;
+            this.extends(t, definition, p => {
+                    return (p === "type" || p === "constraints" || p === "default") ? null : p;
                 }
             );
 
             var p = entity.defineProperty(name, t, definition.default);
-            this.parseConstraints(
-                definition.constraints, c => p.addConstraint(c.message, c.condition, c.error, c.kind)
-            );
+            this.parseConstraints(definition.constraints, c => p.addConstraint(c.message, c.condition, c.error, c.kind));
         }
 
         private _resolveConstraint(name:string)
@@ -366,13 +367,19 @@ module Hyperstore
             return undefined;
         }
 
-        private _resolveType(name:string)
+        private typeSequence:number=0;
+
+        private _resolveType(name:string, propertyName?:string)
         {
+            var valueObject;
             if (!name) return undefined;
             var fullName;
             var parts = name.split('.');
             if (parts.length == 1)
             {
+                if(propertyName)
+                    valueObject = this.trySharedTypes(this._state, name, propertyName);
+
                 fullName = this._state.id + Store.IdSeparator + name;
             }
             else
@@ -382,54 +389,47 @@ module Hyperstore
                 {
                     return undefined;
                 }
-                fullName = state.id + Store.IdSeparator + parts[1];
+                var n = parts[1];
+                if(propertyName)
+                    valueObject = this.trySharedTypes(state,  n, propertyName);
+
+                fullName = state.id + Store.IdSeparator + n;
             }
 
-            return this._loader.store.getSchemaInfo(fullName, false) || this._loader.store.getSchemaInfo(name, false);
+            return valueObject || this._loader.store.getSchemaInfo(fullName, false) || this._loader.store.getSchemaInfo(name, false);
         }
 
-        private parseTypes(values)
-        {
-            if (!values)
+        private trySharedTypes(state, name:string, propertyName:string) {
+            if(!state.config.types) return;
+            var val = state.config.types[name];
+            if (!val)
                 return;
 
-            for (var name in values)
-            {
-                if (!values.hasOwnProperty(name))
-                    continue;
+            name = propertyName + "_" + name + (++this.typeSequence).toString();
+            var valueObject = new SchemaValueObject(state.schema, name);
 
-                var val = values[name];
-                var valueObject = new SchemaValueObject(this._state.schema, name);
-
-                this.extends(
-                    valueObject, val, p =>
-                    {
-                        if (p === "type")
-                        {
-                            var s = this._resolveType(val[p]);
-                            if (!s)
-                                throw new SchemaLoaderException("Unknown type " + val[p], values);
-                            valueObject.parent = s;
-                            return null;
-                        }
-                        else if (p === "constraints")
-                        {
-                            this.parseConstraints(
-                                val.constraints,
-                                c=>valueObject.addConstraint(c.message, c.condition, c.error, c.kind)
-                            );
-                            return null;
-                        }
-                        return p;
-                    }
-                );
-            }
+            this.extends(valueObject, val, p => {
+                if (p === "type") {
+                    var s = this._resolveType(val[p]);
+                    if (!s)
+                        throw new SchemaLoaderException("Unknown type " + val[p], val);
+                    valueObject.parent = s;
+                    return null;
+                }
+                else if (p === "constraints") {
+                    this.parseConstraints(
+                        val.constraints, c=>valueObject.addConstraint(c.message, c.condition, c.error, c.kind)
+                    );
+                    return null;
+                }
+                return p;
+            });
+            return valueObject;
         }
 
         private extends(v, o, callback?)
         {
-            if (!o)
-                return;
+            if (!o) return;
             for (var p in o)
             {
                 if (o.hasOwnProperty(p))
@@ -458,8 +458,7 @@ module Hyperstore
 
                 var def = constraints[name];
                 var constraint;
-                if (typeof(
-                        def) === "function")
+                if (typeof(def) === "function")
                 {
                     callback(
                         {
@@ -488,8 +487,7 @@ module Hyperstore
                     continue;
                 }
 
-                if (typeof(
-                        def) !== "object")
+                if (typeof(def) !== "object")
                     throw new SchemaLoaderException("Invalid constraint definition " + name, constraints);
 
                 var ct2 = {
@@ -503,8 +501,7 @@ module Hyperstore
                 if (!ct2.message)
                     throw new SchemaLoaderException("Message is required for constraint " + name, constraints);
 
-                if (!ct2.condition || typeof(
-                        ct2.condition) !== "function")
+                if (!ct2.condition || typeof(ct2.condition) !== "function")
                     throw new SchemaLoaderException(
                         "A check or validate function is required for constraint " + name, constraints
                     );

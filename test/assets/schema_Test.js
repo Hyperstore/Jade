@@ -49,6 +49,17 @@ exports.schema = {
             } // Opposite
         }
     },
+    SuperBook : {
+        extends : "Book",
+        members : {
+            checkJsonMarker : function(json) {
+                return json.isSuperBook;
+            },
+            serialize : function(val) {
+                return {isSuperBook:true};
+            }
+        }
+    },
     LibraryHasBooks: {
         source: "Library",
         end: "Book",
