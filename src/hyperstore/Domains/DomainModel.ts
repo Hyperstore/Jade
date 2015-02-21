@@ -163,7 +163,7 @@ export class DomainModel {
 
         if (def.entities || def.relationships)
         {
-            this.store.runInSession(() => this.loadFromHyperstoreJson(def));
+            this.store.runInSession(() => this.loadFromHyperstoreJson(def), SessionMode.Loading);
             return;
         }
 
@@ -179,14 +179,15 @@ export class DomainModel {
                 () =>
                 {
                     Utils.forEach(def, e => list.push(this.parseJson(e, rootSchema, refs)));
-                }
+                },
+                SessionMode.Loading
             );
             return list;
         }
         else
         {
             var r;
-            this.store.runInSession(() => r = [this.parseJson(def, rootSchema, refs)]);
+            this.store.runInSession(() => r = [this.parseJson(def, rootSchema, refs)], SessionMode.Loading);
             return r;
         }
     }

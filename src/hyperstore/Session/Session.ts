@@ -27,6 +27,7 @@ module Hyperstore
         UndoOrRedo = 24,
         Serializing = 32,
         SilentMode = 64,
+        AbortOnWarning=128,
         Rollback = 2048
     }
 
@@ -86,12 +87,9 @@ module Hyperstore
                 Session._sequence++;
                 this.sessionId = Session._sequence;
             }
-            if (config)
+            if (config && config.mode)
             {
-                if (config.mode)
-                {
-                    this.mode = config.mode;
-                }
+                this.mode = config.mode;
             }
 
             if( store.hasDomainExtensions)
@@ -166,7 +164,9 @@ module Hyperstore
                 }
             }
 
-            this.aborted = this.aborted || this.result.hasErrors;
+            var hasErrors = this.result.hasErrors || ((this.mode & SessionMode.AbortOnWarning) && this.result.hasWarnings);
+            this.aborted = this.aborted || hasErrors;
+
             // Rollback
             if (this.aborted)
             {
@@ -187,8 +187,7 @@ module Hyperstore
             var self = this;
             // First domain events
             if (!this.aborted) {
-                this.store.domains.forEach(d=>
-                {
+                this.store.domains.forEach(d=> {
                     (<DomainModel>d).events.__notifySessionCompleted(self);
                 });
             }
@@ -196,7 +195,7 @@ module Hyperstore
             this.store.__sendSessionCompletedEvent(self);
 
             // if errors and not in silent mode, throw an exception
-            if( this.result.hasErrors && !(this.mode & SessionMode.SilentMode)) {
+            if( hasErrors && !(this.mode & SessionMode.SilentMode)) {
                 var txt = "Session failed : ";
                 for(var i in this.result.messages) {
                     if( !this.result.messages.hasOwnProperty(i))

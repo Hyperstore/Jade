@@ -643,9 +643,9 @@ module Hyperstore
          * shortcut to execute an action in a session
          * @param action
          */
-        public runInSession(action:() => void)
+        public runInSession(action:() => void, mode:SessionMode=SessionMode.Normal)
         {
-            var session = this.beginSession();
+            var session = this.beginSession({mode:mode});
             try
             {
                 action();
