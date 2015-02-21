@@ -14,37 +14,29 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-/// <reference path="../_references.ts" />
-/// <reference path="../../../Scripts/typings/Q/Q.d.ts" />
-module Hyperstore
-{
-
+/// <reference path="../../.built/dist/hyperstore.d.ts"/>
+/// <reference path="../../Scripts/typings/Q/Q.d.ts" />
     /**
      * A local storage adapter
      */
-    export class LocalStorageAdapter extends Adapter
-    {
+    export class LocalStorageAdapter extends Hyperstore.Adapter {
         private static PREFIX = "HY$:";
 
         /**
          * clear all domain elements
          * @returns {Hyperstore.Promise}
          */
-        clearAsync() : Q.Promise<any>
-        {
+        clearAsync():Q.Promise<any> {
             var defer = Q.defer<any>();
 
             var dl = this.domain.name.length;
-            for (var i = 0; i < localStorage.length; i++)
-            {
+            for (var i = 0; i < localStorage.length; i++) {
                 var key = localStorage.key(i);
-                if (!key || key.length < LocalStorageAdapter.PREFIX.length)
-                {
+                if (!key || key.length < LocalStorageAdapter.PREFIX.length) {
                     continue;
                 }
 
-                if (key.substr(LocalStorageAdapter.PREFIX.length, dl) !== this.domain.name)
-                {
+                if (key.substr(LocalStorageAdapter.PREFIX.length, dl) !== this.domain.name) {
                     continue;
                 }
                 localStorage.removeItem(key);
@@ -54,25 +46,20 @@ module Hyperstore
             return defer.promise;
         }
 
-        persistElements(s:Session, elements:ITrackedElement[])
-        {
+        persistElements(s:Hyperstore.Session, elements:Hyperstore.ITrackedElement[]) {
             if (!localStorage) return;
             var self = this;
 
-            if (this.reset)
-            {
+            if (this.reset) {
                 this.clearAsync();
             }
 
             elements.forEach(
-                function (element:ITrackedElement)
-                {
-                    switch (element.state)
-                    {
-                        case TrackingState.Added:
+                function (element:Hyperstore.ITrackedElement) {
+                    switch (element.state) {
+                        case Hyperstore.TrackingState.Added:
                             var data:any = {schema: element.schemaId, version: element.version};
-                            if (element.startId)
-                            {
+                            if (element.startId) {
 
                                 data.startId = element.startId;
                                 data.endId = element.endId;
@@ -81,7 +68,7 @@ module Hyperstore
 
                             localStorage.setItem(LocalStorageAdapter.PREFIX + element.id, JSON.stringify(data));
 
-                        case TrackingState.Updated:
+                        case Hyperstore.TrackingState.Updated:
                             if (element.properties) {
                                 var schemaElement = self.domain.store.getSchemaElement(element.schemaId);
                                 for (var pn in element.properties) {
@@ -97,13 +84,12 @@ module Hyperstore
                             }
                             break;
 
-                        case TrackingState.Removed:
+                        case Hyperstore.TrackingState.Removed:
                             localStorage.removeItem(LocalStorageAdapter.PREFIX + element.id);
                             var schemaElement = self.domain.store.getSchemaElement(element.schemaId);
 
-                            Utils.forEach(
-                                schemaElement.getProperties(true), function (p:SchemaProperty)
-                                {
+                            Hyperstore.Utils.forEach(
+                                schemaElement.getProperties(true), function (p:Hyperstore.SchemaProperty) {
                                     localStorage.removeItem(LocalStorageAdapter.PREFIX + element.id + p.name);
                                 }
                             );
@@ -118,28 +104,23 @@ module Hyperstore
          * @param filter - function to filter element
          * @returns - a promise returning a [[SessionResult]]
          */
-        loadElementsAsync(filter?:(id, schemaId) => boolean):Q.Promise<any>
-        {
+        loadElementsAsync(filter?:(id, schemaId) => boolean):Q.Promise<any> {
             var defer = Q.defer<any>();
 
-            var session = this.domain.store.beginSession({mode: SessionMode.Loading});
-            try
-            {
+            var session = this.domain.store.beginSession({mode: Hyperstore.SessionMode.Loading});
+            try {
                 var entities = [];
                 var relationships = [];
 
                 var dl = this.domain.name.length;
-                for (var i = 0; i < localStorage.length; i++)
-                {
+                for (var i = 0; i < localStorage.length; i++) {
                     var key = localStorage.key(i);
-                    if (!key || key.length < LocalStorageAdapter.PREFIX.length)
-                    {
+                    if (!key || key.length < LocalStorageAdapter.PREFIX.length) {
                         continue;
                     }
 
                     key = key.substr(LocalStorageAdapter.PREFIX.length);
-                    if (key.substr(0, dl) !== this.domain.name)
-                    {
+                    if (key.substr(0, dl) !== this.domain.name) {
                         continue;
                     }
 
@@ -149,33 +130,28 @@ module Hyperstore
                         continue;
                     }
 
-                    if (filter && !filter(data.id, data.schema))
-                    {
+                    if (filter && !filter(data.id, data.schema)) {
                         continue;
                     }
 
                     data.id = key;
-                    if (data.startId)
-                    {
+                    if (data.startId) {
                         relationships.push(data);
                     }
-                    else
-                    {
+                    else {
                         entities.push(data);
                     }
                 }
 
                 // entities
-                for (var i = 0; i < entities.length; i++)
-                {
+                for (var i = 0; i < entities.length; i++) {
                     var data = entities[i];
                     var s = this.domain.store.getSchemaEntity(data.schema);
                     this.domain.create(s, data.id, data.version);
                     this.loadProperties(data.id, s);
                 }
 
-                for (var i = 0; i < relationships.length; i++)
-                {
+                for (var i = 0; i < relationships.length; i++) {
                     var data = relationships[i];
                     var rs = this.domain.store.getSchemaRelationship(data.schema);
                     var start = this.domain.get(data.startId);
@@ -184,23 +160,19 @@ module Hyperstore
                 }
                 session.acceptChanges();
             }
-            finally
-            {
+            finally {
                 defer.resolve(session.close());
             }
             return defer.promise;
         }
 
-        private loadProperties(id, schema:SchemaElement)
-        {
+        private loadProperties(id, schema:Hyperstore.SchemaElement) {
             var self = this;
-            var ctx = new SerializationContext(self.domain, id);
+            var ctx = new Hyperstore.SerializationContext(self.domain, id);
             schema.getProperties(true).forEach(
-                function (p:SchemaProperty)
-                {
+                function (p:Hyperstore.SchemaProperty) {
                     var data = localStorage.getItem(id + p.name);
-                    if (data)
-                    {
+                    if (data) {
                         data = JSON.parse(data);
                         ctx.value = data.va;
                         self.domain.setPropertyValue(id, p, p.deserialize(ctx), data.ve);
@@ -209,4 +181,3 @@ module Hyperstore
             );
         }
     }
-}

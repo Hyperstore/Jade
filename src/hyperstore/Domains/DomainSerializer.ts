@@ -88,6 +88,7 @@ module Hyperstore {
         save(domain:DomainModel, monikers:MonikerEntry[]):string {
             var scope = this.stackHead();
             scope.domain = domain.name;
+            scope.mode = "HY";
             var schemas = [];
             scope.schemas = schemas;
             var group = new HashTable<string,MonikerEntry[]>();

@@ -60,33 +60,37 @@ module Hyperstore
         }
 
         keyExists(key:TKey) : boolean {
-            return this._keys[key] !== undefined;
+            return key != null && this._keys[key.toString()] !== undefined;
         }
 
         _fastInsert(key:TKey, elem:TElem)  {
-            this._keys[key] = this._values.push( elem ) - 1;
+            if(key == null ) throw "key must not be null";
+            this._keys[key.toString()] = this._values.push( elem ) - 1;
         }
 
         add(key:TKey, elem:TElem)  {
-            var n = this._keys[key];
+            if(key == null) throw "key must not be null";
+            var n = this._keys[key.toString()];
             if( n !== undefined)
                 this._values[n] = elem;
             else
-                this._keys[key] = this._values.push( elem ) - 1;
+                this._keys[key.toString()] = this._values.push( elem ) - 1;
         }
 
         get(key:TKey) {
-            var n = this._keys[key];
+            if(key == null) return undefined;
+            var n = this._keys[key.toString()];
             return n !== undefined ? this._values[n] : undefined;
         }
 
         remove(key:TKey)
         {
-            var n = this._keys[key];
+            if(key == null) throw "key must not be null";
+            var n = this._keys[key.toString()];
             if (n !== undefined )
             {
                 this._deleted++;
-                delete this._keys[key];
+                delete this._keys[key.toString()];
                 if (this._deleted > this._throttle)
                     this.shrink();
                 else
@@ -98,8 +102,8 @@ module Hyperstore
             var clone = new HashTable<TKey,TElem>();
             clone._values = new Array(this._values.length - this._deleted);
             for(var key in this._keys) {
-                var n = this._keys[key];
-                clone._keys[key] = n
+                var n = this._keys[key.toString()];
+                clone._keys[key.toString()] = n
             }
             clone._deleted = this._deleted;
             clone._values = this._values.slice();
@@ -140,6 +144,10 @@ module Hyperstore
         {
             if (!val)
                 throw name + " is required.";
+        }
+
+        static splitIdentity(id:string)   {
+            return id ? id.split(Store.IdSeparator) : [null, null];
         }
 
         // http://stackoverflow.com/questions/7966559/how-to-convert-javascript-date-object-to-ticks

@@ -1,6 +1,6 @@
 var hyperstore = require('../lib/hyperstore.js');
 var expect = require('chai').expect;
-var standard = require('../lib/standards.js').schema;
+var standard = require('../lib/standards.js').Schemas.Standards;
 
 'use strict';
 
@@ -30,11 +30,11 @@ describe('Validation tests', function ()
         },
         Item : {
             properties: {
-                Num: {type: "number", constraints: {"$ref": "required"}},
-                Key: "identity",
+                Num: {type: "number", constraints: {"$ref": "std.required"}},
+                Key: "std.identity",
                 Flag: "boolean",
-                Values: {type: "enum", values: ['A', 'B', 'C']},
-                Range: {type: "range", min: 1, max: 10}
+                Values: {type: "std.enum", values: ['A', 'B', 'C']},
+                Range: {type: "std.range", min: 1, max: 10}
             }
         }
     };

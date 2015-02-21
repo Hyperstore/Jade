@@ -9,7 +9,9 @@
     "**/.*",
     "node_modules",
     "bower_components",
-    "test"
+    "test",
+    "src",
+    "T4"
   ],
   "dependencies" : {
     "q":"*"

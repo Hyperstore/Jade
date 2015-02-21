@@ -1,6 +1,6 @@
 ﻿var Hyperstore = require('../lib/hyperstore.js');
 var expect = require('chai').expect;
-var schemaTest = require('./schema_Test.js').schema;
+var schemaTest = require('./assets/schema_Test.js').schema;
 
 describe('Undo/Redo manager', function () {
         'use strict';

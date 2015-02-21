@@ -26,6 +26,7 @@ export class SchemaElement extends SchemaInfo
     private _properties;
     private _references;
     private proto;
+    subElements : SchemaElement[];
 
     // -------------------------------------------------------------------------------------
     //
@@ -33,6 +34,7 @@ export class SchemaElement extends SchemaInfo
     constructor(schema:Schema, kind:SchemaKind, id:string, public baseElement?:SchemaElement)
     {
         super(schema, kind, id);
+        this.subElements = [];
         this._properties = {};
         this._references = {};
         this.proto = Object.create(
@@ -40,6 +42,7 @@ export class SchemaElement extends SchemaInfo
                 ? baseElement.proto
                 : kind === SchemaKind.Entity ? ModelElement.prototype : ModelRelationship.prototype
         );
+        if( baseElement) baseElement.subElements.push(this);
     }
 
     // -------------------------------------------------------------------------------------
@@ -197,11 +200,11 @@ export class SchemaElement extends SchemaInfo
                     configurable: true,
                     get         : function ()
                     {
-                        return ModelElement.prototype.getPropertyValue.call(this, desc);
+                        return ModelElement.prototype.get.call(this, desc);
                     },
                     set         : function (value)
                     {
-                        ModelElement.prototype.setPropertyValue.call(this, desc, value);
+                        ModelElement.prototype.set.call(this, desc, value);
                     }
                 }
             );
@@ -249,15 +252,9 @@ export class SchemaElement extends SchemaInfo
     // -------------------------------------------------------------------------------------
     isA(schema:any):boolean
     {
-        var s = schema;
+        if( typeof(schema) === "string")
+            schema = this.schema.store.getSchemaInfo(schema);
         var id = schema.id;
-        if (!id)
-        {
-            s = this.schema.store.getSchemaInfo(schema, false);
-            if (!s)
-                return false;
-            id = s.id;
-        }
         if (id === this.id)
         {
             return true;
@@ -265,7 +262,7 @@ export class SchemaElement extends SchemaInfo
 
         if (this.baseElement)
         {
-            return this.baseElement.isA(s);
+            return this.baseElement.isA(schema);
         }
 
         return false;
@@ -277,14 +274,14 @@ export class SchemaElement extends SchemaInfo
      * @param ctx - [[SerializationContext]] contains model element informations
      * @returns [[Hyperstore.ModelElement]] - return an initialized model element
      */
-    deserialize(ctx:SerializationContext)
+    deserialize(ctx:SerializationContext) : ModelElement
     {
+        if( !ctx.id) return; // deserializing __parseJson
         var mel = <ModelRelationship>Object.create(this.proto);
 
         mel.__initialize(ctx.domain, ctx.id, this, ctx.startId, ctx.startSchemaId, ctx.endId, ctx.endSchemaId);
 
-        Utils.forEach(
-            this._references, info =>
+        Utils.forEach(this._references, info =>
             {
                 var refName = "__ref" + info.name + "__";
                 if (!info.isCollection)
@@ -305,6 +302,10 @@ export class SchemaElement extends SchemaInfo
             }
         );
         return mel;
+    }
+
+    serialize(value) {
+        return;
     }
 
     /**

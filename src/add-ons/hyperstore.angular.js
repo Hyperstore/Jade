@@ -30,11 +30,6 @@ angular.module("hyperstore", [])
         return {
             store: undefined,
 
-            init: function (def) {
-                this.store = this.store || new Hyperstore.Store();
-                return this.store.initAsync(def);
-            },
-
             enterScope: function ($scope, domain) {
                 unsubscribe(domain.store);
                 cookie = domain.store.onSessionCompleted(function (session) {
@@ -57,7 +52,7 @@ angular.module("hyperstore", [])
                 });
 
                 offDestroy = $scope.$on("$destroy", function () { offDestroy(); unsubscribe(domain.store); });
-                $scope.$digest();
+                if (!$scope.$$phase) $scope.$digest();
             },
 
             loadDomain: function ($scope, domain, url, root) {
