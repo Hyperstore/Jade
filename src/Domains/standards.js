@@ -49,11 +49,11 @@
                             if (!val) return true;
                             var element = ctx.element.getInfo();
                             // find embedded relationship to this element.
-                            var rel = ctx.element.getRelationships(undefined, Direction.incomings).firstOrDefault(function (r) {
-                                return r.embedded
+                            var rel = ctx.element.getRelationships(undefined, 1 /*Incomings*/).firstOrDefault(function (r) {
+                                return r.getSchemaElement().embedded;
                             });
                             var others = rel ?
-                                rel.getStart().getRelationships(rel.getInfo().schemaElement) : // sibling elements
+                                rel.getStart().getRelationships(rel.getInfo().schemaElement).map(function(r) {return r.getEnd();}) : // sibling elements
                                 element.domain.getElements(element.schemaElement); // all same type elements
                             return !others.any(function (e) {
                                 return e[ctx.propertyName] === val && e.getId() !== element.id;

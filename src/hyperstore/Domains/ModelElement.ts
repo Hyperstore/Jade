@@ -57,6 +57,11 @@ module Hyperstore {
             return !this._info || this._info.disposed;
         }
 
+        toString() {
+            var self = <any>this;
+            return self.name || self.Name || self.Id || self._info.id;
+        }
+
         /**
          *
          */
@@ -86,7 +91,7 @@ module Hyperstore {
          * @param property
          * @returns {*}
          */
-        getPropertyValue(property:SchemaProperty):any {
+        get(property:SchemaProperty):any {
             if (this.isDisposed) {
                 throw "Can not use a disposed element";
             }
@@ -108,7 +113,7 @@ module Hyperstore {
          * @param value
          * @returns {PropertyValue}
          */
-        setPropertyValue(property:SchemaProperty, value:any) {
+        set(property:SchemaProperty, value:any) {
             if (this.isDisposed) {
                 throw "Can not use a disposed element";
             }
@@ -137,6 +142,97 @@ module Hyperstore {
                 id : id
                 };
             return this._info;
+        }
+
+        /**
+         * Initialize an element from a json object
+         * @param obj - json object
+         * @param refs - internal use only
+         */
+        loadFromJson(obj, refs?) {
+
+            var melInfo = this.getInfo();
+            var domain = melInfo.domain;
+
+            if(typeof(obj) !== "object")
+                throw "Unable to load a " + melInfo.schemaElement.name + " from data " + obj;
+
+            refs = refs || {};
+
+            for (var member in obj)
+            {
+                if (!obj.hasOwnProperty(member))
+                    continue;
+
+                var val = obj[member];
+                var prop = melInfo.schemaElement.getProperty(member, true);
+                if (prop)
+                {
+                    this.set(prop, prop.deserialize(
+                            new SerializationContext(
+                                domain, melInfo.id, undefined, undefined, undefined, undefined, val
+                            )
+                        )
+                    );
+                    continue;
+                }
+
+                var rel = melInfo.schemaElement.getReference(member, true);
+                if (rel)
+                {
+                    var endSchema = domain.store.getSchemaEntity(rel.schemaRelationship.endSchemaId);
+                    var values = val;
+                    if (Utils.isArray(val))
+                    {
+                        if (!rel.isCollection)
+                        {
+                            throw "Property " + member + " must not be an array.";
+                        }
+                    }
+                    else
+                    {
+                        values = [val];
+                        if (rel.isCollection)
+                        {
+                            throw "Property " + member + " must not be an array";
+                        }
+                    }
+
+                    for (var i in values)
+                    {
+                        var v = values[i];
+                        var elem:ModelElement;
+                        if (v.$ref)
+                        {
+                            elem = refs[v.$ref];
+                        }
+                        else
+                        {
+                            elem = domain.__parseJson(v, endSchema, refs);
+                        }
+
+                        var src = rel.opposite
+                            ? elem
+                            : this;
+                        var end = rel.opposite
+                            ? this
+                            : elem;
+
+                        var d = src.getInfo().domain;
+                        if (!d.getRelationships(rel.schemaRelationship, src, end).hasNext() && end)
+                        {
+                            var endInfo = end.getInfo();
+                            d.createRelationship(rel.schemaRelationship, src, endInfo.id, endInfo.schemaElement.id);
+                        }
+
+                        if (v.$id)
+                        {
+                            refs[v.$id] = elem;
+                        }
+
+                    }
+                }
+            }
         }
 
         /**
@@ -240,8 +336,29 @@ module Hyperstore {
                 if (list && list.any()) {
                     list =  list.concat(list2);
                 }
+                else
+                    list = list2;
             }
             return list;
+        }
+
+        dump(indent:number=0) {
+            var tab = "";
+            for(var i=0;i<indent;i++)
+                tab += ".";
+            console.log(tab + this._info.schemaElement.id + " " + this._info.id + " --------------");
+            this.getSchemaElement().getProperties(true).forEach( prop => {
+               console.log(tab + " " + prop.name + " = " + this.get(prop));
+            });
+
+            var lastRelSchema;
+            this.getRelationships().map( rel=> rel.getSchemaElement().embedded ? rel : null).forEach( rel => {
+                if( !lastRelSchema || lastRelSchema !== rel.getSchemaElement().id) {
+                    lastRelSchema = rel.getSchemaElement().id;
+                    console.log(tab + " [" + rel.getSchemaElement().startProperty + "] :");
+                }
+                rel.getEnd().dump(indent+2);
+            });
         }
     }
 

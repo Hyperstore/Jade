@@ -145,7 +145,7 @@ module Hyperstore {
                         var prop = metadata.schemaElement.getProperty(field, true);
                         if( !prop )
                             continue;
-                        val = elem.getPropertyValue(field);
+                        val = elem.get(field);
                 }
 
                 var r = !flag;

@@ -114,6 +114,8 @@ module Hyperstore
 
     class SchemaParser
     {
+        private static typeSequence:number=0;
+
         private _imports:HashTable<string, SchemaState>;
         private _state:SchemaState;
         private pendings:any[];
@@ -367,8 +369,6 @@ module Hyperstore
             return undefined;
         }
 
-        private typeSequence:number=0;
-
         private _resolveType(name:string, propertyName?:string)
         {
             var valueObject;
@@ -405,7 +405,7 @@ module Hyperstore
             if (!val)
                 return;
 
-            name = propertyName + "_" + name + (++this.typeSequence).toString();
+            name = propertyName + "_" + name + (++SchemaParser.typeSequence).toString();
             var valueObject = new SchemaValueObject(state.schema, name);
 
             this.extends(valueObject, val, p => {

@@ -200,11 +200,11 @@ export class SchemaElement extends SchemaInfo
                     configurable: true,
                     get         : function ()
                     {
-                        return ModelElement.prototype.getPropertyValue.call(this, desc);
+                        return ModelElement.prototype.get.call(this, desc);
                     },
                     set         : function (value)
                     {
-                        ModelElement.prototype.setPropertyValue.call(this, desc, value);
+                        ModelElement.prototype.set.call(this, desc, value);
                     }
                 }
             );
@@ -274,8 +274,9 @@ export class SchemaElement extends SchemaInfo
      * @param ctx - [[SerializationContext]] contains model element informations
      * @returns [[Hyperstore.ModelElement]] - return an initialized model element
      */
-    deserialize(ctx:SerializationContext)
+    deserialize(ctx:SerializationContext) : ModelElement
     {
+        if( !ctx.id) return; // deserializing __parseJson
         var mel = <ModelRelationship>Object.create(this.proto);
 
         mel.__initialize(ctx.domain, ctx.id, this, ctx.startId, ctx.startSchemaId, ctx.endId, ctx.endSchemaId);
@@ -304,7 +305,7 @@ export class SchemaElement extends SchemaInfo
     }
 
     serialize(value) {
-
+        return;
     }
 
     /**

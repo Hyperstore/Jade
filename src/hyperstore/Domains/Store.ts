@@ -235,11 +235,21 @@ module Hyperstore
             if (!config)
                 return null;
 
-            this["config"] = config;
+            if(typeof(config) === "string") {
+                var domain = new DomainModel(this, <string>config);
+                if(p) {
+                    p.resolve(domain);
+                }
+                return domain;
+            }
+
+            if( config.schema) {
+                this.loadSchemas(config.schema);
+            }
 
             var domainName = config.name;
-
-            var domain = new DomainModel(this, domainName);
+            domain = new DomainModel(this, domainName);
+            this["config"] = config;
 
             var self = this;
             var tasks;
@@ -332,7 +342,8 @@ module Hyperstore
                     if (!def.data.hasOwnProperty(name))
                         continue;
                     var root = domain.store.getSchemaElement(name);
-                    domain["root"] = Utils.firstOrDefault(domain.loadFromJson(def.data[name], root));
+                    var list = domain.loadFromJson(def.data[name], root);
+                    domain["root"] = list && list.length === 1 ? Utils.firstOrDefault(list) : list;
                     break;
                 }
             }

@@ -161,7 +161,7 @@ export class DomainModel {
             def = JSON.parse(def);
         }
 
-        if (def.entities || def.relationships)
+        if (def.mode && def.mode === "HY") // Hyperstore format
         {
             this.store.runInSession(() => this.loadFromHyperstoreJson(def));
             return;
@@ -171,6 +171,7 @@ export class DomainModel {
         {
             throw "rootSchema is required";
         }
+
         var refs = {};
         if (Utils.isArray(def))
         {
@@ -178,7 +179,11 @@ export class DomainModel {
             this.store.runInSession(
                 () =>
                 {
-                    Utils.forEach(def, e => list.push(this.parseJson(e, rootSchema, refs)));
+                    Utils.forEach(def, e => {
+                        var mel = this.__parseJson(e, rootSchema, refs);
+                        if(mel)
+                            list.push(mel);
+                    });
                 }
             );
             return list;
@@ -186,93 +191,24 @@ export class DomainModel {
         else
         {
             var r;
-            this.store.runInSession(() => r = [this.parseJson(def, rootSchema, refs)]);
+            this.store.runInSession(() => r = [this.__parseJson(def, rootSchema, refs)]);
             return r;
         }
     }
 
-    private parseJson(obj:any, rootSchema:SchemaElement, refs):ModelElement
+    __parseJson(obj:any, rootSchema:SchemaElement, refs):ModelElement
     {
         var schema = this.introspectSchema(rootSchema, obj);
         if(!schema)
             throw "Ambiguous schema finding for " + rootSchema.name + " (Use checkMarkerJson) on " + obj;
 
-        var mel = this.create(schema);
-        var melInfo = mel.getInfo();
-
-        for (var member in obj)
-        {
-            if (!obj.hasOwnProperty(member))
-                continue;
-
-            var val = obj[member];
-            var prop = melInfo.schemaElement.getProperty(member, true);
-            if (prop)
-            {
-                mel.setPropertyValue(prop, prop.deserialize(
-                        new SerializationContext(
-                            this, melInfo.id, undefined, undefined, undefined, undefined, val
-                        )
-                    )
-                );
-                continue;
-            }
-
-            var rel = melInfo.schemaElement.getReference(member, true);
-            if (rel)
-            {
-                var endSchema = this.store.getSchemaEntity(rel.schemaRelationship.endSchemaId);
-                var values = val;
-                if (Utils.isArray(val))
-                {
-                    if (!rel.isCollection)
-                    {
-                        throw "Property " + member + " must be a collection";
-                    }
-                }
-                else
-                {
-                    values = [val];
-                    if (rel.isCollection)
-                    {
-                        throw "Property " + member + " must not be a collection";
-                    }
-                }
-
-                for (var i in values)
-                {
-                    var v = values[i];
-                    var elem:ModelElement;
-                    if (v.$ref)
-                    {
-                        elem = refs[v.$ref];
-                    }
-                    else
-                    {
-                        elem = this.parseJson(v, endSchema, refs);
-                    }
-
-                    var src = rel.opposite
-                        ? elem
-                        : mel;
-                    var end = rel.opposite
-                        ? mel
-                        : elem;
-
-                    var domain = src.getInfo().domain;
-                    if (!domain.getRelationships(rel.schemaRelationship, src, end).hasNext() && end)
-                    {
-                        var endInfo = end.getInfo();
-                        domain.createRelationship(rel.schemaRelationship, src, endInfo.id, endInfo.schemaElement.id);
-                    }
-
-                    if (v.$id)
-                    {
-                        refs[v.$id] = elem;
-                    }
-
-                }
-            }
+        var mel;
+        if( (<any>schema).loadFromJson) {
+            mel = (<any>schema).loadFromJson(this, obj);
+        }
+        if(!mel) {
+            mel = this.create(schema);
+            mel.loadFromJson(obj, refs);
         }
         return mel;
     }
@@ -439,7 +375,7 @@ export class DomainModel {
         }
         else if (end)
         {
-            var metadata = start.getInfo();
+            var metadata = end.getInfo();
             var edges = this._graph.getEdges(metadata.id, Direction.Incoming);
             if (edges)
             {
