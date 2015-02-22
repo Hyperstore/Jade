@@ -38,9 +38,7 @@ export class SchemaElement extends SchemaInfo
         this._properties = {};
         this._references = {};
         this.proto = Object.create(
-            baseElement
-                ? baseElement.proto
-                : kind === SchemaKind.Entity ? ModelElement.prototype : ModelRelationship.prototype
+                baseElement ? baseElement.proto  : (kind === SchemaKind.Entity ? ModelElement.prototype : ModelRelationship.prototype)
         );
         if( baseElement) baseElement.subElements.push(this);
     }

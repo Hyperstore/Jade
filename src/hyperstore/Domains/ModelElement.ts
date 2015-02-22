@@ -168,11 +168,8 @@ module Hyperstore {
                 var prop = melInfo.schemaElement.getProperty(member, true);
                 if (prop)
                 {
-                    this.set(prop, prop.deserialize(
-                            new SerializationContext(
-                                domain, melInfo.id, undefined, undefined, undefined, undefined, val
-                            )
-                        )
+                    this.set(prop, prop.deserialize(new SerializationContext(
+                                domain, melInfo.id, undefined, undefined, undefined, undefined, val))
                     );
                     continue;
                 }
@@ -181,22 +178,7 @@ module Hyperstore {
                 if (rel)
                 {
                     var endSchema = domain.store.getSchemaEntity(rel.schemaRelationship.endSchemaId);
-                    var values = val;
-                    if (Utils.isArray(val))
-                    {
-                        if (!rel.isCollection)
-                        {
-                            throw "Property " + member + " must not be an array.";
-                        }
-                    }
-                    else
-                    {
-                        values = [val];
-                        if (rel.isCollection)
-                        {
-                            throw "Property " + member + " must not be an array";
-                        }
-                    }
+                    var values = Array.isArray(val) ? val : [val];
 
                     for (var i in values)
                     {
@@ -340,6 +322,66 @@ module Hyperstore {
                     list = list2;
             }
             return list;
+        }
+
+        asJsonObject(cfg?)
+        {
+            var obj = this.getSchemaElement().serialize(this) || {};
+            if( cfg && cfg.serializeId)
+                (<any>obj).$id = this.getId();
+
+            var self = this;
+            this.getSchemaElement().getProperties(true).forEach(prop =>
+                {
+                    var val = this.get(prop);
+                    if (val)
+                    {
+                        var value = prop.schemaProperty.serialize(val);
+                        if (value)
+                        {
+                            obj[prop.name] = value;
+                        }
+                    }
+                }
+            );
+
+            this.getRelationships().forEach(rel=>
+                {
+                    var rs = <SchemaRelationship>rel.getSchemaElement();
+                    if (rs.startProperty)
+                    {
+                        var end = rel.getEnd();
+                        if (!end || (end.getDomain().name !== self.getDomain().name && (cfg && cfg.localDomainOnly)))
+                            return;
+
+                        if (rs.embedded && self.getId() !== end.getId())
+                        {
+                            if (rs.cardinality === Cardinality.OneToOne)
+                            {
+                                obj[rs.startProperty] = end.asJsonObject(cfg);
+                                return;
+                            }
+                            if (!obj[rs.startProperty]) obj[rs.startProperty] = [];
+                            obj[rs.startProperty].push(end.asJsonObject(cfg));
+                        }
+                        else
+                        {
+                            if(!cfg || !cfg.serializeId)
+                                throw "You must set 'serializedId' option to true to reference not embedded element.";
+
+                            var id = end.getId();
+                            if (rs.cardinality === Cardinality.OneToOne)
+                            {
+                                obj[rs.startProperty] = {$ref: id};
+                                return;
+                            }
+                            if (!obj[rs.startProperty]) obj[rs.startProperty] = [];
+                            obj[rs.startProperty].push({$ref: id});
+                        }
+                    }
+                }
+            );
+            return obj;
         }
 
         dump(indent:number=0) {

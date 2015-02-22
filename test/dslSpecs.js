@@ -4,7 +4,7 @@ var schemaTest = require('./assets/schema_Test.js').schema;
 
 'use strict';
 
-describe('Schema tests', function ()
+describe('Dsl specs tests', function ()
 {
     var store;
 

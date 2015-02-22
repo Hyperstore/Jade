@@ -17,332 +17,281 @@
 /// <reference path="../_references.ts" />
 module Hyperstore
 {
-/**
- * Represents a domain model
- */
-export class DomainModel {
-    public events:EventManager;
-    private _cache:{};
-    public eventDispatcher:EventDispatcher;
-    private _adapters:Adapter[];
-    private _graph:Hypergraph;
-
     /**
-     * Domain model constructor
-     * @param store : the store the domain belong to
-     * @param name : domain name
-     * @param extension: __internal use only. Use DomainModelScope constructor to create a domain extension
+     * Represents a domain model
      */
-    constructor(public store:Store, public name:string, public extension?:string) {
-        this.name = this.name.toLowerCase();
-        this.extension = extension;
-        this._graph = new Hypergraph(this);
-        store.__addDomain(this);
-        this.events = new EventManager(this.name);
-        this._cache = {};
-        this._adapters = [];
-    }
+    export class DomainModel {
+        public events:EventManager;
+        private _cache:{};
+        public eventDispatcher:EventDispatcher;
+        private _adapters:Adapter[];
+        private _graph:Hypergraph;
 
-    dispose() {
-        Utils.forEach(this._adapters, a=> a.dispose());
+        /**
+         * Domain model constructor
+         * @param store : the store the domain belong to
+         * @param name : domain name
+         * @param extension: __internal use only. Use DomainModelScope constructor to create a domain extension
+         */
+        constructor(public store:Store, public name:string, public extension?:string) {
+            this.name = this.name.toLowerCase();
+            this.extension = extension;
+            this._graph = new Hypergraph(this);
+            store.__addDomain(this);
+            this.events = new EventManager(this.name);
+            this._cache = {};
+            this._adapters = [];
+        }
 
-        this._graph.dispose();
-        this._graph = undefined;
-        this.events.dispose();
-        this.events = undefined;
-        this._cache = undefined;
-        this.eventDispatcher = undefined;
-    }
+        dispose() {
+            Utils.forEach(this._adapters, a=> a.dispose());
 
-    getGraph() : any {
-        return this._graph;
-    }
+            this._graph.dispose();
+            this._graph = undefined;
+            this.events.dispose();
+            this.events = undefined;
+            this._cache = undefined;
+            this.eventDispatcher = undefined;
+        }
 
-    /**
-     * validate all elements of the domain
-     * @param schemaElement - filter on a specific schemaElement
-     * @returns {Array} - diagnostic messages (warnings or errors)
-     */
-    validate(schemaElement?:SchemaElement) : DiagnosticMessage[] {
-        var groups = new HashTable<string,any>();
-        Utils.forEach(this.getElements(schemaElement), (m:ModelElement) => {
-            var sch = m.getInfo().schemaElement;
-            var g = groups.get(sch.schema.name);
-            if( !g) {
-                g = {schema:sch.schema, elems:[]};
-                groups.add(sch.schema.name,g);
-            }
-            g.elems.push(m);
-        });
-
-        var diags = [];
-        Utils.forEach(groups, item => {
-            diags = diags.concat( item.schema.constraints.validate(item.elems) );
-        });
-        return diags;
-    }
-
-    /**
-     * create a new unique id for this domain.
-     * An id is composed by two parts (the domain name and a unique id) separated by ':'
-     * @param id - optional id. If not provided a new id will be generated
-     * @returns {string} A domain id
-     */
-    createId(id?:string):string
-    {
-        id = id || (DomainModel._seq++).toString();
-        return this.name + ":" + (id || Utils.newGuid());
-    }
-    static _seq:number=0;
-    /**
-     * Add an adapter
-     * @param adapter
-     */
-    addAdapter(adapter:Adapter)
-    {
-        var self = this;
-        adapter.init(this);
-        this._adapters.push(adapter);
-    }
-
-    /**
-     *  Find a schema element by its id in the json compressed data
-     * @param schemas - list of schema id from the json
-     * @param id - index of the schema
-     * @returns {any} - a valid schema id
-     */
-    private findSchemaId(schemas, id):string
-    {
-        if (schemas)
-        {
-            for (var k in schemas)
+        newScope(extensionName:string, data?) : DomainModelScope {
+            var scope = new DomainModelScope(this, extensionName);
+            if(data)
             {
-                var schema = schemas[k];
-                for (var ke in schema.elements)
+                for (var name in data)
                 {
-                    var e = schema.elements[ke];
-                    if (e.id === id)
-                    {
-                        var schemaId;
-                        if (schema.name == null) // null or undefined
-                        {
-                            schemaId = e.name;
-                        }
-                        else
-                        {
-                            schemaId = schema.name + ":" + e.name;
-                        }
+                    if (!data.hasOwnProperty(name))
+                        continue;
+                    var root = this.store.getSchemaElement(name);
+                    var list = scope.loadFromJson(data[name], root);
+                    break;
+                }
+            }
+            return scope;
+        }
 
-                        return schemaId;
+        getGraph() : any {
+            return this._graph;
+        }
+
+        /**
+         * validate all elements of the domain
+         * @param schemaElement - filter on a specific schemaElement
+         * @returns {Array} - diagnostic messages (warnings or errors)
+         */
+        validate(schemaElement?:SchemaElement) : DiagnosticMessage[] {
+            var groups = new HashTable<string,any>();
+            Utils.forEach(this.getElements(schemaElement), (m:ModelElement) => {
+                var sch = m.getInfo().schemaElement;
+                var g = groups.get(sch.schema.name);
+                if( !g) {
+                    g = {schema:sch.schema, elems:[]};
+                    groups.add(sch.schema.name,g);
+                }
+                g.elems.push(m);
+            });
+
+            var diags = [];
+            Utils.forEach(groups, item => {
+                diags = diags.concat( item.schema.constraints.validate(item.elems) );
+            });
+            return diags;
+        }
+
+        /**
+         * create a new unique id for this domain.
+         * An id is composed by two parts (the domain name and a unique id) separated by ':'
+         * @param id - optional id. If not provided a new id will be generated
+         * @returns {string} A domain id
+         */
+        createId(id?:string):string
+        {
+            id = id || (DomainModel._seq++).toString();
+            return this.name + Store.IdSeparator + (id || Utils.newGuid());
+        }
+        static _seq:number=0;
+        /**
+         * Add an adapter
+         * @param adapter
+         */
+        addAdapter(adapter:Adapter)
+        {
+            var self = this;
+            adapter.init(this);
+            this._adapters.push(adapter);
+        }
+
+        /**
+         *  Find a schema element by its id in the json compressed data
+         * @param schemas - list of schema id from the json
+         * @param id - index of the schema
+         * @returns {any} - a valid schema id
+         */
+        private findSchemaId(schemas, id):string
+        {
+            if (schemas)
+            {
+                for (var k in schemas)
+                {
+                    var schema = schemas[k];
+                    for (var ke in schema.elements)
+                    {
+                        var e = schema.elements[ke];
+                        if (e.id === id)
+                        {
+                            var schemaId;
+                            if (schema.name == null) // null or undefined
+                            {
+                                schemaId = e.name;
+                            }
+                            else
+                            {
+                                schemaId = schema.name + Store.IdSeparator + e.name;
+                            }
+
+                            return schemaId;
+                        }
                     }
                 }
             }
+            return id;
         }
-        return id;
-    }
 
-    /**
-     * Load a domain from a json object. This object can have two specific format :
-     * * hyperstore format. (generated by the hyperstore serializer)
-     * * a poco object. For circular references, the newtonsoft format is used ($id and $ref) (http://james.newtonking.com/json/help/html/T_Newtonsoft_Json_PreserveReferencesHandling.htm)
-     *
-     * @param def
-     * @param rootSchema
-     * @returns {ModelElement[]}
-     */
-    loadFromJson(def:any, rootSchema?:SchemaElement):ModelElement[]
-    {
-        if (!def)
+        /**
+         * Load a domain from a json object. This object can have two specific format :
+         * * hyperstore format. (generated by the hyperstore serializer)
+         * * a poco object. For circular references, the newtonsoft format is used ($id and $ref) (http://james.newtonking.com/json/help/html/T_Newtonsoft_Json_PreserveReferencesHandling.htm)
+         *
+         * @param def
+         * @param rootSchema
+         * @returns {ModelElement[]}
+         */
+        loadFromJson(def:any, rootSchema?:SchemaElement):ModelElement[]
         {
-            return;
+            if (!def)
+            {
+                return;
+            }
+
+            if( typeof(def) === "string") {
+                def = JSON.parse(def);
+            }
+
+            if (def.mode && def.mode === "HY") // Hyperstore format
+            {
+                this.store.runInSession(() => this.loadFromHyperstoreJson(def));
+                return;
+            }
+
+            if (!rootSchema)
+            {
+                throw "rootSchema is required";
+            }
+
+            var refs = {};
+            if (Utils.isArray(def))
+            {
+                var list = [];
+                this.store.runInSession(
+                    () =>
+                    {
+                        Utils.forEach(def, e => {
+                            var mel = this.__parseJson(e, rootSchema, refs);
+                            if(mel)
+                                list.push(mel);
+                        });
+                    },
+                    SessionMode.Loading
+                );
+                return list;
+            }
+            else
+            {
+                var r;
+                this.store.runInSession(() => r = [this.__parseJson(def, rootSchema, refs)],
+                                        SessionMode.Loading);
+                return r;
+            }
         }
 
-        if( typeof(def) === "string") {
-            def = JSON.parse(def);
-        }
-
-        if (def.entities || def.relationships)
+        __parseJson(obj:any, rootSchema:SchemaElement, refs):ModelElement
         {
-            this.store.runInSession(() => this.loadFromHyperstoreJson(def), SessionMode.Loading);
-            return;
+            var schema = this.introspectSchema(rootSchema, obj);
+            if(!schema)
+                throw "Ambiguous schema finding for " + rootSchema.name + " (Use checkMarkerJson) on " + obj;
+
+            var mel;
+            if( (<any>schema).loadFromJson) {
+                mel = (<any>schema).loadFromJson(this, obj);
+            }
+            if(!mel) {
+                mel = this.create(schema);
+                mel.loadFromJson(obj, refs);
+            }
+            return mel;
         }
 
-        if (!rootSchema)
-        {
-            throw "rootSchema is required";
+        /**
+         * try to identify schema from a json object in case of ambiguity (inheritance)
+         * @param schema
+         * @param json
+         */
+        private introspectSchema(schema:SchemaElement, json) : SchemaElement {
+            if (typeof(schema) == "string")
+                schema = this.store.getSchemaEntity(<any>schema);
+
+            if (schema.subElements.length === 0)
+                return schema; // no ambiguity
+
+            // Try fo find the most appropriate schema by checking properties
+            return this.recursiveIntrospect(schema, json);
         }
-        var refs = {};
-        if (Utils.isArray(def))
+
+        private recursiveIntrospect(schema:SchemaElement, json) : SchemaElement {
+            for(var i=0;i<schema.subElements.length;i++) {
+                var subSchema = this.recursiveIntrospect( schema.subElements[i], json);
+                if (subSchema)
+                    return subSchema; // no ambiguity
+            }
+            if((<any>schema).checkJsonMarker) {
+                return (<any>schema).checkJsonMarker(json) ? schema : undefined
+            }
+            for(var p in json){
+                if( json.hasOwnProperty(p) && !schema.getProperty(p,true))
+                    return undefined;
+            }
+            return schema;
+        }
+
+        private loadFromHyperstoreJson(def):Array<ModelElement>
         {
             var list = [];
-            this.store.runInSession(
-                () =>
-                {
-                    Utils.forEach(def, e => list.push(this.parseJson(e, rootSchema, refs)));
-                },
-                SessionMode.Loading
-            );
-            return list;
-        }
-        else
-        {
-            var r;
-            this.store.runInSession(() => r = [this.parseJson(def, rootSchema, refs)], SessionMode.Loading);
-            return r;
-        }
-    }
-
-    private parseJson(obj:any, schema:SchemaElement, refs):ModelElement
-    {
-        var mel = this.create(schema);
-        var melInfo = mel.getInfo();
-
-        for (var member in obj)
-        {
-            if (!obj.hasOwnProperty(member))
-                continue;
-
-            var val = obj[member];
-            var prop = melInfo.schemaElement.getProperty(member, true);
-            if (prop)
+            var session = this.store.beginSession(SessionMode.Loading);
+            try
             {
-                mel.setPropertyValue(
-                    prop, prop.deserialize(
-                        new SerializationContext(
-                            this, melInfo.id, undefined, undefined, undefined, undefined, val
-                        )
-                    )
-                );
-                continue;
-            }
-
-            var rel = melInfo.schemaElement.getReference(member, true);
-            if (rel)
-            {
-                var endSchema = this.store.getSchemaEntity(rel.schemaRelationship.endSchemaId);
-                var values = val;
-                if (Utils.isArray(val))
+                for (var k = 0; k < def.entities.length; k++)
                 {
-                    if (!rel.isCollection)
+                    var entity = def.entities[k];
+                    var entityId = this.createId(entity["id"]);
+                    if (entity.state && entity.state === "deleted")
                     {
-                        throw "Property " + member + " must be a collection";
-                    }
-                }
-                else
-                {
-                    values = [val];
-                    if (rel.isCollection)
-                    {
-                        throw "Property " + member + " must not be a collection";
-                    }
-                }
-
-                for (var i in values)
-                {
-                    var v = values[i];
-                    var elem:ModelElement;
-                    if (v.$ref)
-                    {
-                        elem = refs[v.$ref];
-                    }
-                    else
-                    {
-                        elem = this.parseJson(v, endSchema, refs);
-                    }
-
-                    var src = rel.opposite
-                        ? elem
-                        : mel;
-                    var end = rel.opposite
-                        ? mel
-                        : elem;
-
-                    var domain = src.getInfo().domain;
-                    if (!domain.getRelationships(rel.schemaRelationship, src, end).hasNext() && end)
-                    {
-                        var endInfo = end.getInfo();
-                        domain.createRelationship(rel.schemaRelationship, src, endInfo.id, endInfo.schemaElement.id);
-                    }
-
-                    if (v.$id)
-                    {
-                        refs[v.$id] = elem;
-                    }
-
-                }
-            }
-        }
-        return mel;
-    }
-
-    private loadFromHyperstoreJson(def):Array<ModelElement>
-    {
-        var list = [];
-        var session = this.store.beginSession();
-        try
-        {
-            for (var k = 0; k < def.entities.length; k++)
-            {
-                var entity = def.entities[k];
-                var entityId = this.createId(entity["id"]);
-                if (entity.state && entity.state === "deleted")
-                {
-                    this.remove(entityId, entity.v);
-                    continue;
-                }
-
-                var elem;
-                var schemaId = this.findSchemaId(def.schemas, entity["schema"]);
-                var schema = this.store.getSchemaElement(schemaId);
-                if (!this.elementExists(entityId))
-                {
-                    list.push(elem = this.create(schema, entityId));
-                }
-
-                if (entity.properties)
-                {
-                    for (var kprop in entity.properties)
-                    {
-                        var prop = entity.properties[kprop];
-                        var propDef = schema.getProperty(<string>prop.name, true);
-                        if (propDef)
-                        {
-                            var v = prop.value;
-                            this.setPropertyValue(entityId, propDef, v);
-                        }
-                    }
-                }
-            }
-
-            if (def.relationships)
-            {
-                for (var k = 0; k < def.relationships.length; k++)
-                {
-                    var relationship = def.relationships[k];
-                    var entityId = this.createId(relationship["id"]);
-                    if (relationship.state && relationship.state === "deleted")
-                    {
-                        this.remove(entityId, relationship.v);
+                        this.remove(entityId, entity.v);
                         continue;
                     }
 
-                    var schemaId = this.findSchemaId(def.schemas, relationship["schema"]);
+                    var elem;
+                    var schemaId = this.findSchemaId(def.schemas, entity["schema"]);
                     var schema = this.store.getSchemaElement(schemaId);
-
                     if (!this.elementExists(entityId))
                     {
-                        var start = this.get(this.createId(relationship.startId));
-                        this.createRelationship(
-                            <SchemaRelationship>schema, start, this.createId(relationship.endId),
-                            this.findSchemaId(def.schemas, relationship.endSchemaId), entityId
-                        );
+                        list.push(elem = this.create(schema, entityId));
                     }
 
-                    if (relationship.properties)
+                    if (entity.properties)
                     {
-                        for (var kprop in relationship.properties)
+                        for (var kprop in entity.properties)
                         {
-                            var prop = relationship.properties[kprop];
+                            var prop = entity.properties[kprop];
                             var propDef = schema.getProperty(<string>prop.name, true);
                             if (propDef)
                             {
@@ -352,168 +301,252 @@ export class DomainModel {
                         }
                     }
                 }
-            }
-            session.acceptChanges();
-        }
-        finally
-        {
-            session.close();
-        }
-        return list;
-    }
 
-    /**
-     * Get relationships of the domain filtered by schema or terminal elements.
-     * Filters can be combined.
-     * @param schemaElement: Select only relationships of this schema (including inheritance)
-     * @param start: Select outgoing relationships of 'start'
-     * @param end : Select incoming relationships of 'end'
-     * @returns {ModelElement[]}
-     */
-    getRelationships(schemaElement?:SchemaRelationship, start?:ModelElement, end?:ModelElement):Cursor
-    {
-        var currentSchema = <SchemaElement>schemaElement;
-        var tmpSchema = currentSchema;
-
-        if (start)
-        {
-            var metadata = start.getInfo();
-            var edges = this._graph.getEdges(metadata.id, Direction.Outgoing);
-            if (edges)
-            {
-                return edges.map( info => {
-                     if (end && end.getInfo().id !== info.endId)
-                     {
-                         return null;
-                     }
-
-                     if (!tmpSchema || info.schemaId !== tmpSchema.id)
-                     {
-                         tmpSchema = this.store.getSchemaElement(info.schemaId);
-                     }
-                     if (schemaElement && !tmpSchema.isA(schemaElement.id))
-                     {
-                         return null;
-                     }
-
-                     return this.getFromCache(
-                         tmpSchema, metadata.id, metadata.schemaElement.id, info.endId,
-                         info.endSchemaId, info.id
-                     );
-                 });
-            }
-        }
-        else if (end)
-        {
-            var metadata = start.getInfo();
-            var edges = this._graph.getEdges(metadata.id, Direction.Incoming);
-            if (edges)
-            {
-                return edges.map(info => {
-                    if (!tmpSchema || info.schemaId !== tmpSchema.id)
-                    {
-                        tmpSchema = this.store.getSchemaElement(info.schemaId);
-                    }
-                    if (schemaElement && !tmpSchema.isA(schemaElement.id))
-                    {
-                        return null;
-                    }
-
-                    return this.getFromCache(
-                        tmpSchema, info.endId, info.endSchemaId, metadata.id, metadata.schemaElement.id, info.id
-                    );
-                });
-            }
-        }
-        else
-        {
-            return this._graph.getNodes(NodeType.Relationship, schemaElement).map(info=>
+                if (def.relationships)
                 {
-                    if (!tmpSchema || info.schemaId !== tmpSchema.id)
+                    for (var k = 0; k < def.relationships.length; k++)
                     {
-                        tmpSchema = this.store.getSchemaElement(info.schemaId);
-                    }
-                    if (!schemaElement || tmpSchema.isA(schemaElement.id))
-                    {
-                        return this.getFromCache(
-                            tmpSchema, info.startId, info.startSchemaId, info.endId, info.endSchemaId, info.id
-                        );
-                    }
+                        var relationship = def.relationships[k];
+                        var entityId = this.createId(relationship["id"]);
+                        if (relationship.state && relationship.state === "deleted")
+                        {
+                            this.remove(entityId, relationship.v);
+                            continue;
+                        }
 
-                    return undefined;
+                        var schemaId = this.findSchemaId(def.schemas, relationship["schema"]);
+                        var schema = this.store.getSchemaElement(schemaId);
+
+                        if (!this.elementExists(entityId))
+                        {
+                            var start = this.get(this.createId(relationship.startId));
+                            this.createRelationship(
+                                <SchemaRelationship>schema, start, this.createId(relationship.endId),
+                                this.findSchemaId(def.schemas, relationship.endSchemaId), entityId
+                            );
+                        }
+
+                        if (relationship.properties)
+                        {
+                            for (var kprop in relationship.properties)
+                            {
+                                var prop = relationship.properties[kprop];
+                                var propDef = schema.getProperty(<string>prop.name, true);
+                                if (propDef)
+                                {
+                                    var v = prop.value;
+                                    this.setPropertyValue(entityId, propDef, v);
+                                }
+                            }
+                        }
+                    }
+                }
+                session.acceptChanges();
+            }
+            finally
+            {
+                session.close();
+            }
+            return list;
+        }
+
+        /**
+         * Get relationships of the domain filtered by schema or terminal elements.
+         * Filters can be combined.
+         * @param schemaElement: Select only relationships of this schema (including inheritance)
+         * @param start: Select outgoing relationships of 'start'
+         * @param end : Select incoming relationships of 'end'
+         * @returns {ModelElement[]}
+         */
+        getRelationships(schemaElement?:SchemaRelationship, start?:ModelElement, end?:ModelElement):Cursor
+        {
+            var currentSchema = <SchemaElement>schemaElement;
+            var tmpSchema = currentSchema;
+
+            if (start)
+            {
+                var metadata = start.getInfo();
+                var edges = this._graph.getEdges(metadata.id, Direction.Outgoing);
+                if (edges)
+                {
+                    return edges.map( info => {
+                        if (end && end.getInfo().id !== info.endId)
+                        {
+                            return null;
+                        }
+
+                        if (!tmpSchema || info.schemaId !== tmpSchema.id)
+                        {
+                            tmpSchema = this.store.getSchemaElement(info.schemaId);
+                        }
+                        if (schemaElement && !tmpSchema.isA(schemaElement.id))
+                        {
+                            return null;
+                        }
+
+                        return this.getFromCache(
+                            tmpSchema, metadata.id, metadata.schemaElement.id, info.endId,
+                            info.endSchemaId, info.id
+                        );
+                    });
+                }
+            }
+            else if (end)
+            {
+                var metadata = end.getInfo();
+                var edges = this._graph.getEdges(metadata.id, Direction.Incoming);
+                if (edges)
+                {
+                    return edges.map(info => {
+                        if (!tmpSchema || info.schemaId !== tmpSchema.id)
+                        {
+                            tmpSchema = this.store.getSchemaElement(info.schemaId);
+                        }
+                        if (schemaElement && !tmpSchema.isA(schemaElement.id))
+                        {
+                            return null;
+                        }
+
+                        return this.getFromCache(
+                            tmpSchema, info.endId, info.endSchemaId, metadata.id, metadata.schemaElement.id, info.id
+                        );
+                    });
+                }
+            }
+            else
+            {
+                return this._graph.getNodes(NodeType.Relationship, schemaElement).map(info=>
+                                                                                      {
+                                                                                          if (!tmpSchema || info.schemaId !== tmpSchema.id)
+                                                                                          {
+                                                                                              tmpSchema = this.store.getSchemaElement(info.schemaId);
+                                                                                          }
+                                                                                          if (!schemaElement || tmpSchema.isA(schemaElement.id))
+                                                                                          {
+                                                                                              return this.getFromCache(
+                                                                                                  tmpSchema, info.startId, info.startSchemaId, info.endId, info.endSchemaId, info.id
+                                                                                              );
+                                                                                          }
+
+                                                                                          return undefined;
+                                                                                      }
+                );
+            }
+            return Cursor.emptyCursor;
+        }
+
+        copy(mel:ModelElement, refs?) {
+            refs = refs || {};
+            var schema = mel.getSchemaElement();
+            var ownerId = this.createId( Utils.splitIdentity(mel.getId())[1]);
+            var copy = refs[ownerId];
+            if(copy) return copy;
+
+            copy = (<any>schema).create(this, ownerId);
+            refs[ownerId] = copy;
+
+            var self = this;
+            mel.getSchemaElement().getProperties(true).forEach(prop =>
+                {
+                    var pid = ownerId + "." + prop.name;
+                    var node = this._graph.getPropertyNode(pid);
+                    node = this._graph.addPropertyNode(pid, prop.schemaProperty.id, node.value, Utils.getUtcNow() );
+                    this._raiseEvent(
+                        new ChangePropertyValueEvent(
+                            this.name,
+                            ownerId,
+                            schema.id,
+                            prop.name,
+                            prop.serialize(node.value),
+                            undefined,
+                            node.version
+                        )
+                    );
                 }
             );
-        }
-        return Cursor.emptyCursor;
-    }
+            mel.getRelationships().forEach(rel=>
+                {
+                    var rs = <SchemaRelationship>rel.getSchemaElement();
+                    var end = rel.getEnd();
+                    if (!end )
+                        return;
 
-    /**
-     * get value of an element property in the underlying hypergraph.
-     * Returns 'undefined' if the value doesn't exist and no defaultValue is set in the property schema.
-     * Otherwise, returns a PropertyValue {value, version}
-     * @param ownerId
-     * @param property
-     * @returns {*}
-     */
-    getPropertyValue(ownerId:string, property:SchemaProperty):PropertyValue
-    {
-        var owner = this._graph.getNode(ownerId);
-        if (!owner)
-        {
-            throw "Invalid element " + ownerId;
+                    if (end.getDomain().name === mel.getDomain().name ) {
+                        end = this.copy(end, refs);
+                    }
+                    this.createRelationship(rs, copy, end.getId(), end.getSchemaElement().id);
+                }
+            );
+            return copy;
         }
 
-        var pid = owner.id + "." + property.name;
-        var node = this._graph.getPropertyNode(pid);
-        var value = undefined;
-
-        if (!node)
+        /**
+         * get value of an element property in the underlying hypergraph.
+         * Returns 'undefined' if the value doesn't exist and no defaultValue is set in the property schema.
+         * Otherwise, returns a PropertyValue {value, version}
+         * @param ownerId
+         * @param property
+         * @returns {*}
+         */
+        getPropertyValue(ownerId:string, property:SchemaProperty):PropertyValue
         {
-            var def = property.defaultValue;
-            if (!def)
+            var owner = this._graph.getNode(ownerId);
+            if (!owner)
             {
-                return undefined;
+                throw "Invalid element " + ownerId;
             }
-            return new PropertyValue(typeof(def) === "function" ? def() : def, undefined, 0);
+
+            var pid = owner.id + "." + property.name;
+            var node = this._graph.getPropertyNode(pid);
+            var value = undefined;
+
+            if (!node)
+            {
+                var def = property.defaultValue;
+                if (!def)
+                {
+                    return undefined;
+                }
+                return new PropertyValue(typeof(def) === "function" ? def() : def, undefined, 0);
+            }
+
+            return new PropertyValue(node.value, undefined, node.version);
         }
 
-        return new PropertyValue(node.value, undefined, node.version);
-    }
-
-    /**
-     * set value of an element property
-     * @param ownerId
-     * @param property
-     * @param value
-     * @param version
-     * @returns {Hyperstore.PropertyValue} {value, oldValue, version}
-     */
-    setPropertyValue(ownerId:string, property:SchemaProperty, value:any, version?:number):PropertyValue
-    {
-        var ownerNode = this._graph.getNode(ownerId);
-        if (!ownerNode)
+        /**
+         * set value of an element property
+         * @param ownerId
+         * @param property
+         * @param value
+         * @param version
+         * @returns {Hyperstore.PropertyValue} {value, oldValue, version}
+         */
+        setPropertyValue(ownerId:string, property:SchemaProperty, value:any, version?:number):PropertyValue
         {
-            throw "Invalid element " + ownerId;
-        }
+            var ownerNode = this._graph.getNode(ownerId);
+            if (!ownerNode)
+            {
+                throw "Invalid element " + ownerId;
+            }
 
-        var pid = ownerId + "." + property.name;
-        var node = this._graph.getPropertyNode(pid);
-        var oldValue = undefined;
+            var pid = ownerId + "." + property.name;
+            var node = this._graph.getPropertyNode(pid);
+            var oldValue = undefined;
 
-        if (!node)
-        {
-            node = this._graph.addPropertyNode(pid, property.schemaProperty.id, value, version || Utils.getUtcNow());
-        }
-        else
-        {
-            oldValue = node.value;
-            node.value = value;
-            node.version = version || Utils.getUtcNow();
-            this._graph.updatePropertyNode(node);
-        }
+            if (!node)
+            {
+                node = this._graph.addPropertyNode(pid, property.schemaProperty.id, value, version || Utils.getUtcNow());
+            }
+            else
+            {
+                oldValue = node.value;
+                node.value = value;
+                node.version = version || Utils.getUtcNow();
+                this._graph.updatePropertyNode(node);
+            }
 
-        var pv = new PropertyValue(value, oldValue, node.version);
-        this._raiseEvent(
+            var pv = new PropertyValue(value, oldValue, node.version);
+            this._raiseEvent(
                 new ChangePropertyValueEvent(
                     this.name,
                     ownerId,
@@ -523,203 +556,203 @@ export class DomainModel {
                     property.serialize(pv.oldValue),
                     pv.version
                 )
-        );
-        return pv;
-    }
-
-    /**
-     * create a new domain entity using the specified schema
-     * @param schemaElement
-     * @param id
-     * @param version
-     * @returns {Hyperstore.ModelElement}
-     */
-    create(schemaElement:SchemaElement, id?:string, version?:number):ModelElement
-    {
-        Utils.Requires(schemaElement, "schemaElement");
-        if (typeof(schemaElement) == "string")
-            schemaElement = this.store.getSchemaEntity(<any>schemaElement);
-
-        if (!id)
-        {
-            id = this.createId();
-        }
-        var node = this._graph.addNode(id, schemaElement.id, version);
-        // after node creation
-        var mel = <ModelElement>schemaElement.deserialize(new SerializationContext(this, id));
-        this._raiseEvent(
-            new AddEntityEvent(this.name, id, schemaElement.id, node.version)
-        );
-        this._cache[id] = mel; // TODO cache mel in node and remove _cache
-        return mel;
-    }
-
-    /**
-     * create a new domain relationship using the specified schema
-     * @param schemaRelationship
-     * @param start
-     * @param endId
-     * @param endSchemaId
-     * @param id
-     * @param version
-     * @returns {Hyperstore.ModelRelationship}
-     */
-    createRelationship(schemaRelationship:SchemaRelationship, start:ModelElement, endId:string, endSchemaId:string, id?:string, version?:number):ModelRelationship
-    {
-        Utils.Requires(schemaRelationship, "schemaRelationship");
-        Utils.Requires(start, "start");
-        Utils.Requires(endId, "endId");
-        if (typeof(schemaRelationship) == "string")
-            schemaRelationship = this.store.getSchemaRelationship(<any>schemaRelationship);
-
-        if (!id)
-        {
-            id = this.createId();
+            );
+            return pv;
         }
 
-        var src = start.getInfo();
-        var node = this._graph.addRelationship(
-            id, schemaRelationship.id, src.id, src.schemaElement.id, endId, endSchemaId, version
-        );
-        // after node creation
-        var mel = <ModelRelationship>schemaRelationship.deserialize(
-            new SerializationContext(this, id, src.id, src.schemaElement.id, endId, endSchemaId)
-        );
+        /**
+         * create a new domain entity using the specified schema
+         * @param schemaElement
+         * @param id
+         * @param version
+         * @returns {Hyperstore.ModelElement}
+         */
+        create(schemaElement:SchemaElement, id?:string, version?:number):ModelElement
+        {
+            Utils.Requires(schemaElement, "schemaElement");
+            if (typeof(schemaElement) == "string")
+                schemaElement = this.store.getSchemaEntity(<any>schemaElement);
 
-        this._raiseEvent(new AddRelationshipEvent(
-            this.name, id, schemaRelationship.id, src.id, src.schemaElement.id, endId, endSchemaId, node.version)
-        );
-
-        this._cache[id] = mel; // TODO cache mel in node
-        return mel;
-    }
-
-    onEventRaised(evt:AbstractEvent) {
-
-    }
-
-    private _raiseEvent(evt) {
-        this.store.runInSession(
-            () => {
-                if( Array.isArray(evt)) {
-                    Utils.forEach(evt, e=> {Session.current.addEvent(e); this.onEventRaised(e);});
-                }
-                else {
-                    Session.current.addEvent(evt);
-                    this.onEventRaised(evt);
-                }
+            if (!id)
+            {
+                id = this.createId();
             }
-        );
-    }
+            var node = this._graph.addNode(id, schemaElement.id, version);
+            // after node creation
+            var mel = <ModelElement>schemaElement.deserialize(new SerializationContext(this, id));
+            this._raiseEvent(
+                new AddEntityEvent(this.name, id, schemaElement.id, node.version)
+            );
+            this._cache[id] = mel; // TODO cache mel in node and remove _cache
+            return mel;
+        }
 
-    /**
-     * remove an element (entity or relationship)
-     * @param id
-     * @param version
-     */
-    remove(id:string, version?:number)
-    {
-        var session = this.store.beginSession();
-        try
+        /**
+         * create a new domain relationship using the specified schema
+         * @param schemaRelationship
+         * @param start
+         * @param endId
+         * @param endSchemaId
+         * @param id
+         * @param version
+         * @returns {Hyperstore.ModelRelationship}
+         */
+        createRelationship(schemaRelationship:SchemaRelationship, start:ModelElement, endId:string, endSchemaId:string, id?:string, version?:number):ModelRelationship
         {
-            var events = this._graph.removeNode(id, version);
-            this._raiseEvent(events);
+            Utils.Requires(schemaRelationship, "schemaRelationship");
+            Utils.Requires(start, "start");
+            Utils.Requires(endId, "endId");
+            if (typeof(schemaRelationship) == "string")
+                schemaRelationship = this.store.getSchemaRelationship(<any>schemaRelationship);
 
-            Utils.forEach(
-                events, e =>
-                {
-                    var mel = this._cache[e.id];
-                    if (mel)
-                    {
-                        mel.dispose();
-                        delete mel;
+            if (!id)
+            {
+                id = this.createId();
+            }
+
+            var src = start.getInfo();
+            var node = this._graph.addRelationship(
+                id, schemaRelationship.id, src.id, src.schemaElement.id, endId, endSchemaId, version
+            );
+            // after node creation
+            var mel = <ModelRelationship>schemaRelationship.deserialize(
+                new SerializationContext(this, id, src.id, src.schemaElement.id, endId, endSchemaId)
+            );
+
+            this._raiseEvent(new AddRelationshipEvent(
+                                 this.name, id, schemaRelationship.id, src.id, src.schemaElement.id, endId, endSchemaId, node.version)
+            );
+
+            this._cache[id] = mel; // TODO cache mel in node
+            return mel;
+        }
+
+        onEventRaised(evt:AbstractEvent) {
+
+        }
+
+        private _raiseEvent(evt) {
+            this.store.runInSession(
+                () => {
+                    if( Array.isArray(evt)) {
+                        Utils.forEach(evt, e=> {Session.current.addEvent(e); this.onEventRaised(e);});
+                    }
+                    else {
+                        Session.current.addEvent(evt);
+                        this.onEventRaised(evt);
                     }
                 }
             );
-            session.acceptChanges();
         }
-        finally {
-            session.close();
-        }
-    }
 
-    /**
-     * check if an element (entity or relationship) exists
-     * @param id
-     * @returns {boolean}
-     */
-    elementExists(id:string):boolean
-    {
-        return !!this._graph.getNode(id);
-    }
-
-    /**
-     * get an element (entity or relationship) by its id
-     * @param id
-     * @returns {*}
-     */
-    get(id:string):ModelElement
-    {
-        var node = this._graph.getNode(id);
-        if (!node)
+        /**
+         * remove an element (entity or relationship)
+         * @param id
+         * @param version
+         */
+        remove(id:string, version?:number)
         {
-            return undefined;
-        }
-
-        var schemaElement = this.store.getSchemaElement(node.schemaId);
-        return this.getFromCache(
-            schemaElement, node.startId, node.startSchemaId, node.endId, node.endSchemaId, node.id
-        );
-    }
-
-    /**
-     * Get all entities
-     * @param schemaElement - filter on a specific schemaElement
-     * @returns {ICursor} - a cursor
-     */
-    getEntities(schemaElement?:SchemaElement):Cursor
-    {
-        return this.getElements(schemaElement, NodeType.Entity);
-    }
-
-    /**
-     * get a list of elements
-     * @param schemaElement - filter on a specific schemaElement
-     * @param kind - filter on a specific node type (entity or relationship)
-     * @returns {ICursor} - a cursor
-     */
-    getElements(schemaElement?:SchemaElement, kind:NodeType = NodeType.EntityOrRelationship):Cursor
-    {
-        if (typeof (schemaElement) === "string")
-        {
-            schemaElement = this.store.getSchemaElement(schemaElement.toString());
-        }
-        var _this = this;
-
-        return this._graph.getNodes(kind, schemaElement)
-            .map(
-            function (node)
+            var session = this.store.beginSession();
+            try
             {
-                var schemaElement = _this.store.getSchemaElement(node.schemaId);
-                return _this.getFromCache(
-                    schemaElement, node.startId, node.startSchemaId, node.endId, node.endSchemaId, node.id
-                );
-            }
-        );
-    }
+                var events = this._graph.removeNode(id, version);
+                this._raiseEvent(events);
 
-    private getFromCache(schemaElement:SchemaElement, startId?:string, startSchemaId?:string, endId?:string, endSchemaId?:string, id?:string)
-    {
-        var mel = this._cache[id];
-        if (mel)
+                Utils.forEach(
+                    events, e =>
+                    {
+                        var mel = this._cache[e.id];
+                        if (mel)
+                        {
+                            mel.dispose();
+                            delete mel;
+                        }
+                    }
+                );
+                session.acceptChanges();
+            }
+            finally {
+                session.close();
+            }
+        }
+
+        /**
+         * check if an element (entity or relationship) exists
+         * @param id
+         * @returns {boolean}
+         */
+        elementExists(id:string):boolean
         {
+            return !!this._graph.getNode(id);
+        }
+
+        /**
+         * get an element (entity or relationship) by its id
+         * @param id
+         * @returns {*}
+         */
+        get(id:string):ModelElement
+        {
+            var node = this._graph.getNode(id);
+            if (!node)
+            {
+                return undefined;
+            }
+
+            var schemaElement = this.store.getSchemaElement(node.schemaId);
+            return this.getFromCache(
+                schemaElement, node.startId, node.startSchemaId, node.endId, node.endSchemaId, node.id
+            );
+        }
+
+        /**
+         * Get all entities
+         * @param schemaElement - filter on a specific schemaElement
+         * @returns {ICursor} - a cursor
+         */
+        getEntities(schemaElement?:SchemaElement):Cursor
+        {
+            return this.getElements(schemaElement, NodeType.Entity);
+        }
+
+        /**
+         * get a list of elements
+         * @param schemaElement - filter on a specific schemaElement
+         * @param kind - filter on a specific node type (entity or relationship)
+         * @returns {ICursor} - a cursor
+         */
+        getElements(schemaElement?:SchemaElement, kind:NodeType = NodeType.EntityOrRelationship):Cursor
+        {
+            if (typeof (schemaElement) === "string")
+            {
+                schemaElement = this.store.getSchemaElement(schemaElement.toString());
+            }
+            var _this = this;
+
+            return this._graph.getNodes(kind, schemaElement)
+                .map(
+                function (node)
+                {
+                    var schemaElement = _this.store.getSchemaElement(node.schemaId);
+                    return _this.getFromCache(
+                        schemaElement, node.startId, node.startSchemaId, node.endId, node.endSchemaId, node.id
+                    );
+                }
+            );
+        }
+
+        private getFromCache(schemaElement:SchemaElement, startId?:string, startSchemaId?:string, endId?:string, endSchemaId?:string, id?:string)
+        {
+            var mel = this._cache[id];
+            if (mel)
+            {
+                return mel;
+            }
+            mel = schemaElement.deserialize(new SerializationContext(this, id, startId, startSchemaId, endId, endSchemaId));
+            this._cache[mel.id] = mel;
             return mel;
         }
-        mel = schemaElement.deserialize(new SerializationContext(this, id, startId, startSchemaId, endId, endSchemaId));
-        this._cache[mel.id] = mel;
-        return mel;
     }
-}
 
     export class DomainModelScope extends DomainModel {
         private _events: AbstractEvent[];
@@ -764,7 +797,7 @@ export class DomainModel {
             });
         }
 
-       // getFromCache(id) {}
+        // getFromCache(id) {}
     }
 
     class Hypergraph
@@ -927,23 +960,23 @@ export class DomainModel {
                     var nodes = [];
                     var edges = this.getEdges(node.id, Direction.Outgoing);
                     edges.forEach(edge =>
-                    {
-                        if (!sawNodes[edge.id])
-                        {
-                            sawNodes[edge.id] = true;
-                            nodes.push(this.getNode(edge.id));
-                        }
-                    });
+                                  {
+                                      if (!sawNodes[edge.id])
+                                      {
+                                          sawNodes[edge.id] = true;
+                                          nodes.push(this.getNode(edge.id));
+                                      }
+                                  });
 
                     edges = this.getEdges(node.id, Direction.Incoming);
                     edges.forEach(edge =>
-                    {
-                        if (!sawNodes[edge.id])
-                        {
-                            sawNodes[edge.id] = true;
-                            nodes.push(this.getNode(edge.id));
-                        }
-                    });
+                                  {
+                                      if (!sawNodes[edge.id])
+                                      {
+                                          sawNodes[edge.id] = true;
+                                          nodes.push(this.getNode(edge.id));
+                                      }
+                                  });
 
                     // If this is a relationship and embedded, remove end element
                     if (node.startId)
@@ -995,10 +1028,10 @@ export class DomainModel {
             if(!node.needsUpdate)
                 this._nodes[index] = null;
             this._deletedNodes++;
-           // if( this.domain.store.keepDeletedNodes)
+            // if( this.domain.store.keepDeletedNodes)
             this._keys[id] = Hypergraph.DELETED_NODE;
-           // else
-           //     delete this._keys[index];
+            // else
+            //     delete this._keys[index];
 
             if (node.kind === NodeType.Relationship)
             {
@@ -1029,7 +1062,7 @@ export class DomainModel {
             var schema = this.domain.store.getSchemaElement(node.schemaId);
             var self = this;
             schema.getProperties(true).forEach(
-                p=>
+                    p=>
                 {
                     var pnode = node.properties[p.name];
                     if (pnode)
@@ -1108,11 +1141,11 @@ export class DomainModel {
         getNodes(kind:NodeType, schema?:SchemaElement): Cursor
         {
             return new ConcatCursor(
-                    new NodesCursor(this, kind, schema),
-                    new MapCursor(
-                        new NodesCursor(this.domain.getGraph(), kind, schema),
-                        n => this._keys[n.id] !== Hypergraph.DELETED_NODE ? n : undefined
-                    )
+                new NodesCursor(this, kind, schema),
+                new MapCursor(
+                    new NodesCursor(this.domain.getGraph(), kind, schema),
+                    n => this._keys[n.id] !== Hypergraph.DELETED_NODE ? n : undefined
+                )
             );
         }
 
