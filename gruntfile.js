@@ -21,6 +21,7 @@ module.exports = function (grunt) {
             core : {
                 options: {
                     process : function(content, path) {
+                        if( path.substring(path.length - 4 ) === "d.ts") return content;
                         return "(function(global, name, definition) {" +
                         "if (typeof module != 'undefined')  definition(module.exports, require('q'));"+
                         "else if (typeof define == 'function' && typeof define.amd == 'object') define(['exports', 'require'], definition(exports));"+
@@ -28,7 +29,7 @@ module.exports = function (grunt) {
                     "}(this, 'Hyperstore', function(Hyperstore, Q) {" + content + "}));";
                     }
                 },
-                src:'.built/dist/hyperstore.js', dest: 'lib/hyperstore.js'
+                expand: "true", cwd: '.built/dist/', src:'hyperstore*', dest: 'lib/', filter:"isFile", flatten:true
             },
 
             schemas : {
@@ -106,7 +107,7 @@ module.exports = function (grunt) {
                 src: ['src/Browser/**/*.ts'],
                 dest : '.built/',
                 options: {
-                    declaration : false,
+                    declaration : true,
                     target : 'es5',
                     noEmitOnError:true,
                     removeComments:true,
@@ -118,7 +119,7 @@ module.exports = function (grunt) {
                 src: ['src/Nodejs/**/*.ts'],
                 dest : '.built/',
                 options: {
-                    declaration : false,
+                    declaration : true,
                     target : 'es5',
                     noEmitOnError:true,
                     removeComments:true,

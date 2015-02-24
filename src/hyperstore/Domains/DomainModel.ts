@@ -107,7 +107,7 @@ module Hyperstore
         createId(id?:string):string
         {
             id = id || (DomainModel._seq++).toString();
-            return this.name + Store.IdSeparator + (id || Utils.newGuid());
+            return id.indexOf(Store.IdSeparator) < 0 ? this.name + Store.IdSeparator + (id || Utils.newGuid()) : id;
         }
         static _seq:number=0;
         /**
@@ -225,7 +225,11 @@ module Hyperstore
                 mel = (<any>schema).loadFromJson(this, obj);
             }
             if(!mel) {
-                mel = this.create(schema);
+                var propKey = Utils.firstOrDefault( schema.getProperties(true), p=>p.schemaProperty.isKey);
+                if( propKey) {
+                    var id = obj[propKey.name];
+                }
+                mel = this.create(schema, id);
                 mel.loadFromJson(obj, refs);
             }
             return mel;
@@ -415,21 +419,22 @@ module Hyperstore
             }
             else
             {
-                return this._graph.getNodes(NodeType.Relationship, schemaElement).map(info=>
-                                                                                      {
-                                                                                          if (!tmpSchema || info.schemaId !== tmpSchema.id)
-                                                                                          {
-                                                                                              tmpSchema = this.store.getSchemaElement(info.schemaId);
-                                                                                          }
-                                                                                          if (!schemaElement || tmpSchema.isA(schemaElement.id))
-                                                                                          {
-                                                                                              return this.getFromCache(
-                                                                                                  tmpSchema, info.startId, info.startSchemaId, info.endId, info.endSchemaId, info.id
-                                                                                              );
-                                                                                          }
+                return this._graph.getNodes(NodeType.Relationship, schemaElement)
+                    .map(info=>
+                      {
+                          if (!tmpSchema || info.schemaId !== tmpSchema.id)
+                          {
+                              tmpSchema = this.store.getSchemaElement(info.schemaId);
+                          }
+                          if (!schemaElement || tmpSchema.isA(schemaElement.id))
+                          {
+                              return this.getFromCache(
+                                  tmpSchema, info.startId, info.startSchemaId, info.endId, info.endSchemaId, info.id
+                              );
+                          }
 
-                                                                                          return undefined;
-                                                                                      }
+                          return undefined;
+                      }
                 );
             }
             return Cursor.emptyCursor;
@@ -442,26 +447,31 @@ module Hyperstore
             var copy = refs[ownerId];
             if(copy) return copy;
 
-            copy = (<any>schema).create(this, ownerId);
+            if( mel.getDomain().name === this.name || (copy = this.get(ownerId)) == null) // merge
+                copy = (<any>schema).create(this, ownerId);
             refs[ownerId] = copy;
 
             var self = this;
             mel.getSchemaElement().getProperties(true).forEach(prop =>
                 {
+                    if( prop.kind !== PropertyKind.Normal)
+                        return;
                     var pid = ownerId + "." + prop.name;
-                    var node = this._graph.getPropertyNode(pid);
-                    node = this._graph.addPropertyNode(pid, prop.schemaProperty.id, node.value, Utils.getUtcNow() );
-                    this._raiseEvent(
-                        new ChangePropertyValueEvent(
-                            this.name,
-                            ownerId,
-                            schema.id,
-                            prop.name,
-                            prop.serialize(node.value),
-                            undefined,
-                            node.version
-                        )
-                    );
+                    var pv = mel.getDomain().getPropertyValue(mel.getId(),prop);
+                    if( pv && pv.version) {
+                        var node = this._graph.addPropertyNode(pid, prop.schemaProperty.id, pv.value, Utils.getUtcNow());
+                        this._raiseEvent(
+                            new ChangePropertyValueEvent(
+                                this.name,
+                                ownerId,
+                                schema.id,
+                                prop.name,
+                                prop.serialize(pv.value),
+                                undefined,
+                                node.version
+                            )
+                        );
+                    }
                 }
             );
             mel.getRelationships().forEach(rel=>
@@ -573,10 +583,7 @@ module Hyperstore
             if (typeof(schemaElement) == "string")
                 schemaElement = this.store.getSchemaEntity(<any>schemaElement);
 
-            if (!id)
-            {
-                id = this.createId();
-            }
+            id = this.createId(id);
             var node = this._graph.addNode(id, schemaElement.id, version);
             // after node creation
             var mel = <ModelElement>schemaElement.deserialize(new SerializationContext(this, id));
@@ -605,10 +612,7 @@ module Hyperstore
             if (typeof(schemaRelationship) == "string")
                 schemaRelationship = this.store.getSchemaRelationship(<any>schemaRelationship);
 
-            if (!id)
-            {
-                id = this.createId();
-            }
+            id = this.createId(id);
 
             var src = start.getInfo();
             var node = this._graph.addRelationship(
@@ -645,6 +649,13 @@ module Hyperstore
             );
         }
 
+        private normalizeId(id) {
+            if(id == null)
+                throw "Invalid id. Must not be null";
+            var pos = id.indexOf(Store.IdSeparator);
+            return pos <=0 ? this.name + Store.IdSeparator + id : id; // TODO remove domainName in key
+        }
+
         /**
          * remove an element (entity or relationship)
          * @param id
@@ -652,6 +663,7 @@ module Hyperstore
          */
         remove(id:string, version?:number)
         {
+            id = this.normalizeId(id);
             var session = this.store.beginSession();
             try
             {
@@ -683,6 +695,7 @@ module Hyperstore
          */
         elementExists(id:string):boolean
         {
+            id = this.normalizeId(id);
             return !!this._graph.getNode(id);
         }
 
@@ -693,6 +706,7 @@ module Hyperstore
          */
         get(id:string):ModelElement
         {
+            id = this.normalizeId(id);
             var node = this._graph.getNode(id);
             if (!node)
             {
@@ -764,6 +778,14 @@ module Hyperstore
             // simulate graph property as protected
             that._graph = new HypergraphEx(domain);
             this._events = [];
+        }
+
+        /**
+         * unload scope
+         * @param commitChanges - apply changes on the parent domain
+         */
+        unload(commitChanges:boolean=false) {
+            this.store.unloadDomain(this,commitChanges );
         }
 
         /**

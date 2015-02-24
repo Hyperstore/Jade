@@ -68,7 +68,7 @@ describe('Validation tests', function ()
         session.acceptChanges();
         var r = session.close();
         expect(r.hasErrorsOrWarnings).to.equal(true);
-        expect(r.messages.length).to.equal(3); // Num : str is not a number, Values
+        expect(r.messages.length).to.equal(3); // Num : str is not a number, Values, range
         session = store.beginSession();
         item.Num = 2;
         item.Values = "A";

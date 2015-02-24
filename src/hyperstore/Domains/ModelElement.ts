@@ -217,90 +217,6 @@ module Hyperstore {
             }
         }
 
-        /**
-         *
-         * @returns {string}
-         */
-        /*stringify():string {
-            if (this.isDisposed) {
-                throw "Can not use a disposed element";
-            }
-
-            var seen = [];
-            var self = this;
-
-            var json = JSON.stringify(
-                this, function (k, v) {
-                    if (k.length === 0 || !isNaN(parseInt(k)) || !v) {
-                        return v;
-                    }
-
-                    switch (k) {
-                        case "_id":
-                            if (seen.indexOf(v) !== -1) {
-                                return undefined;
-                            }
-                            seen.push(v);
-                            return v;
-                        case "_info":
-                            return JSON.stringify( this._info.startId ?
-                            {
-                                id: this._info.id,
-                                sch: this._info.schemaElement.id,
-                                sid: this._info.startId,
-                                ssid: this._info.startSchemaId,
-                                eid: this._info.endId,
-                                seid: this._info.endSchemaId
-                            }:
-                            {
-                                id: this._info.id,
-                                sch: this._info.schemaElement.id
-                            });
-
-                        case "startSchemaId":
-                        case "endId":
-                        case "endSchemaId":
-                        case "$id":
-                        case "schemaElement":
-                        case "domain":
-                        case "start":
-                        case "end":
-                        case "_start":
-                        case "_end":
-                            return undefined;
-                    }
-
-                    var schema = self.getInfo().schemaElement;
-                    var p = schema.getProperty(k, true);
-                    if (!p) {
-                        var r = schema.getReference(k, true);
-
-                        if (r && (
-                            !r.opposite && r.schemaRelationship.startProperty ||
-                            r.opposite && r.schemaRelationship.endProperty )) {
-                            if (r.schemaRelationship.cardinality === Cardinality.ManyToMany ||
-                                !r.opposite && r.schemaRelationship.cardinality === Cardinality.OneToMany
-                                || r.opposite && r.schemaRelationship.cardinality === Cardinality.ManyToOne) {
-                                return Utils.select(
-                                    v.items, i => seen.indexOf(i.id) === -1
-                                        ? i
-                                        : {$id: i.id}
-                                );
-                            }
-
-                            return seen.indexOf(v.id) === -1
-                                ? v
-                                : {$id: v.id};
-                        }
-
-                        return undefined;
-                    }
-                    return p.kind === PropertyKind.Calculated ? undefined : p.serialize(v);
-                }
-            );
-
-            return json;
-        }*/
 
         /**
          *
@@ -333,6 +249,8 @@ module Hyperstore {
             var self = this;
             this.getSchemaElement().getProperties(true).forEach(prop =>
                 {
+                    if( prop.kind !== PropertyKind.Normal)
+                        return;
                     var val = this.get(prop);
                     if (val)
                     {
@@ -384,22 +302,23 @@ module Hyperstore {
             return obj;
         }
 
-        dump(indent:number=0) {
+        dump(writer=console.log, indent:number=0) {
             var tab = "";
             for(var i=0;i<indent;i++)
-                tab += ".";
-            console.log(tab + this._info.schemaElement.id + " " + this._info.id + " --------------");
+                tab += " ";
+            writer(tab + this._info.schemaElement.id + " " + this._info.id + " --------------");
             this.getSchemaElement().getProperties(true).forEach( prop => {
-               console.log(tab + " " + prop.name + " = " + this.get(prop));
+                if( prop.kind === PropertyKind.Normal)
+                    writer(tab + " " + prop.name + " = " + this.get(prop));
             });
 
             var lastRelSchema;
             this.getRelationships().map( rel=> rel.getSchemaElement().embedded ? rel : null).forEach( rel => {
                 if( !lastRelSchema || lastRelSchema !== rel.getSchemaElement().id) {
                     lastRelSchema = rel.getSchemaElement().id;
-                    console.log(tab + " [" + rel.getSchemaElement().startProperty + "] :");
+                    writer(tab + " [" + rel.getSchemaElement().startProperty + "] :");
                 }
-                rel.getEnd().dump(indent+2);
+                rel.getEnd().dump(writer, indent+2);
             });
         }
     }

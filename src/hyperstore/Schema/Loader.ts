@@ -56,8 +56,7 @@ module Hyperstore
             if (!Array.isArray(schemas)) schemas = [schemas];
             this._configs = schemas;
             this._schemas = new HashTable<string,any>();
-            this._configs.forEach(
-                    schema =>
+            this._configs.forEach(schema =>
                 {
                     var state = this._parseSchema(schema);
                     meta[state.id] = state.meta;
@@ -341,12 +340,10 @@ module Hyperstore
                     name + ". Use reference instead.", this._state.schema
                 );
             }
-
-            this.extends(t, definition, p => {
-                    return (p === "type" || p === "constraints" || p === "default") ? null : p;
+            this.extends(t, definition, n => {
+                    return (n === "type" || n === "constraints" || n === "default") ? null : n;
                 }
             );
-
             var p = entity.defineProperty(name, t, definition.default);
             this.parseConstraints(definition.constraints, c => p.addConstraint(c.message, c.condition, c.error, c.kind));
         }
@@ -396,7 +393,13 @@ module Hyperstore
                 fullName = state.id + Store.IdSeparator + n;
             }
 
-            return valueObject || this._loader.store.getSchemaInfo(fullName, false) || this._loader.store.getSchemaInfo(name, false);
+            valueObject = valueObject || this._loader.store.getSchemaInfo(fullName, false);
+            if( valueObject) return valueObject;
+            valueObject = this._loader.store.getSchemaInfo(name, false);
+            if( valueObject.kind === SchemaKind.Primitive) {
+                valueObject = new SchemaValueObject(this._state.schema, propertyName + "_" + valueObject.name + (++SchemaParser.typeSequence).toString(), valueObject );
+            }
+            return valueObject;
         }
 
         private trySharedTypes(state, name:string, propertyName:string) {
@@ -406,7 +409,7 @@ module Hyperstore
                 return;
 
             name = propertyName + "_" + name + (++SchemaParser.typeSequence).toString();
-            var valueObject = new SchemaValueObject(state.schema, name);
+            var valueObject = new SchemaValueObject(this._state.schema, name);
 
             this.extends(valueObject, val, p => {
                 if (p === "type") {

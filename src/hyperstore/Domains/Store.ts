@@ -312,8 +312,7 @@ module Hyperstore
 
             if (def.seed)
             {
-                if (typeof(
-                        def.seed) === "function")
+                if (typeof(def.seed) === "function")
                 {
                     var session = domain.store.beginSession();
                     try
@@ -327,8 +326,7 @@ module Hyperstore
                         return r;
                     }
                 }
-                else if (typeof(
-                        def.seed) === "string")
+                else if (typeof(def.seed) === "string")
                 {
                     // url
                 }
