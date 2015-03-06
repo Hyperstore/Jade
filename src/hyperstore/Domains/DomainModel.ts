@@ -214,7 +214,7 @@ module Hyperstore
             }
         }
 
-        __parseJson(obj:any, rootSchema:SchemaElement, refs):ModelElement
+        __parseJson(obj:any, rootSchema:SchemaElement, refs, parent?):ModelElement
         {
             var schema = this.introspectSchema(rootSchema, obj);
             if(!schema)
@@ -222,7 +222,7 @@ module Hyperstore
 
             var mel;
             if( (<any>schema).loadFromJson) {
-                mel = (<any>schema).loadFromJson(this, obj);
+                mel = (<any>schema).loadFromJson(this, obj, parent);
             }
             if(!mel) {
                 var propKey = Utils.firstOrDefault( schema.getProperties(true), p=>p.schemaProperty.isKey);
@@ -440,16 +440,19 @@ module Hyperstore
             return Cursor.emptyCursor;
         }
 
-        copy(mel:ModelElement, refs?) {
-            refs = refs || {};
+        copy(mel:ModelElement, options?) {
+            options = options || {refs : {}};
+            var refs = options.refs || (options.refs = {});
             var schema = mel.getSchemaElement();
-            var ownerId = this.createId( Utils.splitIdentity(mel.getId())[1]);
-            var copy = refs[ownerId];
+
+            var ownerId = this.createId( options.mapId ? options.mapId(this, mel) : Utils.splitIdentity(mel.getId())[1] );
+
+            var copy = options.refs[ownerId];
             if(copy) return copy;
 
             if( mel.getDomain().name === this.name || (copy = this.get(ownerId)) == null) // merge
                 copy = (<any>schema).create(this, ownerId);
-            refs[ownerId] = copy;
+            options.refs[ownerId] = copy;
 
             var self = this;
             mel.getSchemaElement().getProperties(true).forEach(prop =>
@@ -482,7 +485,7 @@ module Hyperstore
                         return;
 
                     if (end.getDomain().name === mel.getDomain().name ) {
-                        end = this.copy(end, refs);
+                        end = this.copy(end, options);
                     }
                     this.createRelationship(rs, copy, end.getId(), end.getSchemaElement().id);
                 }
@@ -1344,7 +1347,7 @@ module Hyperstore
                     return false;
                 }
                 var r = this._filter(this._cursor.next());
-                if( r ) {
+                if( r != null) {
                     this._current = r;
                     return true;
                 }

@@ -435,11 +435,7 @@ module Hyperstore
 
         getActiveDomains() : HashTable<string,DomainModel> {
             var dic = new HashTable<string,DomainModel>();
-            this._domains.reset();
-            while(this._domains.hasNext()) {
-                var d = this._domains.next();
-                dic._fastInsert(d.name, d);
-            }
+            this._domains.all().forEach( d=> { dic._fastInsert(d.name, d);});
             return dic;
         }
 

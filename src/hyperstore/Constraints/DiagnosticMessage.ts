@@ -40,6 +40,14 @@ module Hyperstore
         /**
          *
          * @returns {string}
+         */
+        toString() {
+            return this.message;
+        }
+
+        /**
+         *
+         * @returns {string}
          * @private
          */
         static __format(message:string, element, propertyName:string, val?, old?):string

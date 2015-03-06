@@ -190,7 +190,17 @@ module Hyperstore {
                         }
                         else
                         {
-                            elem = domain.__parseJson(v, endSchema, refs);
+                            if (v.$id)
+                            {
+                                refs[v.$id] = elem;
+                            }
+                            if((<any>rel.schemaRelationship).loadFromJson)
+                            {
+                                var relationShip = (<any>rel.schemaRelationship).loadFromJson(this.getDomain(), this, v);
+                                if(relationShip)
+                                    continue;
+                            }
+                            elem = domain.__parseJson(v, endSchema, refs, this);
                         }
 
                         var src = rel.opposite
@@ -206,12 +216,6 @@ module Hyperstore {
                             var endInfo = end.getInfo();
                             d.createRelationship(rel.schemaRelationship, src, endInfo.id, endInfo.schemaElement.id);
                         }
-
-                        if (v.$id)
-                        {
-                            refs[v.$id] = elem;
-                        }
-
                     }
                 }
             }

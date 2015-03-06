@@ -166,10 +166,11 @@ module Hyperstore
             this.parseConstraints(o.constraints, c=> entity.addConstraint(c.message, c.condition, c.error, c.kind));
             this._state.meta[name] = entity;
 
-            for (var prop in o.properties)
-            {
-                if (prop[0] !== "$" && o.properties.hasOwnProperty(prop))
-                    this.parseProperty(prop, o.properties[prop], entity);
+            if(o.properties) {
+                for (var prop in o.properties) {
+                    if (prop[0] !== "$" && o.properties.hasOwnProperty(prop))
+                        this.parseProperty(prop, o.properties[prop], entity);
+                }
             }
 
             for (var prop in o.references)
@@ -185,6 +186,7 @@ module Hyperstore
                         kind    : d.kind || "OneToMany",
                         name    : d.name,
                         property: prop,
+                        obj     : d,
                         const   : d.constraints
                     }
                 );
@@ -233,8 +235,7 @@ module Hyperstore
                 end = t;
             }
 
-            var name = def.name || src.name + (
-                    c.embedded ? 'Has' : 'References') + end.name;
+            var name = def.name || src.name + (c.embedded ? 'Has' : 'References') + end.name;
             var rel = this._state.schema.store.getSchemaRelationship(name, false);
             if (rel)
             {
@@ -266,18 +267,18 @@ module Hyperstore
             {
                 rel[c.opposite ? "endProperty" : "startProperty"] = def.property;
             }
+            if(def.properties) {
+                for (var prop in def.properties) {
+                    if (prop[0] !== "$" && def.properties.hasOwnProperty(prop))
+                        this.parseProperty(prop, def.properties[prop], rel);
+                }
+            }
+
+            if(def.references)
+                throw "References in relationship is not supported yet.";
 
             if (!def.obj)
                 return;
-
-            for (var prop in def.obj)
-            {
-                if (!def.obj.hasOwnProperty(prop) || prop[0] === "$"
-                    || prop === "end" || prop === "kind" || prop === "extends"
-                    || prop === "source" || prop === "constraints")
-                    continue;
-                this.parseProperty(prop, def.obj[prop], rel);
-            }
 
             this.extends(rel, def.obj.members);
         }
@@ -396,7 +397,7 @@ module Hyperstore
             valueObject = valueObject || this._loader.store.getSchemaInfo(fullName, false);
             if( valueObject) return valueObject;
             valueObject = this._loader.store.getSchemaInfo(name, false);
-            if( valueObject.kind === SchemaKind.Primitive) {
+            if( valueObject && valueObject.kind === SchemaKind.Primitive) {
                 valueObject = new SchemaValueObject(this._state.schema, propertyName + "_" + valueObject.name + (++SchemaParser.typeSequence).toString(), valueObject );
             }
             return valueObject;

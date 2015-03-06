@@ -274,7 +274,6 @@ export class SchemaElement extends SchemaInfo
      */
     deserialize(ctx:SerializationContext) : ModelElement
     {
-        if( !ctx.id) return; // deserializing __parseJson
         var mel = <ModelRelationship>Object.create(this.proto);
 
         mel.__initialize(ctx.domain, ctx.id, this, ctx.startId, ctx.startSchemaId, ctx.endId, ctx.endSchemaId);
@@ -299,6 +298,7 @@ export class SchemaElement extends SchemaInfo
                 }
             }
         );
+
         return mel;
     }
 

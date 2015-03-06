@@ -23,7 +23,7 @@
         // Shared constraints can be referenced with the $ref property name.
         constraints: {
             "required": {
-                message: "Property {propertyName} is required",
+                message: "Property '{propertyName}' is required",
                 check: function (val) {
                     return val != undefined;
                 }
@@ -37,7 +37,7 @@
                 type: "string",
                 constraints: {
                     "duplicate": {
-                        message: "Duplicate value {value} for {propertyName}",
+                        message: "Duplicate value '{value}' for {propertyName}",
                         // Property condition
                         // val : current value
                         // old : old value
@@ -67,7 +67,7 @@
                 type: "string",
                 max: 0,
                 constraints: {
-                    "Value {propertyName} must have less than {$max} characters.": function (val) {
+                    " Inavlid value '{value}' for  {propertyName} must have less than {$max} characters.": function (val) {
                         return this.max === 0 || val.length <= this.max;
                     }
                 }
@@ -79,7 +79,7 @@
                 pattern: /[a-zA-Z0-9.!#$%&'*+-/=?\^_`{|}~-]+@[a-zA-Z0-9-]+(?:\.[a-zA-Z0-9-]+)*/,
                 constraints: {
                     check_format: {
-                        message: "Invalid email",
+                        message: "Invalid email '{value}' for property '{propertyName}'.",
                         check: function (val) {
                             return (!val && this.optional) || this.pattern.test(val);
                         }
@@ -91,7 +91,7 @@
                 values: [],
                 constraints: {
                     "invalid": {
-                        message: "Invalid property {propertyName} must be one of {$values}",
+                        message: "Invalid value '{value}' for property '{propertyName}' must be one of {$values}",
                         check: function (val) {
                             return this.values.indexOf(val) !== -1;
                         }
@@ -106,7 +106,7 @@
                 optional: false,
                 constraints: {
                     "invalid": {
-                        message: "Invalid {propertyName} value must be between {$min} and {$max}",
+                        message: "Invalid value '{value}' for '{propertyName}' value must be between {$min} and {$max}",
                         check: function (val) {
                             return (!val && this.optional) || val >= this.min && val <= this.max;
                         }
@@ -119,7 +119,7 @@
                 optional: false,
                 constraints: {
                     "invalid": {
-                        message: "Invalid {propertyName}. Must be an array of {$valueType}",
+                        message: "Invalid value '{value}' for '{propertyName}'. Must be an array of {$valueType}",
                         check: function (val) {
                             if (!val) return this.optional;
                             if (!val.length) return false;
