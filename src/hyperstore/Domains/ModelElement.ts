@@ -77,12 +77,31 @@ module Hyperstore {
             }
         }
 
+        getKey(includeParentKey=false) : string {
+            var empty = "";
+            var keyProperties = this.getSchemaElement().getKeyProperties().toArray();
+            if( keyProperties.length === 0) return;
+            var keys = [];
+            if(includeParentKey) {
+                var parent = this.getParent();
+                if (parent) {
+                    var v = parent.getKey(true);
+                    if (v) {
+                        keys.push(v);
+                        keys.push(".");
+                    }
+                }
+            }
+            keyProperties.forEach( p => keys.push(this.get(p)||empty));
+            return keys.join(empty);
+        }
+
         /**
          * get the parent container
          * @returns {Hyperstore.ModelElement|ModelElement}
          */
         getParent() : ModelElement {
-            var rel = this.getRelationships(undefined, Direction.Incoming).firstOrDefault( r => r.embedded );
+            var rel = this.getRelationships(undefined, Direction.Incoming).firstOrDefault( r => r.getSchemaElement().embedded );
             return rel ? rel.getStart() : undefined;
         }
 

@@ -130,8 +130,11 @@ module Hyperstore
     {
         public constraints:ConstraintsManager;
 
+        private _elements: HashTable<string,SchemaInfo>;
+
         constructor(public store:Store, public name?:string, def?:ISchemaDefinition)
         {
+            this._elements = new HashTable<string,SchemaInfo>();
             this.constraints = new ConstraintsManager(this);
             if (def && def.defineSchema)
             {
@@ -140,8 +143,35 @@ module Hyperstore
             store.__addSchema(name, this);
         }
 
+        /**
+         * get all schema elements
+         * @returns {Hyperstore.Cursor}
+         */
+        getSchemaElements() : Cursor {
+            return new MapCursor(this._elements, s => s);
+        }
+
+        getSchemaEntities() : Cursor {
+            return new MapCursor(this._elements, (s:SchemaInfo) => s.kind === SchemaKind.Entity ?  s : undefined);
+        }
+
+        getSchemaRelationships(start?:SchemaElement, end?:SchemaElement) : Cursor {
+            return new MapCursor(this._elements, (s:SchemaInfo) => {
+                if(s.kind !== SchemaKind.Relationship) return;
+                if( start && (<any>s).startProperty !== start.id) return;
+                if( end && (<any>s).endProperty !== end.id) return;
+                return s;
+            });
+        }
+
         __addSchemaElement(schemaInfo:SchemaInfo)
         {
+            var id = schemaInfo.id.toLowerCase();
+            var pos = id.indexOf(':');
+            var simpleName = pos < 0 ? id : id.substr(pos + 1);
+            if( this._elements.keyExists(simpleName))
+                throw "Duplicate schema name " + id;
+            this._elements.add(simpleName, schemaInfo);
             this.store.__addSchemaElement(schemaInfo);
         }
     }

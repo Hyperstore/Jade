@@ -27,17 +27,19 @@ export class SchemaProperty
      * Schema element owner
      */
     public owner:SchemaElement;
+    public isKey = false;
 
     /**
      * create a new instance.
      *
+     * @param parent property owner
      * @param name Name of the property
      * @param schemaProperty
      * @param defaultValue Default value or function representing a calculated value.
      * @param kind Use [[PropertyKind.CalculatedValue]] for a calculated value. You must provide a function in the
      * defaultValue argument.
      */
-    constructor(public name:string, public schemaProperty:SchemaInfo, public defaultValue?:any, public kind:PropertyKind = PropertyKind.Normal)
+    constructor(public parent:SchemaElement, public name:string, public schemaProperty:SchemaInfo, public defaultValue?:any, public kind:PropertyKind = PropertyKind.Normal)
     {
         if(!schemaProperty)
             throw "Invalid schema property for property " + name;

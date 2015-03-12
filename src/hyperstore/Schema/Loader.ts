@@ -24,16 +24,18 @@ module Hyperstore
         constraints;
         id:string;
         meta;
+        extension = false;
 
         static Pending = new SchemaState(null, "$pending");
 
-        constructor(store:Store, public config)
+        constructor(store:Store, public config, schema?, ext=false)
         {
+            this.extension = ext;
             if (store)
             {
                 this.constraints = {};
                 this.id = config.id;
-                this.schema = new Schema(store, this.id);
+                this.schema = schema || new Schema(store, this.id);
                 this.meta = {};
             }
         }
@@ -43,19 +45,23 @@ module Hyperstore
     {
         private _schemas:HashTable<string,SchemaState>;
         private _configs:any[];
+        private _overrides;
 
         constructor(public store:Store)
         {
         }
 
-        loadSchemas(schemas):any
+        loadSchemas(schemas, overrides?):any
         {
             var meta = {};
             if (!schemas) return meta;
+            this._overrides = overrides;
 
             if (!Array.isArray(schemas)) schemas = [schemas];
             this._configs = schemas;
             this._schemas = new HashTable<string,any>();
+            this.store.schemas.forEach( s => this._schemas.add(s.name, new SchemaState(this.store, {id:s.name}, s, false)));
+
             this._configs.forEach(schema =>
                 {
                     var state = this._parseSchema(schema);
@@ -74,9 +80,41 @@ module Hyperstore
 
             this._schemas.add(config.id, SchemaState.Pending);
             var parser = new SchemaParser(this);
-            state = parser.parse(config);
+
+            state = parser.parse(this.mergeOverride( config));
             this._schemas.add(state.id, state);
             return state;
+        }
+
+        private mergeOverride(config) {
+
+            if( !this._overrides) return config;
+            Utils.forEach(this._overrides, over => {
+                if( over.extends !== config.id) return;
+                delete over.extends;
+                this.mergeJson(config, over);
+            });
+            return config;
+        }
+
+        private mergeJson(result, source) {
+            if( !source) return result;
+            for(var prop in source) {
+                if( !source.hasOwnProperty(prop)) continue;
+                var val = source[prop];
+                if(typeof(val) === "object") {
+                    var t = result[prop];
+                    if(t)
+                        this.mergeJson(t, val);
+                    else
+                        result[prop] = val;
+                }
+                else if( Array.isArray(val)){
+                    throw "Can not merge array from " + source;
+                }
+                else
+                    result[prop] = val;
+            }
         }
 
         _resolveSchema(id:string):any
@@ -124,23 +162,28 @@ module Hyperstore
             this._imports = new HashTable<string, SchemaState>();
         }
 
-        parse(schema):SchemaState
+        parse(schemaDefinition):SchemaState
         {
-            if (!schema) return undefined;
+            if (!schemaDefinition) return undefined;
 
-            var id = schema.id;
-            this._state = new SchemaState(this._loader.store, schema);
+            var id = schemaDefinition.id;
+            if( schemaDefinition.extends) {
+                var schema = this._loader.store.schemas.firstOrDefault( s => s.name === schemaDefinition.extends);
+                if( !schema)
+                    throw "Unknown schema to extends " + schemaDefinition.extends;
+            }
+            this._state = new SchemaState(this._loader.store, schemaDefinition, schema, !!schema);
 
-            this.parseImports(schema);
+            this.parseImports(schemaDefinition);
             // Global constraints
-            this.parseConstraints(schema.constraints, ct=> this._state.constraints[ct.name] = ct);
+            this.parseConstraints(schemaDefinition.constraints, ct=> this._state.constraints[ct.name] = ct);
 
             this.pendings = [];
-            for (var name in schema)
+            for (var name in schemaDefinition)
             {
-                if (name[0] !== "$" && name !== "constraints" && name !== "types" && name !== "id")
+                if (name[0] !== "$" && name !== "constraints" && name !== "types" && name !== "id" && name !== "extends")
                 {
-                    var o = schema[name];
+                    var o = schemaDefinition[name];
                     if (o.source)
                         this.parseRelationship(o, name);
                     else
@@ -162,7 +205,7 @@ module Hyperstore
                     throw new SchemaLoaderException("Unknown extended entity " + o.extends, this._state.config);
             }
 
-            var entity = new SchemaEntity(this._state.schema, name, base);
+            var entity = (this._state.extension ? this._state.schema.store.getSchemaEntity(this._state.schema.name + ":" + name, false) : null) || new SchemaEntity(this._state.schema, name, base);
             this.parseConstraints(o.constraints, c=> entity.addConstraint(c.message, c.condition, c.error, c.kind));
             this._state.meta[name] = entity;
 
@@ -183,7 +226,7 @@ module Hyperstore
                     {
                         src     : entity.id,
                         end     : d.end,
-                        kind    : d.kind || "OneToMany",
+                        kind    : d.kind || "1->*",
                         name    : d.name,
                         property: prop,
                         obj     : d,
@@ -330,11 +373,18 @@ module Hyperstore
             if (typeof(definition) !== "object")
                 throw new SchemaLoaderException("Invalid property definition " + name, this._state.schema);
 
-            t = this._resolveType(definition.type, name);
-            if (!t)
-                throw  new SchemaLoaderException("Unknown type " + definition.type, this._state.schema);
+            if (this._state.extension) {
+                var tmpProp = entity.getProperty(name, false);
+                if( tmpProp && definition.default)
+                    tmpProp.defaultValue = definition.default;
+            }
 
-            if (t.kind !== SchemaKind.ValueObject && t.kind !== SchemaKind.Primitive)
+            t = tmpProp ? tmpProp.schemaProperty : this._resolveType(definition.type, name);
+            if (!t ) {
+                throw new SchemaLoaderException("Unknown type " + definition.type, this._state.schema);
+            }
+
+            if ( t.kind !== SchemaKind.ValueObject && t.kind !== SchemaKind.Primitive)
             {
                 throw  new SchemaLoaderException(
                     "Invalid type '" + definition.type + "' Only value object or primitive is allowed for property " +
@@ -342,10 +392,12 @@ module Hyperstore
                 );
             }
             this.extends(t, definition, n => {
-                    return (n === "type" || n === "constraints" || n === "default") ? null : n;
+                    return (n === "type" || n === "constraints" || n === "isKey" || n === "default") ? null : n;
                 }
             );
-            var p = entity.defineProperty(name, t, definition.default);
+
+            var p = tmpProp || entity.defineProperty(name, t, definition.default);
+            p.isKey = !!definition.isKey;
             this.parseConstraints(definition.constraints, c => p.addConstraint(c.message, c.condition, c.error, c.kind));
         }
 

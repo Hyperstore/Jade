@@ -1,7 +1,7 @@
 {
   "name": "hyperstore",
   "homepage": "http://www.hyperstore.org",
-  "version": "0.99.196",
+  "version": "0.99.199",
   "description": "Domain Model Oriented Database",
   "main": "lib/hyperstore.js",
   "scripts": {},

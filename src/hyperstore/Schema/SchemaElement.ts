@@ -43,6 +43,26 @@ export class SchemaElement extends SchemaInfo
         if( baseElement) baseElement.subElements.push(this);
     }
 
+
+    getKeyValueFromJson(data, parent?:ModelElement) : string {
+        var empty = "";
+        var keyProperties = this.getKeyProperties().toArray();
+        if( keyProperties.length === 0) return;
+        var keys = [];
+        if( parent) {var v = parent.getKey(); if(v) {keys.push(v);keys.push(".");}}
+
+        keyProperties.forEach( p => keys.push(data[p.name]||empty));
+        return keys.join(empty);
+    }
+
+    /**
+     * get all key properties (property with isKey to true)
+     * @returns {Cursor}
+     */
+    getKeyProperties() : Cursor {
+        return new Hyperstore.ArrayCursor( this.getProperties(true)).map( p => p.isKey ? p : undefined);
+    }
+
     // -------------------------------------------------------------------------------------
     //
     // -------------------------------------------------------------------------------------
@@ -164,7 +184,7 @@ export class SchemaElement extends SchemaInfo
         }
         else
         {
-            desc = new SchemaProperty(name, <SchemaInfo>schema, defaultValue, kind);
+            desc = new SchemaProperty(this, name, <SchemaInfo>schema, defaultValue, kind);
         }
 
         if (this.getProperty(name, true))
@@ -210,9 +230,7 @@ export class SchemaElement extends SchemaInfo
         else
         {
             var code = desc.defaultValue;
-            if (typeof(
-                    code) !== "function" && typeof(
-                    code) === "string" && code.length > 0)
+            if (typeof(code) !== "function" && typeof(code) === "string" && code.length > 0)
             {
                 if (code.match(/{(.*)}/) == null)
                 {

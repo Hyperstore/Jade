@@ -65,7 +65,7 @@ module Hyperstore
         }
 
         hasNext() : boolean {
-            return this._ix++ < this._keys.length;
+            return this._ix++ < this._domains.length;
         }
 
         hasExtensions() : boolean {
@@ -158,7 +158,7 @@ module Hyperstore
 
         private schemasBySimpleName;
         private schemaElements;
-        private _schemas;
+        private _schemas : HashTable<string,Schema>;
         private _domains:DomainManager;
         private _subscriptions;
         public storeId:string;
@@ -180,7 +180,7 @@ module Hyperstore
          */
         constructor(id?:string)
         {
-            this._schemas = {};
+            this._schemas = new HashTable<string,Schema>();
             this._subscriptions = [];
             this.eventBus = new EventBus(this);
             this.schemaElements = {};
@@ -199,7 +199,11 @@ module Hyperstore
         __addSchema(name:string, schema:Schema) {
             if( this.getSchema(name))
                 throw "Duplicate schema " + name;
-            this._schemas[name] = schema;
+            this._schemas.add(name, schema);
+        }
+
+        get schemas() : Cursor {
+            return new MapCursor(this._schemas, s => s);
         }
 
         /**
@@ -208,7 +212,7 @@ module Hyperstore
          * @returns {any}
          */
         getSchema(name:string):Schema {
-            return this._schemas[name];
+            return this._schemas.get(name);
         }
 
         /**
@@ -216,13 +220,13 @@ module Hyperstore
          * @param schemas - One (or an array of) schema configuration
          * @returns an object containing all created schemas
          */
-        loadSchemas(schemas) {
+        loadSchemas(schemas, overrides?) {
             if(!schemas) return null;
             if (typeof (schemas) === 'function')
                 schemas = schemas();
 
             var loader = new Loader(this);
-            return loader.loadSchemas(schemas);
+            return loader.loadSchemas(schemas, overrides);
         }
 
         createDomainAsync(config?:any):Q.Promise<DomainModel> {
@@ -244,7 +248,7 @@ module Hyperstore
             }
 
             if( config.schema) {
-                this.loadSchemas(config.schema);
+                this.loadSchemas(config.schema, config.overrides);
             }
 
             var domainName = config.name;
@@ -676,9 +680,9 @@ module Hyperstore
          */
         getElements(schemaElement?:SchemaElement, kind:NodeType = NodeType.EntityOrRelationship): Cursor
         {
-            return new SelectManyCursor(this._domains, function (domain)
+            return new SelectManyCursor(this._domains, function (domain:DomainModel)
                 {
-                    return domain.GetElements(schemaElement, kind);
+                    return domain.getElements(schemaElement, kind);
                 }
             );
         }

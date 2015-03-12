@@ -60,6 +60,10 @@ module Hyperstore
                         {
                             case "value" :
                                 return val;
+                            case "_identity" :
+                                return element.id || element.name || element.getId();
+                            case "_id" :
+                                return element.getId();
                             case "oldValue" :
                                 return old;
                             case "propertyName" :

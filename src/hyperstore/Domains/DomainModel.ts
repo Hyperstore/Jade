@@ -225,10 +225,9 @@ module Hyperstore
                 mel = (<any>schema).loadFromJson(this, obj, parent);
             }
             if(!mel) {
-                var propKey = Utils.firstOrDefault( schema.getProperties(true), p=>p.schemaProperty.isKey);
-                if( propKey) {
-                    var id = obj[propKey.name];
-                }
+                var id = obj.$id;
+                if(!id && (<any>schema).getKeyValueFromJson)
+                    id =  (<any>schema).getKeyValueFromJson(obj, parent);
                 mel = this.create(schema, id);
                 mel.loadFromJson(obj, refs);
             }
@@ -515,7 +514,7 @@ module Hyperstore
 
             if (!node)
             {
-                var def = property.defaultValue;
+                var def = property.defaultValue || (<any>property.schemaProperty).defaultValue;
                 if (!def)
                 {
                     return undefined;
@@ -1326,7 +1325,7 @@ module Hyperstore
         }
     }
 
-    class MapCursor extends Cursor {
+    export class MapCursor extends Cursor {
         private _current;
 
         constructor( private _cursor:Cursor, private _filter) {
@@ -1359,7 +1358,7 @@ module Hyperstore
         }
     }
 
-    class ArrayCursor extends Cursor {
+    export class ArrayCursor extends Cursor {
         private _index:number;
 
         constructor(private _array) {
