@@ -52,7 +52,13 @@ export class SchemaElement extends SchemaInfo
 
     onAfter(ctx)  {
         if(this._interceptors) {
-            Utils.forEach(this._interceptors, i => ctx.action === "Create" ? i.afterCreate && i.afterCreate(ctx.mel) : i.afterRemove && i.afterRemove(ctx.id, ctx.schema));
+            Utils.forEach(this._interceptors, i => {
+                ctx.action === "Create"
+                    ? i.afterCreate && i.afterCreate(ctx.mel) :
+                    ctx.action == "Remove"
+                        ? i.afterRemove && i.afterRemove(ctx.id, ctx.schema)
+                        : i.afterLoad && i.afterLoad(ctx.mel);
+            });
         }
         if( this.baseElement)
             this.baseElement.onAfter(ctx);
@@ -60,21 +66,28 @@ export class SchemaElement extends SchemaInfo
 
     onBefore(ctx)  {
         if(this._interceptors) {
-            Utils.forEach(this._interceptors, i => ctx.action === "Create" ? i.beforeCreate && i.beforeCreate(ctx.mel) : i.beforeRemove && i.beforeRemove(ctx.mel));
+            Utils.forEach(this._interceptors, i => {
+                ctx.action === "Create"
+                    ? i.beforeCreate && i.beforeCreate(ctx.mel) :
+                    ctx.action === "Remove"
+                    ? i.beforeRemove && i.beforeRemove(ctx.mel)
+                    : i.beforeLoad && i.beforeLoad(ctx.mel)
+                }
+            );
         }
         if( this.baseElement)
             this.baseElement.onBefore(ctx);
     }
 
     getKeyValueFromJson(data, parent?:ModelElement) : string {
-        var empty = "";
         var keyProperties = this.getKeyProperties().toArray();
         if( keyProperties.length === 0) return;
         var keys = [];
-        if( parent) {var v = parent.getKey(); if(v) {keys.push(v);keys.push(".");}}
+        if( parent) {var v = parent.getKey(true); if(v) {keys.push(v);keys.push(".");}}
 
-        keyProperties.forEach( p => keys.push(data[p.name]||empty));
-        return keys.join(empty);
+        var ok = false;
+        keyProperties.forEach( p => {var v = data[p.name]; if(v) {ok=true;keys.push(v);}});
+        if(ok) return keys.join("");
     }
 
     /**

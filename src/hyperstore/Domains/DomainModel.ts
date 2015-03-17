@@ -17,6 +17,11 @@
 /// <reference path="../_references.ts" />
 module Hyperstore
 {
+    export interface _IParseJsonResult {
+        elem : ModelElement;
+        load : ()=>void;
+    }
+
     /**
      * Represents a domain model
      */
@@ -196,9 +201,11 @@ module Hyperstore
                     () =>
                     {
                         Utils.forEach(def, e => {
-                            var mel = this.__parseJson(e, rootSchema, refs);
-                            if(mel)
-                                list.push(mel);
+                            var result = this.__parseJson(e, rootSchema, refs);
+                            if(result) {
+                                list.push(result.elem);
+                                result.load();
+                            }
                         });
                     },
                     SessionMode.Loading
@@ -207,31 +214,40 @@ module Hyperstore
             }
             else
             {
-                var r;
-                this.store.runInSession(() => r = [this.__parseJson(def, rootSchema, refs)],
-                                        SessionMode.Loading);
+                var r = [];
+                this.store.runInSession(() => {
+                    var result = this.__parseJson(def, rootSchema, refs);
+                        if(result) {
+                            r.push(result.elem);
+                            result.load();
+                        }
+                    },
+                    SessionMode.Loading
+                );
                 return r;
             }
         }
 
-        __parseJson(obj:any, rootSchema:SchemaElement, refs, parent?):ModelElement
-        {
+        __parseJson(obj:any, rootSchema:SchemaElement, refs, parent?):_IParseJsonResult {
             var schema = this.introspectSchema(rootSchema, obj);
-            if(!schema)
+            if (!schema)
                 throw "Ambiguous schema finding for " + rootSchema.name + " (Use checkMarkerJson) on " + obj;
 
-            var mel;
-            if( (<any>schema).loadFromJson) {
-                mel = (<any>schema).loadFromJson(this, obj, parent);
+            if ((<any>schema).loadFromJson) {
+                var mel:ModelElement = (<any>schema).loadFromJson(this, obj, parent);
+                if (mel)
+                    return {
+                        elem: mel, load: function () {
+                        }
+                    };
             }
-            if(!mel) {
-                var id = obj.$id;
-                if(!id && (<any>schema).getKeyValueFromJson)
-                    id =  (<any>schema).getKeyValueFromJson(obj, parent);
-                mel = this.create(schema, id);
-                mel.loadFromJson(obj, refs);
+
+            var id = obj.$id;
+            if (!id && (<any>schema).getKeyValueFromJson) {
+                id = (<any>schema).getKeyValueFromJson(obj, parent);
             }
-            return mel;
+            mel = this.extension && this.get(id) || this.create(schema, id);
+            return {elem: mel, load: function() { mel.loadFromJson(obj, refs);}};
         }
 
         /**

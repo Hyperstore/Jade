@@ -45,15 +45,14 @@ module Hyperstore
     class DomainManager extends Cursor {
         private _domains;
         private _keys;
-        private _extensionsCount:number;
-
         private _ix:number;
+        private _iterations;
 
         constructor() {
             super();
             this._keys = {};
             this._domains = [];
-            this._extensionsCount = 0;
+            this._iterations = [];
         }
 
         reset() {
@@ -61,21 +60,26 @@ module Hyperstore
         }
 
         next() {
-            return this._domains[this._ix-1];
+            return this._domains[this._iterations[this._ix-1]];
         }
 
         hasNext() : boolean {
-            return this._ix++ < this._domains.length;
+            return this._ix++ < this._iterations.length;
         }
 
         hasExtensions() : boolean {
-            return this._extensionsCount > 0;
+            return this._iterations.length !== this._domains.length;
         }
 
         addDomain(domain) {
-            if( domain.extension)
-                this._extensionsCount++;
-            this._keys[domain.name] = this._domains.push( domain ) - 1;
+            var idx = this._domains.push( domain ) - 1;
+            this._keys[domain.name] = idx;
+            this.resetIterations();
+        }
+
+        private resetIterations() {
+            this._iterations = [];
+            Utils.forEach(this._keys, v => this._iterations.push(v));
         }
 
         public unload(domain:DomainModel)
@@ -87,7 +91,6 @@ module Hyperstore
                 this._domains.splice(i);
                 i = undefined;
                 if (domain.extension) {
-                    this._extensionsCount--;
                     var parent = (<any>domain).domain;
                     for(var x=0; this._domains.length;x++) {
                         if( this._domains[x] === parent ) {
@@ -102,6 +105,7 @@ module Hyperstore
                 {
                     delete this._keys[domain.name];
                 }
+                this.resetIterations();
             }
         }
 

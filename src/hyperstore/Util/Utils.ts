@@ -173,10 +173,7 @@ module Hyperstore
                     var r = (d + Math.random() * 16) % 16 | 0;
                     d = Math.floor(d / 16);
                     return (
-                        c === 'x'
-                            ? r
-                            : (
-                        r & 0x7 | 0x8)).toString(16);
+                        c === 'x' ? r : (r & 0x7 | 0x8)).toString(16);
                 }
             );
             return uuid;
@@ -185,8 +182,7 @@ module Hyperstore
         static isArray(value):boolean
         {
             var s = typeof value;
-            return value && typeof (
-                    value) === 'object' && value instanceof Array;
+            return value && typeof (value) === 'object' && value instanceof Array;
         }
 
         static firstOrDefault(list, fn?):any
@@ -201,8 +197,7 @@ module Hyperstore
                 for (var i = 0; i < list.length; i++)
                 {
                     var e = list[i];
-                    if (e && (
-                        !fn || fn(e)))
+                    if (e != null && (!fn || fn(e)))
                     {
                         return e;
                     }
@@ -215,8 +210,7 @@ module Hyperstore
                     if (list.hasOwnProperty(k))
                     {
                         var e = list[k];
-                        if (e && (
-                            !fn || fn(e)))
+                        if (e != null && (!fn || fn(e)))
                         {
                             return e;
                         }
@@ -234,7 +228,7 @@ module Hyperstore
             if (list.length) {
                 for (var i = 0; i < list.length; i++) {
                     var e = list[i];
-                    if (e) {
+                    if (e != null) {
                         fn(e);
                     }
                 }
@@ -244,7 +238,7 @@ module Hyperstore
                 list.reset();
                 while(list.hasNext()) {
                     var e = list.next();
-                    if(e) fn(e);
+                    if(e != null) fn(e);
                 }
                 return;
             }
@@ -252,7 +246,7 @@ module Hyperstore
             for (var k in list) {
                 if (list.hasOwnProperty(k)) {
                     var e = list[k];
-                    if (e) {
+                    if (e != null) {
                         fn(e);
                     }
                 }
@@ -273,7 +267,7 @@ module Hyperstore
                 for (var i = list.length - 1; i >= 0; i--)
                 {
                     var e = list[i];
-                    if (e)
+                    if (e != null)
                     {
                         list2.push(e);
                     }
@@ -286,7 +280,7 @@ module Hyperstore
                     if (list.hasOwnProperty(k))
                     {
                         var e = list[k];
-                        if (e)
+                        if (e != null)
                         {
                             list2.unshift(e);
                         }
@@ -299,9 +293,7 @@ module Hyperstore
         static where(list, fn)
         {
             var list2 = [];
-            Utils.forEach(
-                list, e=>
-                {
+            Utils.forEach(list, e=> {
                     if (fn(e))
                     {
                         list2.push(e);
@@ -314,9 +306,7 @@ module Hyperstore
         static indexOf(list, fn):number
         {
             var ix = -1;
-            Utils.forEach(
-                list, e=>
-                {
+            Utils.forEach(list, e=> {
                     ix++;
                     var r = fn(e);
                     if (r)
@@ -331,11 +321,10 @@ module Hyperstore
         static select(list, fn)
         {
             var list2 = [];
-            Utils.forEach(
-                list, e=>
+            Utils.forEach(list, e=>
                 {
                     var r = fn(e);
-                    if (r)
+                    if (r != null)
                     {
                         list2.push(r);
                     }
@@ -347,12 +336,10 @@ module Hyperstore
         static selectMany(list, fn)
         {
             var list2 = [];
-            Utils.forEach(
-                list, e=>
+            Utils.forEach(list, e=>
                 {
                     var r = fn(e);
-                    Utils.forEach(
-                        r, e2 =>
+                    Utils.forEach(r, e2 =>
                         {
                             list2.push(e2);
                         }
@@ -365,8 +352,7 @@ module Hyperstore
         static groupBy(list, fn)
         {
             var list2 = {};
-            Utils.forEach(
-                list, e=>
+            Utils.forEach(list, e=>
                 {
                     var key = fn(e);
                     var tmp = list2[key];

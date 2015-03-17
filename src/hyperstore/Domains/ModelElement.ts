@@ -93,7 +93,7 @@ module Hyperstore {
                 }
             }
             keyProperties.forEach( p => keys.push(this.get(p)||empty));
-            return keys.join(empty);
+            return keys.join("");
         }
 
         /**
@@ -221,22 +221,26 @@ module Hyperstore {
                                 if(relationShip)
                                     continue;
                             }
-                            elem = domain.__parseJson(v, endSchema, refs, this);
+                            // Loading in three steps
+                            // 1) create element
+                            // 2 create parent relationship
+                            // 3) load element
+                            var r = domain.__parseJson(v, endSchema, refs, this); // (step 1)
+                            if(!r)
+                                continue;
                         }
 
-                        var src = rel.opposite
-                            ? elem
-                            : this;
-                        var end = rel.opposite
-                            ? this
-                            : elem;
+                        var src : ModelElement = rel.opposite ? r.elem : this;
+                        var end = rel.opposite ? this : r.elem;
 
                         var d = src.getInfo().domain;
                         if (!d.getRelationships(rel.schemaRelationship, src, end).hasNext() && end)
                         {
                             var endInfo = end.getInfo();
-                            d.createRelationship(rel.schemaRelationship, src, endInfo.id, endInfo.schemaElement.id);
+                            d.createRelationship(rel.schemaRelationship, src, endInfo.id, endInfo.schemaElement.id); // (step 2)
                         }
+
+                        r.load(); // (step 3)
                     }
                 }
             }
