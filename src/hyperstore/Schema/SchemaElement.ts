@@ -27,6 +27,7 @@ export class SchemaElement extends SchemaInfo
     private _references;
     private proto;
     subElements : SchemaElement[];
+    private _interceptors : IInterceptor[];
 
     // -------------------------------------------------------------------------------------
     //
@@ -43,6 +44,27 @@ export class SchemaElement extends SchemaInfo
         if( baseElement) baseElement.subElements.push(this);
     }
 
+    addInterceptor(interceptor) {
+        if(!interceptor) return;
+        this._interceptors = this._interceptors || [];
+        this._interceptors.push(interceptor);
+    }
+
+    onAfter(ctx)  {
+        if(this._interceptors) {
+            Utils.forEach(this._interceptors, i => ctx.action === "Create" ? i.afterCreate && i.afterCreate(ctx.mel) : i.afterRemove && i.afterRemove(ctx.id, ctx.schema));
+        }
+        if( this.baseElement)
+            this.baseElement.onAfter(ctx);
+    }
+
+    onBefore(ctx)  {
+        if(this._interceptors) {
+            Utils.forEach(this._interceptors, i => ctx.action === "Create" ? i.beforeCreate && i.beforeCreate(ctx.mel) : i.beforeRemove && i.beforeRemove(ctx.mel));
+        }
+        if( this.baseElement)
+            this.baseElement.onBefore(ctx);
+    }
 
     getKeyValueFromJson(data, parent?:ModelElement) : string {
         var empty = "";
