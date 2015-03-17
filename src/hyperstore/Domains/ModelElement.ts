@@ -176,6 +176,8 @@ module Hyperstore {
             if(typeof(obj) !== "object")
                 throw "Unable to load a " + melInfo.schemaElement.name + " from data " + obj;
 
+            this.getSchemaElement().onBefore({action:"Load", mel: this});
+
             refs = refs || {};
 
             for (var member in obj)
@@ -238,8 +240,9 @@ module Hyperstore {
                     }
                 }
             }
-        }
 
+            this.getSchemaElement().onAfter({action:"Load", mel: this});
+        }
 
         /**
          *

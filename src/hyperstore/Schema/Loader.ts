@@ -22,23 +22,25 @@ module Hyperstore
     {
         schema:Schema;
         constraints;
-        id:string;
         meta;
         extension = false;
 
-        static Pending = new SchemaState(null, "$pending");
+        static Pending = new SchemaState(null, null, "$pending");
 
-        constructor(store:Store, public config, schema?, ext=false)
+        constructor(store:Store, public id:string, public config, schema?, ext=false)
         {
             this.extension = ext;
+            this.constraints = {};
+            this.meta = {};
             if (store)
             {
-                this.constraints = {};
-                this.id = config.id;
                 this.schema = schema || new Schema(store, this.id);
-                this.meta = {};
             }
         }
+    }
+
+    class SchemaResolver {
+
     }
 
     export class Loader
@@ -60,7 +62,7 @@ module Hyperstore
             if (!Array.isArray(schemas)) schemas = [schemas];
             this._configs = schemas;
             this._schemas = new HashTable<string,any>();
-            this.store.schemas.forEach( s => this._schemas.add(s.name, new SchemaState(this.store, {id:s.name}, s, false)));
+            this.store.schemas.forEach( s => this._schemas.add(s.name, new SchemaState(this.store, s.name, null, s, false)));
 
             this._configs.forEach(schema =>
                 {
@@ -76,7 +78,10 @@ module Hyperstore
             if (!config.id)
                 throw new SchemaLoaderException("id is required for schema ", config);
             var state = this._schemas.get(config.id);
-            if (state) return state;
+            if (state)
+            {
+                return state;
+            }
 
             this._schemas.add(config.id, SchemaState.Pending);
             var parser = new SchemaParser(this);
@@ -110,7 +115,10 @@ module Hyperstore
                         result[prop] = val;
                 }
                 else if( Array.isArray(val)){
-                    throw "Can not merge array from " + source;
+                    if( result[prop])
+                        result[prop] = result[prop].concat(val);
+                    else
+                        result[prop] = val;
                 }
                 else
                     result[prop] = val;
@@ -172,11 +180,12 @@ module Hyperstore
                 if( !schema)
                     throw "Unknown schema to extends " + schemaDefinition.extends;
             }
-            this._state = new SchemaState(this._loader.store, schemaDefinition, schema, !!schema);
+            this._state = new SchemaState(this._loader.store, id, schemaDefinition, schema, !!schema);
 
             this.parseImports(schemaDefinition);
             // Global constraints
             this.parseConstraints(schemaDefinition.constraints, ct=> this._state.constraints[ct.name] = ct);
+            this.parseTypes(schemaDefinition.types);
 
             this.pendings = [];
             for (var name in schemaDefinition)
@@ -207,6 +216,8 @@ module Hyperstore
 
             var entity = (this._state.extension ? this._state.schema.store.getSchemaEntity(this._state.schema.name + ":" + name, false) : null) || new SchemaEntity(this._state.schema, name, base);
             this.parseConstraints(o.constraints, c=> entity.addConstraint(c.message, c.condition, c.error, c.kind));
+            this.parseInterceptors(entity, o.interceptors);
+
             this._state.meta[name] = entity;
 
             if(o.properties) {
@@ -305,6 +316,7 @@ module Hyperstore
             }
 
             this.parseConstraints(def.const, c => rel.addConstraint(c.message, c.condition, c.error, c.type));
+            this.parseInterceptors(rel, def.interceptors);
 
             if (def.property)
             {
@@ -391,14 +403,19 @@ module Hyperstore
                     name + ". Use reference instead.", this._state.schema
                 );
             }
+            // Extensions can be used to override type values like min or max (for a range type)
+            // If there are some fields to extends, a new type is created to contains the override values
+            // this way, the underlying type is not affected and can be reused in another property.
+            t = Object.create(t); // For simplicity, always create an new super type even if there is no field to override
             this.extends(t, definition, n => {
                     return (n === "type" || n === "constraints" || n === "isKey" || n === "default") ? null : n;
                 }
             );
-
             var p = tmpProp || entity.defineProperty(name, t, definition.default);
+
             p.isKey = !!definition.isKey;
             this.parseConstraints(definition.constraints, c => p.addConstraint(c.message, c.condition, c.error, c.kind));
+            this.parseInterceptors(p, definition.interceptors);
         }
 
         private _resolveConstraint(name:string)
@@ -421,15 +438,11 @@ module Hyperstore
 
         private _resolveType(name:string, propertyName?:string)
         {
-            var valueObject;
             if (!name) return undefined;
             var fullName;
             var parts = name.split('.');
             if (parts.length == 1)
             {
-                if(propertyName)
-                    valueObject = this.trySharedTypes(this._state, name, propertyName);
-
                 fullName = this._state.id + Store.IdSeparator + name;
             }
             else
@@ -440,13 +453,10 @@ module Hyperstore
                     return undefined;
                 }
                 var n = parts[1];
-                if(propertyName)
-                    valueObject = this.trySharedTypes(state,  n, propertyName);
-
                 fullName = state.id + Store.IdSeparator + n;
             }
 
-            valueObject = valueObject || this._loader.store.getSchemaInfo(fullName, false);
+            var valueObject = this._loader.store.getSchemaInfo(fullName, false);
             if( valueObject) return valueObject;
             valueObject = this._loader.store.getSchemaInfo(name, false);
             if( valueObject && valueObject.kind === SchemaKind.Primitive) {
@@ -455,32 +465,33 @@ module Hyperstore
             return valueObject;
         }
 
-        private trySharedTypes(state, name:string, propertyName:string) {
-            if(!state.config.types) return;
-            var val = state.config.types[name];
-            if (!val)
-                return;
+        private parseTypes(types) {
+            if(!types) return;
+            for (var name in types) {
+                if (!name || !types.hasOwnProperty(name))
+                    continue;
 
-            name = propertyName + "_" + name + (++SchemaParser.typeSequence).toString();
-            var valueObject = new SchemaValueObject(this._state.schema, name);
+                var val = types[name];
 
-            this.extends(valueObject, val, p => {
-                if (p === "type") {
-                    var s = this._resolveType(val[p]);
-                    if (!s)
-                        throw new SchemaLoaderException("Unknown type " + val[p], val);
-                    valueObject.parent = s;
-                    return null;
-                }
-                else if (p === "constraints") {
-                    this.parseConstraints(
-                        val.constraints, c=>valueObject.addConstraint(c.message, c.condition, c.error, c.kind)
-                    );
-                    return null;
-                }
-                return p;
-            });
-            return valueObject;
+                var valueObject = new SchemaValueObject(this._state.schema, name);
+
+                this.extends(valueObject, val, p => {
+                    if (p === "type") {
+                        var s = this._resolveType(val[p]);
+                        if (!s)
+                            throw new SchemaLoaderException("Unknown type " + val[p], val);
+                        valueObject.parent = s;
+                        return null;
+                    }
+                    else if (p === "constraints") {
+                        this.parseConstraints(
+                            val.constraints, c=>valueObject.addConstraint(c.message, c.condition, c.error, c.kind)
+                        );
+                        return null;
+                    }
+                    return p;
+                });
+            }
         }
 
         private extends(v, o, callback?)
@@ -498,7 +509,12 @@ module Hyperstore
             }
         }
 
-        private parseConstraints(constraints, callback)
+        private parseInterceptors(schema, interceptors) {
+            if( !interceptors) return;
+            Utils.forEach(interceptors, i=> schema.addInterceptor(i));
+        }
+
+        parseConstraints(constraints, callback)
         {
             if (!constraints)
                 return;

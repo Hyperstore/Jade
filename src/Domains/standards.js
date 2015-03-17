@@ -31,6 +31,13 @@
         },
         // Shared types
         types: {
+            "Date" : {
+              constraints : {
+                  "{value} is not a date for {propertyName}." : function(val) {
+                      return val instanceof Date;
+                  }
+              }
+            },
             // Identity is a string with a constraint checking if there is no another sibling element with
             // a property with the same value
             "identity": {
@@ -67,7 +74,7 @@
                 type: "string",
                 max: 0,
                 constraints: {
-                    " Inavlid value '{value}' for  {propertyName} must have less than {$max} characters.": function (val) {
+                    " Invalid value '{value}' for  {propertyName} must have less than {$max} characters.": function (val) {
                         return this.max === 0 || val.length <= this.max;
                     }
                 }

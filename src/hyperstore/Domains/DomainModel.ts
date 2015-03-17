@@ -535,22 +535,27 @@ module Hyperstore
          */
         setPropertyValue(ownerId:string, property:SchemaProperty, value:any, version?:number):PropertyValue
         {
-            var ownerNode = this._graph.getNode(ownerId);
-            if (!ownerNode)
+            var owner = this.get(ownerId);
+            if (!owner)
             {
                 throw "Invalid element " + ownerId;
             }
 
-            var pid = ownerId + "." + property.name;
+            var pid = owner.getId() + "." + property.name;
             var node = this._graph.getPropertyNode(pid);
             var oldValue = undefined;
 
             if (!node)
             {
+                var r = property.onChange({mel:owner, value:value});
+                value = r.value;
                 node = this._graph.addPropertyNode(pid, property.schemaProperty.id, value, version || Utils.getUtcNow());
             }
             else
             {
+                var r = property.onChange({mel:owner, value:value, oldValue:node.value});
+                value = r.value;
+
                 oldValue = node.value;
                 node.value = value;
                 node.version = version || Utils.getUtcNow();
@@ -562,7 +567,7 @@ module Hyperstore
                 new ChangePropertyValueEvent(
                     this.name,
                     ownerId,
-                    ownerNode.schemaId,
+                    owner.getSchemaElement().id,
                     property.name,
                     property.serialize(pv.value),
                     property.serialize(pv.oldValue),
@@ -586,6 +591,8 @@ module Hyperstore
                 schemaElement = this.store.getSchemaEntity(<any>schemaElement);
 
             id = this.createId(id);
+            schemaElement.onBefore({action:"Create", id:id });
+
             var node = this._graph.addNode(id, schemaElement.id, version);
             // after node creation
             var mel = <ModelElement>schemaElement.deserialize(new SerializationContext(this, id));
@@ -593,6 +600,7 @@ module Hyperstore
                 new AddEntityEvent(this.name, id, schemaElement.id, node.version)
             );
             this._cache[id] = mel; // TODO cache mel in node and remove _cache
+            schemaElement.onAfter({action:"Create", mel: mel});
             return mel;
         }
 
@@ -615,6 +623,7 @@ module Hyperstore
                 schemaRelationship = this.store.getSchemaRelationship(<any>schemaRelationship);
 
             id = this.createId(id);
+            schemaRelationship.onBefore({action:"Create", id:id });
 
             var src = start.getInfo();
             var node = this._graph.addRelationship(
@@ -630,6 +639,7 @@ module Hyperstore
             );
 
             this._cache[id] = mel; // TODO cache mel in node
+            schemaRelationship.onAfter({action:"Create", mel: mel});
             return mel;
         }
 
@@ -666,14 +676,23 @@ module Hyperstore
         remove(id:string, version?:number)
         {
             id = this.normalizeId(id);
+            var mel = this.get(id);
+            if(mel) {   //  mel is not an error but no interceptors will be called
+                var schemaElement = mel.getSchemaElement();
+                schemaElement.onBefore({action: "Remove", mel: mel});
+            }
+
             var session = this.store.beginSession();
             try
             {
                 var events = this._graph.removeNode(id, version);
                 this._raiseEvent(events);
 
-                Utils.forEach(
-                    events, e =>
+                if( schemaElement)
+                    schemaElement.onAfter({action:"Remove", id: id, schema:schemaElement});
+
+                // Clear cache
+                Utils.forEach(events, e =>
                     {
                         var mel = this._cache[e.id];
                         if (mel)
@@ -683,6 +702,7 @@ module Hyperstore
                         }
                     }
                 );
+
                 session.acceptChanges();
             }
             finally {

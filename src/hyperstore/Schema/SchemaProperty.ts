@@ -16,58 +16,66 @@
 
 /// <reference path="../_references.ts" />
 
-module Hyperstore
-{
-/**
- * Describe a property
- */
-export class SchemaProperty
-{
+module Hyperstore {
     /**
-     * Schema element owner
+     * Describe a property
      */
-    public owner:SchemaElement;
-    public isKey = false;
+    export class SchemaProperty {
+        /**
+         * Schema element owner
+         */
+        public owner:SchemaElement;
+        public isKey = false;
+        private _interceptors : IInterceptor[];
 
-    /**
-     * create a new instance.
-     *
-     * @param parent property owner
-     * @param name Name of the property
-     * @param schemaProperty
-     * @param defaultValue Default value or function representing a calculated value.
-     * @param kind Use [[PropertyKind.CalculatedValue]] for a calculated value. You must provide a function in the
-     * defaultValue argument.
-     */
-    constructor(public parent:SchemaElement, public name:string, public schemaProperty:SchemaInfo, public defaultValue?:any, public kind:PropertyKind = PropertyKind.Normal)
-    {
-        if(!schemaProperty)
-            throw "Invalid schema property for property " + name;
-    }
+        /**
+         * create a new instance.
+         *
+         * @param parent property owner
+         * @param name Name of the property
+         * @param schemaProperty
+         * @param defaultValue Default value or function representing a calculated value.
+         * @param kind Use [[PropertyKind.CalculatedValue]] for a calculated value. You must provide a function in the
+         * defaultValue argument.
+         */
+        constructor(public parent:SchemaElement, public name:string, public schemaProperty:SchemaInfo, public defaultValue?:any, public kind:PropertyKind = PropertyKind.Normal) {
+            if (!schemaProperty)
+                throw "Invalid schema property for property " + name;
+        }
 
-    deserialize(ctx:SerializationContext):any
-    {
-        return ctx.value && this.schemaProperty.deserialize(ctx);
-    }
+        deserialize(ctx:SerializationContext):any {
+            return ctx.value && this.schemaProperty.deserialize(ctx);
+        }
 
-    serialize(value:string):any
-    {
-        return value && this.schemaProperty.serialize(value);
-    }
+        serialize(value:string):any {
+            return value && this.schemaProperty.serialize(value);
+        }
 
-    /**
-     * Add a property constraint. See [IElementConstraint]]
-     * @param message - message if the condition is not true. See [[DiagnosticMessage]] for advanced format behavior.
-     * @param condition - condition to validate
-     * @param asError - error or warning
-     * @param kind - Specify when the constraint is executed (check = on every change, validate = manually). See [IElementConstraint]]
-     * @returns {Hyperstore.SchemaProperty}
-     */
-    addConstraint(message:string, condition:(val, old, ctx:ConstraintContext) => boolean, asError:boolean,
-                  kind:ConstraintKind = ConstraintKind.Validate):SchemaProperty
-    {
-        this.owner.schema.constraints.addPropertyConstraint(this, condition, message, asError, kind);
-        return this;
+        /**
+         * Add a property constraint. See [IElementConstraint]]
+         * @param message - message if the condition is not true. See [[DiagnosticMessage]] for advanced format behavior.
+         * @param condition - condition to validate
+         * @param asError - error or warning
+         * @param kind - Specify when the constraint is executed (check = on every change, validate = manually). See [IElementConstraint]]
+         * @returns {Hyperstore.SchemaProperty}
+         */
+        addConstraint(message:string, condition:(val, old, ctx:ConstraintContext) => boolean, asError:boolean,
+                      kind:ConstraintKind = ConstraintKind.Validate):SchemaProperty {
+            this.owner.schema.constraints.addPropertyConstraint(this, condition, message, asError, kind);
+            return this;
+        }
+
+        addInterceptor(interceptor) {
+            if(!interceptor || !interceptor.onChange) return;
+            this._interceptors = this._interceptors || [];
+            this._interceptors.push(interceptor);
+        }
+
+        onChange(ctx)  {
+            if(this._interceptors) {
+                Utils.forEach(this._interceptors, i => ctx.action === "Create" ? i.onChange(ctx.mel, ctx.value, ctx.oldValue) : i.onChange(ctx.mel, ctx.value, ctx.oldValue));
+            }
+            return ctx;
+        }
     }
-}
 }

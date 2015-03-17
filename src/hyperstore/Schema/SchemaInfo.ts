@@ -16,41 +16,37 @@
 
 /// <reference path="../_references.ts" />
 
-module Hyperstore
-{
-// -------------------------------------------------------------------------------------
-//
-// -------------------------------------------------------------------------------------
-export class SchemaInfo
-{
-    public name:string;
+module Hyperstore {
 
     // -------------------------------------------------------------------------------------
     //
     // -------------------------------------------------------------------------------------
-    constructor(public schema:Schema, public kind:SchemaKind, public id:string)
-    {
-        this.name = id.indexOf('.') <= 0 || (schema.name && id.substr(0, schema.name.length) !== schema.name)
-                    ? id
-                    : id.substr(schema.name.length + 1);
+    export class SchemaInfo {
+        public name:string;
 
-        this.id = schema.name ? schema.name + Store.IdSeparator + this.name : id;
-    }
+        // -------------------------------------------------------------------------------------
+        //
+        // -------------------------------------------------------------------------------------
+        constructor(public schema:Schema, public kind:SchemaKind, public id:string) {
+            this.name = id.indexOf('.') <= 0 || (schema.name && id.substr(0, schema.name.length) !== schema.name)
+                ? id
+                : id.substr(schema.name.length + 1);
 
-    // -------------------------------------------------------------------------------------
-    //
-    // -------------------------------------------------------------------------------------
-    deserialize(ctx:SerializationContext):any
-    {
-        return ctx.value;
-    }
+            this.id = schema.name ? schema.name + Store.IdSeparator + this.name : id;
+        }
 
-    // -------------------------------------------------------------------------------------
-    //
-    // -------------------------------------------------------------------------------------
-    serialize(value:any):any
-    {
-        return value;
+        // -------------------------------------------------------------------------------------
+        //
+        // -------------------------------------------------------------------------------------
+        deserialize(ctx:SerializationContext):any {
+            return ctx.value;
+        }
+
+        // -------------------------------------------------------------------------------------
+        //
+        // -------------------------------------------------------------------------------------
+        serialize(value:any):any {
+            return value;
+        }
     }
-}
 }
