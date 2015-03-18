@@ -39,18 +39,16 @@ module Hyperstore
         }
     }
 
-    class SchemaResolver {
-
-    }
-
     export class Loader
     {
         private _schemas:HashTable<string,SchemaState>;
         private _configs:any[];
         private _overrides;
+        private _resolver:IFileResolver;
 
         constructor(public store:Store)
         {
+            this._resolver = store.fileResolver;
         }
 
         loadSchemas(schemas, overrides?):any
@@ -64,8 +62,7 @@ module Hyperstore
             this._schemas = new HashTable<string,any>();
             this.store.schemas.forEach( s => this._schemas.add(s.name, new SchemaState(this.store, s.name, null, s, false)));
 
-            this._configs.forEach(schema =>
-                {
+            this._configs.forEach(schema => {
                     var state = this._parseSchema(schema);
                     meta[state.id] = state.meta;
                 }
@@ -73,8 +70,37 @@ module Hyperstore
             return meta;
         }
 
+        private _resolveUri(uri) {
+            if( typeof(uri) === "object")
+                return uri;
+            if( !this._resolver)
+                throw "Can not resolve '" + uri + "'. No file resolver are defined in the store.";
+            return this._resolver.resolve(uri);
+        }
+
+        _resolveSchema(id:string):any
+        {
+            var configs = this._configs;
+            if(typeof(id) === "object") {
+                configs = [<any>id];
+                id = configs[0].id;
+            }
+
+            var state = this._schemas.get(id);
+            if (state) return state;
+
+            Utils.forEach(configs, cfg => {
+                if (cfg.id === id) {
+                    state = this._parseSchema(cfg);
+                }
+            });
+
+            return state || this._parseSchema(id);
+        }
+
         private _parseSchema(config):SchemaState
         {
+            config = this._resolveUri(config);
             if (!config.id)
                 throw new SchemaLoaderException("id is required for schema ", config);
             var state = this._schemas.get(config.id);
@@ -86,15 +112,15 @@ module Hyperstore
             this._schemas.add(config.id, SchemaState.Pending);
             var parser = new SchemaParser(this);
 
-            state = parser.parse(this.mergeOverride( config));
+            state = parser.parse(this.mergeOverride(config));
             this._schemas.add(state.id, state);
             return state;
         }
 
         private mergeOverride(config) {
-
             if( !this._overrides) return config;
             Utils.forEach(this._overrides, over => {
+                over = this._resolveUri(over);
                 if( over.extends !== config.id) return;
                 delete over.extends;
                 this.mergeJson(config, over);
@@ -123,26 +149,6 @@ module Hyperstore
                 else
                     result[prop] = val;
             }
-        }
-
-        _resolveSchema(id:string):any
-        {
-            var configs = this._configs;
-            if(typeof(id) === "object") {
-                configs = [<any>id];
-                id = configs[0].id;
-            }
-
-            var state = this._schemas.get(id);
-            if (state) return state;
-
-            Utils.forEach(configs, cfg => {
-                if (cfg.id === id) {
-                    state = this._parseSchema(cfg);
-                }
-            });
-
-            return state;
         }
     }
 
@@ -591,6 +597,7 @@ module Hyperstore
             {
                 if(!imports.hasOwnProperty(alias))
                     continue;
+
                 var id = imports[alias];
                 var state = <SchemaState>this._loader._resolveSchema(id);
                 if (!state)

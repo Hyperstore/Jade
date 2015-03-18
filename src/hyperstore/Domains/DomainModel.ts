@@ -549,48 +549,51 @@ module Hyperstore
          * @param version
          * @returns {Hyperstore.PropertyValue} {value, oldValue, version}
          */
-        setPropertyValue(ownerId:string, property:SchemaProperty, value:any, version?:number):PropertyValue
-        {
+        setPropertyValue(ownerId:string, property:SchemaProperty, value:any, version?:number):PropertyValue {
             var owner = this.get(ownerId);
-            if (!owner)
-            {
+            if (!owner) {
                 throw "Invalid element " + ownerId;
             }
 
-            var pid = owner.getId() + "." + property.name;
-            var node = this._graph.getPropertyNode(pid);
-            var oldValue = undefined;
+            var session = this.store.beginSession();
+            try {
+                var pid = owner.getId() + "." + property.name;
+                var node = this._graph.getPropertyNode(pid);
+                var oldValue = undefined;
 
-            if (!node)
-            {
-                var r = property.onChange({mel:owner, value:value});
-                value = r.value;
-                node = this._graph.addPropertyNode(pid, property.schemaProperty.id, value, version || Utils.getUtcNow());
+                if (!node) {
+                    var r = property.onChange({mel: owner, value: value});
+                    value = r.value;
+                    node = this._graph.addPropertyNode(pid, property.schemaProperty.id, value, version || Utils.getUtcNow());
+                }
+                else {
+                    var r = property.onChange({mel: owner, value: value, oldValue: node.value});
+                    value = r.value;
+
+                    oldValue = node.value;
+                    node.value = value;
+                    node.version = version || Utils.getUtcNow();
+                    this._graph.updatePropertyNode(node);
+                }
+
+                var pv = new PropertyValue(value, oldValue, node.version);
+                this._raiseEvent(
+                    new ChangePropertyValueEvent(
+                        this.name,
+                        ownerId,
+                        owner.getSchemaElement().id,
+                        property.name,
+                        property.serialize(pv.value),
+                        property.serialize(pv.oldValue),
+                        pv.version
+                    )
+                );
+                session.acceptChanges();
+                return pv;
             }
-            else
-            {
-                var r = property.onChange({mel:owner, value:value, oldValue:node.value});
-                value = r.value;
-
-                oldValue = node.value;
-                node.value = value;
-                node.version = version || Utils.getUtcNow();
-                this._graph.updatePropertyNode(node);
+            finally {
+                session.close();
             }
-
-            var pv = new PropertyValue(value, oldValue, node.version);
-            this._raiseEvent(
-                new ChangePropertyValueEvent(
-                    this.name,
-                    ownerId,
-                    owner.getSchemaElement().id,
-                    property.name,
-                    property.serialize(pv.value),
-                    property.serialize(pv.oldValue),
-                    pv.version
-                )
-            );
-            return pv;
         }
 
         /**
@@ -602,22 +605,29 @@ module Hyperstore
          */
         create(schemaElement:SchemaElement, id?:string, version?:number):ModelElement
         {
-            Utils.Requires(schemaElement, "schemaElement");
-            if (typeof(schemaElement) == "string")
-                schemaElement = this.store.getSchemaEntity(<any>schemaElement);
+            var session = this.store.beginSession();
+            try {
+                Utils.Requires(schemaElement, "schemaElement");
+                if (typeof(schemaElement) == "string")
+                    schemaElement = this.store.getSchemaEntity(<any>schemaElement);
 
-            id = this.createId(id);
-            schemaElement.onBefore({action:"Create", id:id });
+                id = this.createId(id);
+                schemaElement.onBefore({action: "Create", id: id});
 
-            var node = this._graph.addNode(id, schemaElement.id, version);
-            // after node creation
-            var mel = <ModelElement>schemaElement.deserialize(new SerializationContext(this, id));
-            this._raiseEvent(
-                new AddEntityEvent(this.name, id, schemaElement.id, node.version)
-            );
-            this._cache[id] = mel; // TODO cache mel in node and remove _cache
-            schemaElement.onAfter({action:"Create", mel: mel});
-            return mel;
+                var node = this._graph.addNode(id, schemaElement.id, version);
+                // after node creation
+                var mel = <ModelElement>schemaElement.deserialize(new SerializationContext(this, id));
+                this._raiseEvent(
+                    new AddEntityEvent(this.name, id, schemaElement.id, node.version)
+                );
+                this._cache[id] = mel; // TODO cache mel in node and remove _cache
+                schemaElement.onAfter({action: "Create", mel: mel});
+                session.acceptChanges();
+                return mel;
+            }
+            finally {
+                session.close();
+            }
         }
 
         /**
@@ -630,33 +640,39 @@ module Hyperstore
          * @param version
          * @returns {Hyperstore.ModelRelationship}
          */
-        createRelationship(schemaRelationship:SchemaRelationship, start:ModelElement, endId:string, endSchemaId:string, id?:string, version?:number):ModelRelationship
-        {
+        createRelationship(schemaRelationship:SchemaRelationship, start:ModelElement, endId:string, endSchemaId:string, id?:string, version?:number):ModelRelationship {
             Utils.Requires(schemaRelationship, "schemaRelationship");
             Utils.Requires(start, "start");
             Utils.Requires(endId, "endId");
             if (typeof(schemaRelationship) == "string")
                 schemaRelationship = this.store.getSchemaRelationship(<any>schemaRelationship);
 
-            id = this.createId(id);
-            schemaRelationship.onBefore({action:"Create", id:id });
+            var session = this.store.beginSession();
+            try {
+                id = this.createId(id);
+                schemaRelationship.onBefore({action: "Create", id: id});
 
-            var src = start.getInfo();
-            var node = this._graph.addRelationship(
-                id, schemaRelationship.id, src.id, src.schemaElement.id, endId, endSchemaId, version
-            );
-            // after node creation
-            var mel = <ModelRelationship>schemaRelationship.deserialize(
-                new SerializationContext(this, id, src.id, src.schemaElement.id, endId, endSchemaId)
-            );
+                var src = start.getInfo();
+                var node = this._graph.addRelationship(
+                    id, schemaRelationship.id, src.id, src.schemaElement.id, endId, endSchemaId, version
+                );
+                // after node creation
+                var mel = <ModelRelationship>schemaRelationship.deserialize(
+                    new SerializationContext(this, id, src.id, src.schemaElement.id, endId, endSchemaId)
+                );
 
-            this._raiseEvent(new AddRelationshipEvent(
-                                 this.name, id, schemaRelationship.id, src.id, src.schemaElement.id, endId, endSchemaId, node.version)
-            );
+                this._raiseEvent(new AddRelationshipEvent(
+                        this.name, id, schemaRelationship.id, src.id, src.schemaElement.id, endId, endSchemaId, node.version)
+                );
 
-            this._cache[id] = mel; // TODO cache mel in node
-            schemaRelationship.onAfter({action:"Create", mel: mel});
-            return mel;
+                this._cache[id] = mel; // TODO cache mel in node
+                schemaRelationship.onAfter({action: "Create", mel: mel});
+                session.acceptChanges();
+                return mel;
+            }
+            finally {
+                session.close();
+            }
         }
 
         onEventRaised(evt:AbstractEvent) {

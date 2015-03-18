@@ -133,6 +133,10 @@ module Hyperstore
         }
     }
 
+    export interface IFileResolver {
+        resolve(id:string);
+    }
+
     /**
      *
      * store is the main hyperstore container for domains and schemas.
@@ -167,6 +171,7 @@ module Hyperstore
         private _subscriptions;
         public storeId:string;
         public defaultDomainModel:DomainModel;
+        public fileResolver: IFileResolver;
 
         /**
          * EventBus - Allow communication between stores.
@@ -480,7 +485,7 @@ module Hyperstore
          *          - defaultDomain : if you create a new element during this session with no domain specified, the default domain will be use.
          * @returns {Session}
          */
-        public beginSession(config?:SessionConfiguration):Session
+        public beginSession(config?:SessionConfiguration): Session
         {
             if (!Session.current)
             {
