@@ -1,5 +1,5 @@
 
-## Hyperstore for Javascript
+## Json As Domain Extension
 
 This is the Javascript version of **Hyperstore**.
 
