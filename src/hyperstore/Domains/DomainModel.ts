@@ -749,6 +749,7 @@ module Hyperstore
          */
         elementExists(id:string):boolean
         {
+            if(!id) return;
             id = this.normalizeId(id);
             return !!this._graph.getNode(id);
         }
@@ -760,6 +761,7 @@ module Hyperstore
          */
         get(id:string):ModelElement
         {
+            if(!id) return;
             id = this.normalizeId(id);
             var node = this._graph.getNode(id);
             if (!node)

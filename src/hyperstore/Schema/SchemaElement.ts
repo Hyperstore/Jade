@@ -432,6 +432,11 @@ class ReferenceHandler
     // -------------------------------------------------------------------------------------
     setReference(v:any)
     {
+        if( v && !v.getInfo || v.isDisposed) {
+            var property = !this._opposite ? this._schemaRelationship.startProperty : this._schemaRelationship.endProperty;
+            throw "Invalid collection element '" + v + "'. Must be a valid domain element for property " + property;
+        }
+
         if (this._source.isDisposed)
         {
             throw "Can not use a disposed element";
