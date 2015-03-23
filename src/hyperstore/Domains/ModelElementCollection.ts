@@ -208,14 +208,19 @@ class ModelElementArray
 
         remove(mel:ModelElement)
         {
-            if ((this.source || this.end).isDisposed)
-            {
-                throw "Can not use a disposed element";
-            }
-
             if (mel == null)
             {
                 return;
+            }
+
+            if( !mel.getInfo || mel.isDisposed) {
+                var property = this.source ? this.schemaRelationship.startProperty : this.schemaRelationship.endProperty;
+                throw "Invalid collection element '" + mel + "'. Must be a valid domain element for property " + property;
+            }
+
+            if ((this.source || this.end).isDisposed)
+            {
+                throw "Can not use a disposed element";
             }
 
             var source = this.source ? this.source : mel;
@@ -231,14 +236,19 @@ class ModelElementArray
 
         add(mel:ModelElement)
         {
-            if ((this.source || this.end).isDisposed)
-            {
-                throw "Can not use a disposed element";
-            }
-
             if (mel == null)
             {
                 return;
+            }
+
+            if( !mel.getInfo || mel.isDisposed) {
+                var property = this.source ? this.schemaRelationship.startProperty : this.schemaRelationship.endProperty;
+                throw "Invalid collection element '" + mel + "'. Must be a valid domain element for property " + property;
+            }
+
+            if ((this.source || this.end).isDisposed)
+            {
+                throw "Can not use a disposed element";
             }
 
             var source = this.source ? this.source : mel;
