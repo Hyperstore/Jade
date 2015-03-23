@@ -10,7 +10,7 @@ describe('Dsl specs tests', function ()
 
     beforeEach(function() {
         store = new hyperstore.Store();
-        store.loadSchemas(schemaTest);
+        store.loadSchema(schemaTest);
     });
 
     it('should initialize store from the dsl', function() {

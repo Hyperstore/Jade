@@ -225,17 +225,17 @@ module Hyperstore
         }
 
         /**
-         * load schemas
-         * @param schemas - One (or an array of) schema configuration
-         * @returns an object containing all created schemas
+         * load schema
+         * @param schema - One (or an array of) schema configuration
+         * @returns an object containing all created schema
          */
-        loadSchemas(schemas, overrides?) {
-            if(!schemas) return null;
-            if (typeof (schemas) === 'function')
-                schemas = schemas();
+        loadSchema(schema, overrides?) {
+            if(!schema) return null;
+            if (typeof (schema) === 'function')
+                schema = schema();
 
             var loader = new Loader(this);
-            return loader.loadSchemas(schemas, overrides);
+            return loader.loadSchemas(schema, overrides);
         }
 
         createDomainAsync(config?:any):Q.Promise<DomainModel> {
@@ -257,7 +257,7 @@ module Hyperstore
             }
 
             if( config.schema) {
-                this.loadSchemas(config.schema, config.overrides);
+                this.loadSchema(config.schema, config.overrides);
             }
 
             var domainName = config.name;

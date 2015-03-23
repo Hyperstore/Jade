@@ -45,7 +45,7 @@ describe('Validation tests', function ()
 
     beforeEach(function() {
         store = new hyperstore.Store();
-        store.loadSchemas([testSchema, standard]);
+        store.loadSchema([testSchema, standard]);
         domain = store.createDomain({name:"Test", root : {
             Container : {
                 Items : {

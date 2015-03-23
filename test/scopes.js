@@ -9,7 +9,7 @@ var store;
 
         beforeEach(function() {
             store = new hyperstore.Store();
-            store.loadSchemas(schemaTest);
+            store.loadSchema(schemaTest);
             domain = new hyperstore.DomainModel(store, 'D');
         });
 

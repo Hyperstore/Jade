@@ -29,7 +29,7 @@ describe('Serialization tests', function ()
 
     beforeEach(function() {
         store = new hyperstore.Store();
-        store.loadSchemas(config);
+        store.loadSchema(config);
     });
 
 

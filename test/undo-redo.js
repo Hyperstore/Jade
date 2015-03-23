@@ -12,7 +12,7 @@ describe('Undo/Redo manager', function () {
         beforeEach(function()
         {
             store = new Hyperstore.Store();
-            store.loadSchemas(schemaTest);
+            store.loadSchema(schemaTest);
             domain = new Hyperstore.DomainModel(store, 'D');
             lib = domain.create("Library");
             lib.Name = "test";
