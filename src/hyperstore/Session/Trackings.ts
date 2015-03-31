@@ -58,7 +58,7 @@ module Hyperstore
          */
         get involvedTrackedElements():ITrackedElement[]
         {
-            return Utils.select(this._trackings, t=> t);
+            return Utils.map(this._trackings, t=> t);
         }
 
         /**
@@ -132,7 +132,7 @@ module Hyperstore
                 }
             );
 
-            return Utils.select(list, kv=> kv);
+            return Utils.map(list, kv=> kv);
         }
 
         /**
@@ -142,10 +142,8 @@ module Hyperstore
          */
         getTrackedElementsByState(state:TrackingState):ITrackedElement[]
         {
-            return Utils.select(
-                this._trackings, t=> t=> t.state === state
-                    ? t
-                    : undefined
+            return Utils.filter(
+                this._trackings, t => t.state === state
             );
         }
 

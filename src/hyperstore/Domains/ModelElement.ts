@@ -343,7 +343,7 @@ module Hyperstore {
             });
 
             var lastRelSchema;
-            this.getRelationships().map( rel=> rel.getSchemaElement().embedded ? rel : null).forEach( rel => {
+            this.getRelationships().filter( rel=> rel.getSchemaElement().embedded).forEach( rel => {
                 if( !lastRelSchema || lastRelSchema !== rel.getSchemaElement().id) {
                     lastRelSchema = rel.getSchemaElement().id;
                     writer(tab + " [" + rel.getSchemaElement().startProperty + "] :");

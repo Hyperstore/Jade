@@ -72,7 +72,7 @@ module Hyperstore {
                             break;
                         }
                         var elem = this._iterator.next();
-                        if( !elem || !this.filter(elem, this._config))
+                        if( !elem || !this.filterQuery(elem, this._config))
                             break;
                         this._cx++;
                         if( this._config.$skip && this._cx <= this._config.$skip) break;
@@ -115,7 +115,7 @@ module Hyperstore {
             }
         }
 
-        private filter(elem:ModelElement, config, flag:boolean=false) {
+        private filterQuery(elem:ModelElement, config, flag:boolean=false) {
             var metadata = elem.getInfo();
 
             for(var field in config) {
@@ -133,7 +133,7 @@ module Hyperstore {
                             return flag;
                         break;
                     case "$or":
-                        if( this.filter(elem, data, true) === flag)
+                        if( this.filterQuery(elem, data, true) === flag)
                             return flag;
                         break;
                     case "_id":

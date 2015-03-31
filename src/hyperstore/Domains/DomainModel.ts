@@ -1317,6 +1317,10 @@ module Hyperstore
             return new MapCursor(this, callback);
         }
 
+        filter(callback) : Cursor {
+            return new FilterCursor(this, callback);
+        }
+
         static from(obj) : Cursor {
             if( Array.isArray(obj))
                 return new ArrayCursor(obj);
@@ -1394,13 +1398,45 @@ module Hyperstore
 
         hasNext() : boolean {
             while(true) {
+                if (!this._cursor.hasNext()) {
+                    this._current = undefined;
+                    return false;
+                }
+                var r = this._filter(this._cursor.next());
+                if(r != null) {
+                    this._current = r;
+                    return true;
+                }
+            }
+        }
+
+        next() {
+            return this._current;
+        }
+    }
+
+    export class FilterCursor extends Cursor {
+        private _current;
+
+        constructor( private _cursor:Cursor, private _filter) {
+            super();
+            this.reset();
+        }
+
+        reset() {
+            this._cursor.reset();
+            this._current = undefined;
+        }
+
+        hasNext() : boolean {
+            while(true) {
                 if( !this._cursor.hasNext())
                 {
                     this._current = undefined;
                     return false;
                 }
                 var r = this._filter(this._cursor.next());
-                if( r != null) {
+                if( r !== false) {
                     this._current = r;
                     return true;
                 }

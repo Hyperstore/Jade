@@ -37,7 +37,7 @@ class ModelElementArray
         {
             var rel = cursor.next();
             var elem = opposite ? rel.getEnd() : rel.getStart();
-            if (!this._collection.filter || this._collection.filter(elem))
+            if (!this._collection.whereClause || this._collection.whereClause(elem))
             {
                 this.add(elem);
             }
@@ -77,7 +77,7 @@ class ModelElementArray
                                     return;
 
                                 var mel = self._collection.source ? rel.getEnd() : rel.getStart();
-                                if (!self._collection.filter || self._collection.filter(mel))
+                                if (!self._collection.whereClause || self._collection.whereClause(mel))
                                 {
                                     self.add(mel);
                                 }
@@ -131,12 +131,12 @@ class ModelElementArray
         schemaRelationship:SchemaRelationship;
         cursor;
         private _items : ModelElementArray;
-        filter:(mel:ModelElement) => boolean;
         domain : DomainModel;
+        public whereClause:(mel:ModelElement) => boolean;
 
-        public setFilter(where:(mel:ModelElement) => boolean)
+        public setFilter(whereClause:(mel:ModelElement) => boolean)
         {
-            this.filter = where;
+            this.whereClause = whereClause;
             if( this._items)
                 this._items.reset();
         }
@@ -191,8 +191,8 @@ class ModelElementArray
 
         reset() {
             this.cursor = Cursor.from(this.domain.getRelationships(this.schemaRelationship, this.source, this.end));
-            if(this.filter)
-                this.cursor = this.cursor.map(this.filter);
+            if(this.whereClause)
+                this.cursor = this.cursor.map(this.whereClause);
             this.cursor.reset();
         }
 

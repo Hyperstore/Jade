@@ -63,12 +63,10 @@ module Hyperstore
                         return;
                     }
 
-                    var elements = Utils.select(
-                        s.trackingData.involvedTrackedElements,
-                        (e:ITrackedElement) => (
-                            e.domain === this.domain.name /*&& e.extension == this.domain.extension*/)
-                            ? e : undefined
-                    );
+                    var elements = Utils.filter(
+                                     s.trackingData.involvedTrackedElements,
+                                     (e:ITrackedElement) => e.domain === this.domain.name /*&& e.extension == this.domain.extension*/
+                                    );
 
                     if (elements.length === 0)
                     {
