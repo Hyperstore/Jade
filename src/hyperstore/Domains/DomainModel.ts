@@ -59,8 +59,14 @@ module Hyperstore
             this.eventDispatcher = undefined;
         }
 
-        newScope(extensionName:string, data?) : DomainScope {
-            var scope = new DomainScope(this, extensionName);
+        /**
+         * Create a new domain scope
+         * @param scopeName - Unique scope name
+         * @param data - (optional) data to load
+         * @returns {Hyperstore.DomainScope}
+         */
+        createScope(scopeName:string, data?) : DomainScope {
+            var scope = new DomainScope(this, scopeName);
             if(data)
             {
                 for (var name in data)
@@ -830,6 +836,10 @@ module Hyperstore
         constructor(public domain:Domain, extension:string)
         {
             super(domain.store, domain.name, extension);
+
+            if(!extension)
+                throw "Invalid extension name";
+
             var that:any = this;
             // simulate graph property as protected
             that._graph = new HypergraphEx(domain);
