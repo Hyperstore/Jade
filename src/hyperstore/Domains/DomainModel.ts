@@ -1277,6 +1277,10 @@ module Hyperstore
             return undefined;
         }
 
+        selectMany(selector) {
+            return Utils.selectMany(this, selector);
+        }
+
         forEach(callback) {
             this.reset();
             while(this.hasNext()) {
