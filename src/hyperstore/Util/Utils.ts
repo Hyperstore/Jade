@@ -131,7 +131,7 @@ module Hyperstore
         }
 
         get values() : TElem[] {
-            return Utils.select(this._values, v=> v);
+            return Utils.map(this._values, v=> v);
         }
     }
 
@@ -261,7 +261,7 @@ module Hyperstore
             }
 
             var list2 = [];
-            0
+
             if (list.length)
             {
                 for (var i = list.length - 1; i >= 0; i--)
@@ -290,11 +290,11 @@ module Hyperstore
             return list2;
         }
 
-        static where(list, fn)
+        static filter(list, fn) : Array<any>
         {
             var list2 = [];
             Utils.forEach(list, e=> {
-                    if (fn(e))
+                    if (fn(e)=== true)
                     {
                         list2.push(e);
                     }
@@ -318,16 +318,13 @@ module Hyperstore
             return -1;
         }
 
-        static select(list, fn)
+        static map(list, fn) : Array<any>
         {
             var list2 = [];
-            Utils.forEach(list, e=>
-                {
+            Utils.forEach(list, e=> {
                     var r = fn(e);
-                    if (r != null)
-                    {
+                    if(r != null)
                         list2.push(r);
-                    }
                 }
             );
             return list2;

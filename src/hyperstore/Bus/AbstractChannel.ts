@@ -83,15 +83,10 @@ module Hyperstore
                 origin     : self.domain.store.storeId,
                 sessionId  : session.sessionId,
                 sessionMode: session.mode,
-                events     : Utils.select(
-                    session.events, function (e:AbstractEvent)
-                    {
-                        if (self._shouldBePropagated(e))
-                        {
-                            return {eventName: e.eventName, Data: JSON.stringify(e)};
-                        }
-                    }
-                )
+                events     : Utils.map(
+                                Utils.filter(session.events, (e:AbstractEvent) => self._shouldBePropagated(e)),
+                                function(elem) {return { "eventName": elem.eventName, "Data": JSON.stringify(elem)};}
+                            )
             };
 
             this.sendMessage(message);

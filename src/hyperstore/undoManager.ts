@@ -211,7 +211,7 @@ module Hyperstore
 
         private push(session:SessionInfo)
         {
-            var events = Utils.where(
+            var events = Utils.filter(
                 session.events, e =>
                 {
                     var infos = this._infos[e.domain];
