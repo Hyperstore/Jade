@@ -23,7 +23,7 @@ module Hyperstore
 
     /**
      * Abstract adapter do not use directly.
-     * An adapter is used to persist model element. It must be enable by domain with the [[DomainModel.addAdapter]] method.
+     * An adapter is used to persist model element. It must be enable by domain with the [[Domain.addAdapter]] method.
      * Loading elements with an adapter must be made manually by calling the [[Adapter.loadElementsAsync]].
      * Elements are persisted when a session is completed, with no errors or warnings.
      */
@@ -33,7 +33,7 @@ module Hyperstore
         /**
          * The associated domain model
          */
-        public domain:DomainModel;
+        public domain:Domain;
 
         /**
          * @private - abstract constructor
@@ -48,7 +48,7 @@ module Hyperstore
          * Subscribe to the [[Store.onSessionCompleted]]
          * @param domain - domain to persist
          */
-        init(domain:DomainModel)
+        init(domain:Domain)
         {
             this.domain = domain;
             this._cookie = domain.store.onSessionCompleted(

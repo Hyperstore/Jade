@@ -20,7 +20,7 @@ module Hyperstore {
     export interface IEntityMetadata {
         id:string;
         schemaElement:SchemaElement;
-        domain:DomainModel;
+        domain:Domain;
         disposed:boolean;
     }
 
@@ -34,7 +34,7 @@ module Hyperstore {
     /**
      * Domain element
      */
-    export class ModelElement {
+    export class Element {
         private _info:IEntityMetadata;
 
         getInfo() {
@@ -98,9 +98,9 @@ module Hyperstore {
 
         /**
          * get the parent container
-         * @returns {Hyperstore.ModelElement|ModelElement}
+         * @returns {Hyperstore.Element|Element}
          */
-        getParent() : ModelElement {
+        getParent() : Element {
             var rel = this.getRelationships(undefined, Direction.Incoming).firstOrDefault( r => r.getSchemaElement().embedded );
             return rel ? rel.getStart() : undefined;
         }
@@ -153,7 +153,7 @@ module Hyperstore {
          * @param endSchemaId
          * @private
          */
-        __initialize(domain:DomainModel, id:string, schemaElement:SchemaElement, startId?:string, startSchemaId?:string, endId?:string, endSchemaId?:string) : IEntityMetadata {
+        __initialize(domain:Domain, id:string, schemaElement:SchemaElement, startId?:string, startSchemaId?:string, endId?:string, endSchemaId?:string) : IEntityMetadata {
             this._info = {
                 disposed : false,
                 domain : domain,
@@ -204,7 +204,7 @@ module Hyperstore {
                     for (var i in values)
                     {
                         var v = values[i];
-                        var elem:ModelElement;
+                        var elem:Element;
                         if (v.$ref)
                         {
                             elem = refs[v.$ref];
@@ -230,7 +230,7 @@ module Hyperstore {
                                 continue;
                         }
 
-                        var src : ModelElement = rel.opposite ? r.elem : this;
+                        var src : Element = rel.opposite ? r.elem : this;
                         var end = rel.opposite ? this : r.elem;
 
                         var d = src.getInfo().domain;
@@ -252,7 +252,7 @@ module Hyperstore {
          *
          * @param schemaElement
          * @param direction
-         * @returns {ModelElement[]}
+         * @returns {Element[]}
          */
         getRelationships(schemaElement?:SchemaRelationship, direction:Direction = Direction.Outgoing): Cursor {
             var list;
@@ -353,10 +353,10 @@ module Hyperstore {
         }
     }
 
-    export class ModelRelationship extends ModelElement {
+    export class Relationship extends Element {
 
-        private __start:ModelElement;
-        private __end:ModelElement;
+        private __start:Element;
+        private __end:Element;
 
         getStartId() {
             return (<IRelationshipMetadata>this.getInfo()).startId;
@@ -376,9 +376,9 @@ module Hyperstore {
 
         /**
          *
-         * @returns {ModelElement}
+         * @returns {Element}
          */
-        getStart():ModelElement {
+        getStart():Element {
             if (this.isDisposed) {
                 throw "Can not use a disposed element";
             }
@@ -392,9 +392,9 @@ module Hyperstore {
 
         /**
          *
-         * @returns {ModelElement}
+         * @returns {Element}
          */
-        getEnd():ModelElement {
+        getEnd():Element {
             if (this.isDisposed) {
                 throw "Can not use a disposed element";
             }
@@ -407,7 +407,7 @@ module Hyperstore {
             return this.__end;
         }
 
-        __initialize(domain:DomainModel, id:string, schemaElement:SchemaElement, startId?:string, startSchemaId?:string, endId?:string, endSchemaId?:string) : IEntityMetadata {
+        __initialize(domain:Domain, id:string, schemaElement:SchemaElement, startId?:string, startSchemaId?:string, endId?:string, endSchemaId?:string) : IEntityMetadata {
             var info = <IRelationshipMetadata>super.__initialize(domain, id, schemaElement);
 
             info.startId = startId;

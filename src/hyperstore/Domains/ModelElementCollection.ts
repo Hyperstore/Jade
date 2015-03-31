@@ -20,9 +20,9 @@ module Hyperstore
 /**
  * encapsulates collection (many references)
  */
-class ModelElementArray
+class ElementArray
 {
-    all:ModelElement[];
+    all:Element[];
     private _sessionCompletedCookie;
 
     public reset()
@@ -44,7 +44,7 @@ class ModelElementArray
         }
     }
 
-    constructor(private _collection:ModelElementCollection)
+    constructor(private _collection:ElementCollection)
     {
         var self = this;
         this._sessionCompletedCookie = this._collection.domain.events.on(
@@ -72,7 +72,7 @@ class ModelElementArray
                         {
                             if (e.eventName === EventManager.AddRelationshipEvent)
                             {
-                                var rel = <ModelRelationship>domain.store.get(e.id);
+                                var rel = <Relationship>domain.store.get(e.id);
                                 if( !rel)
                                     return;
 
@@ -118,23 +118,23 @@ class ModelElementArray
         }
     }
 
-    add(mel:ModelElement)
+    add(mel:Element)
     {
         this.all.push(mel);
     }
 }
 
-    export class ModelElementCollection extends Cursor
+    export class ElementCollection extends Cursor
     {
-        source:ModelElement;
-        end:ModelElement;
+        source:Element;
+        end:Element;
         schemaRelationship:SchemaRelationship;
         cursor;
-        private _items : ModelElementArray;
-        domain : DomainModel;
-        public whereClause:(mel:ModelElement) => boolean;
+        private _items : ElementArray;
+        domain : Domain;
+        public whereClause:(mel:Element) => boolean;
 
-        public setFilter(whereClause:(mel:ModelElement) => boolean)
+        public setFilter(whereClause:(mel:Element) => boolean)
         {
             this.whereClause = whereClause;
             if( this._items)
@@ -144,16 +144,16 @@ class ModelElementArray
         /**
          * get all items as an array (for angular)
          * Changes will be take into account at the end of the session
-         * @returns {ModelElement[]}
+         * @returns {Element[]}
          */
         get items() {
             if(!this._items) {
-                this._items = new ModelElementArray(this);
+                this._items = new ElementArray(this);
             }
             return this._items.all;
         }
 
-        constructor(source:ModelElement, schemaRelationship:SchemaRelationship, opposite:boolean = false, filter?:(mel:ModelElement) => boolean)
+        constructor(source:Element, schemaRelationship:SchemaRelationship, opposite:boolean = false, filter?:(mel:Element) => boolean)
         {
             super();
             if (schemaRelationship.cardinality === Cardinality.OneToOne)
@@ -206,7 +206,7 @@ class ModelElementArray
                 this._items.dispose();
         }
 
-        remove(mel:ModelElement)
+        remove(mel:Element)
         {
             if (mel == null)
             {
@@ -234,7 +234,7 @@ class ModelElementArray
             }
         }
 
-        add(mel:ModelElement)
+        add(mel:Element)
         {
             if (mel == null)
             {

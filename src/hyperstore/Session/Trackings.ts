@@ -67,7 +67,7 @@ module Hyperstore
          * @returns {Array}
          * @private
          */
-        __prepareTrackedElements(store:Store):ModelElement[]
+        __prepareTrackedElements(store:Store):Element[]
         {
             var list = {};
 

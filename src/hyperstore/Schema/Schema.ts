@@ -96,7 +96,7 @@ module Hyperstore
          * @param value
          */
         constructor(
-            public domain:DomainModel, public id:string, public startId?:string, public startSchemaId?:string,
+            public domain:Domain, public id:string, public startId?:string, public startSchemaId?:string,
             public endId?:string, public endSchemaId?:string, public value?:any)
         {
         }

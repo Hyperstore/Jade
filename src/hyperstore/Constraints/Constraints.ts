@@ -21,7 +21,7 @@ module Hyperstore
     /**
      * A constraint is like a rule checked every time something change in a domain.
      * Every domain has a [[ConstraintsManager]] containing the domain constraints. You can access it by using the
-     * [[DomainModel.constraints]] property.
+     * [[Domain.constraints]] property.
      *
      * You can add constraint :
      * * on a schema element with the [[SchemaElement.addConstraint]] method.
@@ -38,7 +38,7 @@ module Hyperstore
     export interface IElementConstraint
     {
         kind: ConstraintKind;
-        condition: (self:ModelElement, ctx:ConstraintContext) => boolean;
+        condition: (self:Element, ctx:ConstraintContext) => boolean;
         message: string;
         messageType?: MessageType;
         propertyName?: string;

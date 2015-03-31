@@ -37,9 +37,9 @@ module Hyperstore
          * @param domain
          * @param id
          * @param version
-         * @returns {ModelElement}
+         * @returns {Element}
          */
-        create(domain:DomainModel, id?:string, version?:number) : ModelElement {
+        create(domain:Domain, id?:string, version?:number) : Element {
             if(!domain) throw "domain is required.";
             return domain.create(this, id, version);
         }

@@ -18,14 +18,14 @@
 module Hyperstore
 {
     export interface _IParseJsonResult {
-        elem : ModelElement;
+        elem : Element;
         load : ()=>void;
     }
 
     /**
      * Represents a domain model
      */
-    export class DomainModel {
+    export class Domain {
         public events:EventManager;
         private _cache:{};
         public eventDispatcher:EventDispatcher;
@@ -36,7 +36,7 @@ module Hyperstore
          * Domain model constructor
          * @param store : the store the domain belong to
          * @param name : domain name
-         * @param extension: __internal use only. Use DomainModelScope constructor to create a domain extension
+         * @param extension: __internal use only. Use DomainScope constructor to create a domain extension
          */
         constructor(public store:Store, public name:string, public extension?:string) {
             this.name = this.name.toLowerCase();
@@ -59,8 +59,8 @@ module Hyperstore
             this.eventDispatcher = undefined;
         }
 
-        newScope(extensionName:string, data?) : DomainModelScope {
-            var scope = new DomainModelScope(this, extensionName);
+        newScope(extensionName:string, data?) : DomainScope {
+            var scope = new DomainScope(this, extensionName);
             if(data)
             {
                 for (var name in data)
@@ -86,7 +86,7 @@ module Hyperstore
          */
         validate(schemaElement?:SchemaElement) : DiagnosticMessage[] {
             var groups = new HashTable<string,any>();
-            Utils.forEach(this.getElements(schemaElement), (m:ModelElement) => {
+            Utils.forEach(this.getElements(schemaElement), (m:Element) => {
                 var sch = m.getInfo().schemaElement;
                 var g = groups.get(sch.schema.name);
                 if( !g) {
@@ -111,7 +111,7 @@ module Hyperstore
          */
         createId(id?:string):string
         {
-            id = id || (DomainModel._seq++).toString();
+            id = id || (Domain._seq++).toString();
             return id.indexOf(Store.IdSeparator) < 0 ? this.name + Store.IdSeparator + (id || Utils.newGuid()) : id;
         }
         static _seq:number=0;
@@ -169,9 +169,9 @@ module Hyperstore
          *
          * @param def
          * @param rootSchema
-         * @returns {ModelElement[]}
+         * @returns {Element[]}
          */
-        loadFromJson(def:any, rootSchema?:SchemaElement):ModelElement[]
+        loadFromJson(def:any, rootSchema?:SchemaElement):Element[]
         {
             if (!def)
             {
@@ -234,7 +234,7 @@ module Hyperstore
                 throw "Ambiguous schema finding for " + rootSchema.name + " (Use checkMarkerJson) on " + obj;
 
             if ((<any>schema).loadFromJson) {
-                var mel:ModelElement = (<any>schema).loadFromJson(this, obj, parent);
+                var mel:Element = (<any>schema).loadFromJson(this, obj, parent);
                 if (mel)
                     return {
                         elem: mel, load: function () {
@@ -282,7 +282,7 @@ module Hyperstore
             return schema;
         }
 
-        private loadFromHyperstoreJson(def):Array<ModelElement>
+        private loadFromHyperstoreJson(def):Array<Element>
         {
             var list = [];
             var session = this.store.beginSession(SessionMode.Loading);
@@ -375,9 +375,9 @@ module Hyperstore
          * @param schemaElement: Select only relationships of this schema (including inheritance)
          * @param start: Select outgoing relationships of 'start'
          * @param end : Select incoming relationships of 'end'
-         * @returns {ModelElement[]}
+         * @returns {Element[]}
          */
-        getRelationships(schemaElement?:SchemaRelationship, start?:ModelElement, end?:ModelElement):Cursor
+        getRelationships(schemaElement?:SchemaRelationship, start?:Element, end?:Element):Cursor
         {
             var currentSchema = <SchemaElement>schemaElement;
             var tmpSchema = currentSchema;
@@ -455,7 +455,7 @@ module Hyperstore
             return Cursor.emptyCursor;
         }
 
-        copy(mel:ModelElement, options?) {
+        copy(mel:Element, options?) {
             options = options || {refs : {}};
             var refs = options.refs || (options.refs = {});
             var schema = mel.getSchemaElement();
@@ -601,9 +601,9 @@ module Hyperstore
          * @param schemaElement
          * @param id
          * @param version
-         * @returns {Hyperstore.ModelElement}
+         * @returns {Hyperstore.Element}
          */
-        create(schemaElement:SchemaElement, id?:string, version?:number):ModelElement
+        create(schemaElement:SchemaElement, id?:string, version?:number):Element
         {
             var session = this.store.beginSession();
             try {
@@ -616,7 +616,7 @@ module Hyperstore
 
                 var node = this._graph.addNode(id, schemaElement.id, version);
                 // after node creation
-                var mel = <ModelElement>schemaElement.deserialize(new SerializationContext(this, id));
+                var mel = <Element>schemaElement.deserialize(new SerializationContext(this, id));
                 this._raiseEvent(
                     new AddEntityEvent(this.name, id, schemaElement.id, node.version)
                 );
@@ -638,9 +638,9 @@ module Hyperstore
          * @param endSchemaId
          * @param id
          * @param version
-         * @returns {Hyperstore.ModelRelationship}
+         * @returns {Hyperstore.Relationship}
          */
-        createRelationship(schemaRelationship:SchemaRelationship, start:ModelElement, endId:string, endSchemaId:string, id?:string, version?:number):ModelRelationship {
+        createRelationship(schemaRelationship:SchemaRelationship, start:Element, endId:string, endSchemaId:string, id?:string, version?:number):Relationship {
             Utils.Requires(schemaRelationship, "schemaRelationship");
             Utils.Requires(start, "start");
             Utils.Requires(endId, "endId");
@@ -657,7 +657,7 @@ module Hyperstore
                     id, schemaRelationship.id, src.id, src.schemaElement.id, endId, endSchemaId, version
                 );
                 // after node creation
-                var mel = <ModelRelationship>schemaRelationship.deserialize(
+                var mel = <Relationship>schemaRelationship.deserialize(
                     new SerializationContext(this, id, src.id, src.schemaElement.id, endId, endSchemaId)
                 );
 
@@ -759,7 +759,7 @@ module Hyperstore
          * @param id
          * @returns {*}
          */
-        get(id:string):ModelElement
+        get(id:string):Element
         {
             if(!id) return;
             id = this.normalizeId(id);
@@ -824,10 +824,10 @@ module Hyperstore
         }
     }
 
-    export class DomainModelScope extends DomainModel {
+    export class DomainScope extends Domain {
         private _events: AbstractEvent[];
 
-        constructor(public domain:DomainModel, extension:string)
+        constructor(public domain:Domain, extension:string)
         {
             super(domain.store, domain.name, extension);
             var that:any = this;
@@ -886,7 +886,7 @@ module Hyperstore
         _properties;
         static DELETED_NODE = '$';
 
-        constructor(public domain:DomainModel)
+        constructor(public domain:Domain)
         {
             this._properties = {};
             this._nodes = [];
@@ -1192,7 +1192,7 @@ module Hyperstore
     class HypergraphEx extends Hypergraph {
         private _superHyperGraph:Hypergraph;
 
-        constructor(domain:DomainModel) {
+        constructor(domain:Domain) {
             super(domain);
             this._superHyperGraph = (<any>domain)._graph;
         }

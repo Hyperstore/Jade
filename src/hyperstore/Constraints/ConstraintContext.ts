@@ -26,7 +26,7 @@ module Hyperstore
         /**
          * element the constraint execute on
          */
-        element:ModelElement;
+        element:Element;
         /**
          * current property is any
          */

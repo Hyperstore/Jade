@@ -39,7 +39,7 @@ export class SchemaElement extends SchemaInfo
         this._properties = {};
         this._references = {};
         this.proto = Object.create(
-                baseElement ? baseElement.proto  : (kind === SchemaKind.Entity ? ModelElement.prototype : ModelRelationship.prototype)
+                baseElement ? baseElement.proto  : (kind === SchemaKind.Entity ? Element.prototype : Relationship.prototype)
         );
         if( baseElement) baseElement.subElements.push(this);
     }
@@ -79,7 +79,7 @@ export class SchemaElement extends SchemaInfo
             this.baseElement.onBefore(ctx);
     }
 
-    getKeyValueFromJson(data, parent?:ModelElement) : string {
+    getKeyValueFromJson(data, parent?:Element) : string {
         var keyProperties = this.getKeyProperties().toArray();
         if( keyProperties.length === 0) return;
         var keys = [];
@@ -253,11 +253,11 @@ export class SchemaElement extends SchemaInfo
                     configurable: true,
                     get         : function ()
                     {
-                        return ModelElement.prototype.get.call(this, desc);
+                        return Element.prototype.get.call(this, desc);
                     },
                     set         : function (value)
                     {
-                        ModelElement.prototype.set.call(this, desc, value);
+                        Element.prototype.set.call(this, desc, value);
                     }
                 }
             );
@@ -323,11 +323,11 @@ export class SchemaElement extends SchemaInfo
      * deserialize is called when an element is created. This method is used when an element is deserializing
      * from an external source (channel or persistence)
      * @param ctx - [[SerializationContext]] contains model element informations
-     * @returns [[Hyperstore.ModelElement]] - return an initialized model element
+     * @returns [[Hyperstore.Element]] - return an initialized model element
      */
-    deserialize(ctx:SerializationContext) : ModelElement
+    deserialize(ctx:SerializationContext) : Element
     {
-        var mel = <ModelRelationship>Object.create(this.proto);
+        var mel = <Relationship>Object.create(this.proto);
 
         mel.__initialize(ctx.domain, ctx.id, this, ctx.startId, ctx.startSchemaId, ctx.endId, ctx.endSchemaId);
 
@@ -340,7 +340,7 @@ export class SchemaElement extends SchemaInfo
                 }
                 else
                 {
-                    mel[refName] = new ModelElementCollection(mel, info.schemaRelationship, info.opposite);
+                    mel[refName] = new ElementCollection(mel, info.schemaRelationship, info.opposite);
                     Object.defineProperty(
                         mel, info.name, {
                             configurable: true,
@@ -368,7 +368,7 @@ export class SchemaElement extends SchemaInfo
      * @param propertyName - if the constraint target a specific property, the propertyName diagnostic message property will be set with this value.
      */
     addConstraint(
-        message:string, constraint:(self:ModelElement, ctx:ConstraintContext) => boolean, asError:boolean = false,
+        message:string, constraint:(self:Element, ctx:ConstraintContext) => boolean, asError:boolean = false,
         kind:ConstraintKind = ConstraintKind.Check, propertyName?:string)
     {
         this.schema.constraints.addConstraint(
@@ -390,19 +390,19 @@ export class SchemaElement extends SchemaInfo
 // -------------------------------------------------------------------------------------
 class ReferenceHandler
 {
-    private relationship:ModelRelationship;
+    private relationship:Relationship;
 
     // -------------------------------------------------------------------------------------
     //
     // -------------------------------------------------------------------------------------
-    constructor(private _source:ModelElement, private _schemaRelationship:SchemaRelationship, private _opposite:boolean)
+    constructor(private _source:Element, private _schemaRelationship:SchemaRelationship, private _opposite:boolean)
     {
     }
 
     // -------------------------------------------------------------------------------------
     //
     // -------------------------------------------------------------------------------------
-    getReference():ModelElement
+    getReference():Element
     {
         if (this._source.isDisposed)
         {
@@ -442,9 +442,9 @@ class ReferenceHandler
             throw "Can not use a disposed element";
         }
 
-        var other = <ModelElement>v;
+        var other = <Element>v;
 
-        var start:ModelElement = this._opposite ? undefined : this._source;
+        var start:Element = this._opposite ? undefined : this._source;
         var end = this._opposite ? this._source : undefined;
 
         var domain = this._source.getInfo().domain;

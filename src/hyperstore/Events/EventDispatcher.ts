@@ -50,7 +50,7 @@ module Hyperstore {
             this.registerHandler(
                 {
                     eventName: EventManager.RemoveEntityEvent,
-                    execute: function (d:DomainModel, evt) {
+                    execute: function (d:Domain, evt) {
                         var mel = d.get(evt.id);
                         if (!mel) {
                             throw "Invalid element";
@@ -76,7 +76,7 @@ module Hyperstore {
 
             this.registerHandler(
                 {
-                    eventName: EventManager.RemoveRelationshipEvent, execute: function (d:DomainModel, evt) {
+                    eventName: EventManager.RemoveRelationshipEvent, execute: function (d:Domain, evt) {
                     var mel = d.get(evt.id);
                     if (!mel) {
                         throw "Invalid element";
@@ -131,7 +131,7 @@ module Hyperstore {
             }
         }
 
-        _getDomain(domainName:string):DomainModel {
+        _getDomain(domainName:string):Domain {
             return Session.current  && this.store.hasDomainExtensions ? Session.current.getDomain(domainName) : this.store.getDomain(domainName);
         }
 
@@ -168,7 +168,7 @@ module Hyperstore {
          * create a new DomainEventDispatcher instance
          * @param domain - Domain to target
          */
-        constructor(public domain:DomainModel, private _dispatcherToUse?:EventDispatcher) {
+        constructor(public domain:Domain, private _dispatcherToUse?:EventDispatcher) {
             super(domain.store);
         }
 
@@ -176,7 +176,7 @@ module Hyperstore {
             return this._dispatcherToUse && this._dispatcherToUse._getHandlers(key) || super._getHandlers(key);
         }
 
-        _getDomain(domainName:string) : DomainModel {
+        _getDomain(domainName:string) : Domain {
             return domainName === this.domain.name ? this.domain : null;
         }
     }

@@ -46,7 +46,7 @@
             //this.hub.logging = true;
         }
 
-        associate(domain:Hyperstore.DomainModel) {
+        associate(domain:Hyperstore.Domain) {
             super.associate(domain);
             var self = this;
             this.proxy = this.hub.createHubProxy('hyperstore');

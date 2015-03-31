@@ -92,7 +92,7 @@ angular.module("hyperstore", [])
                 this.store = this.store || new Hyperstore.Store();
 
                 new Hyperstore.Schema(this.store, undefined, def);
-                var domain = new Hyperstore.DomainModel(this.store, name);
+                var domain = new Hyperstore.Domain(this.store, name);
 
                 var defer = $.Deferred();
 

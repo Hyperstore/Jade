@@ -22,7 +22,7 @@ module Hyperstore {
         pushElement(name:string, state:TrackingState, id:string, schemaId:string, startId?:string, endStartId?:string, endId?:string, endSchemaId?:string);
         pushProperty(tag:string, name:string, value:any);
         reduceScope();
-        save(domain:DomainModel, monikers:MonikerEntry[]):string;
+        save(domain:Domain, monikers:MonikerEntry[]):string;
     }
 
     interface MonikerEntry {
@@ -85,7 +85,7 @@ module Hyperstore {
             this._current=null;
         }
 
-        save(domain:DomainModel, monikers:MonikerEntry[]):string {
+        save(domain:Domain, monikers:MonikerEntry[]):string {
             var scope = this.stackHead();
             scope.domain = domain.name;
             scope.mode = "HY";
@@ -118,25 +118,25 @@ module Hyperstore {
     export class DomainSerializer {
         private _monikers:HashTable<string,MonikerEntry>;
         private _writer:ISerializerWriter;
-        private _domain:DomainModel;
+        private _domain:Domain;
         private _monikerSeq : number;
 
         /**
          * do not use directly - Use the static method save
          * @param domain
          */
-        constructor(domain:DomainModel) {
+        constructor(domain:Domain) {
             this._writer = new JSONWriter();
             this._domain = domain;
             this._monikerSeq=0;
             this._monikers = new HashTable<string,MonikerEntry>();
         }
 
-        static save(domain:DomainModel, entities?:Cursor, relationships?:Cursor):string
+        static save(domain:Domain, entities?:Cursor, relationships?:Cursor):string
         {
             if (!domain || !(
-                domain instanceof DomainModel))
-                throw "domain must be a valid instance of DomainModel";
+                domain instanceof Domain))
+                throw "domain must be a valid instance of Domain";
             var ser = new DomainSerializer(domain);
             return ser.saveDomain(entities, relationships);
         }
@@ -182,13 +182,13 @@ module Hyperstore {
         }
 
         /**
-         * Save only changes from a DomainModelScope
+         * Save only changes from a DomainScope
          * @param domain
          * @returns {string}
          */
-        static saveChanges(domain:DomainModelScope) {
-            if(!domain || !(domain instanceof DomainModelScope))
-                throw "domain must be a valid instance of DomainModelScope";
+        static saveChanges(domain:DomainScope) {
+            if(!domain || !(domain instanceof DomainScope))
+                throw "domain must be a valid instance of DomainScope";
             var ser = new DomainSerializer(domain);
             var changes = domain.getChanges();
             var that = this;

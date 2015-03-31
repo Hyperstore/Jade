@@ -28,7 +28,7 @@ module Hyperstore
          * @param propertyName
          */
         constructor(
-            public messageType:MessageType, public message:string, private element?:ModelElement,
+            public messageType:MessageType, public message:string, private element?:Element,
             public propertyName?:string)
         {
             if (element)

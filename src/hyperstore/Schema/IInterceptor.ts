@@ -19,10 +19,10 @@
 module Hyperstore
 {
     export interface IInterceptor {
-        beforeCreate(mel:ModelElement);
-        afterCreate(mel:ModelElement);
-        beforeRemove(mel:ModelElement);
+        beforeCreate(mel:Element);
+        afterCreate(mel:Element);
+        beforeRemove(mel:Element);
         afterRemove(id:string, schemaElement:SchemaElement);
-        onChange(mel:ModelElement, value, oldValue);
+        onChange(mel:Element, value, oldValue);
     }
 }

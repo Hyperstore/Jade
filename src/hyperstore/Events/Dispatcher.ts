@@ -30,6 +30,6 @@ module Hyperstore
     export interface IEventHandler
     {
         eventName: string;
-        execute(domain:DomainModel, event);
+        execute(domain:Domain, event);
     }
 }

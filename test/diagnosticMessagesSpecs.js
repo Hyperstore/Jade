@@ -8,7 +8,7 @@ var expect = require('chai').expect;
         var librarySchema = new hyperstore.SchemaEntity(schema, 'Library');
         librarySchema.defineProperty('Name', 'string');
 
-        var domain = new hyperstore.DomainModel(store, 'D');
+        var domain = new hyperstore.Domain(store, 'D');
 
         //Spec - 1
         it('Checks message formatting with element properties', function () {

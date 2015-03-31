@@ -21,7 +21,7 @@ module Hyperstore {
     export class Query extends Cursor {
 
         private _iterator:Cursor;
-        private _current: ModelElement;
+        private _current: Element;
         private _cx:number;
         private _subQueries : Query[];
         private _state:number=0;
@@ -115,7 +115,7 @@ module Hyperstore {
             }
         }
 
-        private filterQuery(elem:ModelElement, config, flag:boolean=false) {
+        private filterQuery(elem:Element, config, flag:boolean=false) {
             var metadata = elem.getInfo();
 
             for(var field in config) {

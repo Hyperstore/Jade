@@ -10,14 +10,14 @@ var store;
         beforeEach(function() {
             store = new hyperstore.Store();
             store.loadSchema(schemaTest);
-            domain = new hyperstore.DomainModel(store, 'D');
+            domain = new hyperstore.Domain(store, 'D');
         });
 
         //Spec - 1
         it('Remove elements', function () {
             domain.loadFromJson({Name:"My library", Books:[ {Title:"Book1"}, {Title:"Book2"}]}, "Library");
 
-            var scope = new hyperstore.DomainModelScope(domain, "xx");
+            var scope = new hyperstore.DomainScope(domain, "xx");
             var lib2 = scope.getElements("Library").firstOrDefault();
             var b = scope.create("Book");
             lib2.Books.add(b);
@@ -29,7 +29,7 @@ var store;
             var jsonChanges = hyperstore.DomainSerializer.saveChanges(scope);
             store.unloadDomain(scope);
 
-            scope = new hyperstore.DomainModelScope(domain, "xx");
+            scope = new hyperstore.DomainScope(domain, "xx");
             expect(scope.getEntities().count()).to.equal(3);
             scope.loadFromJson(jsonChanges);
             expect(scope.getElements().count()).to.equal(0);
@@ -39,7 +39,7 @@ var store;
             var lib = domain.create("Library");
             lib.Name = "test";
 
-            var scope = new hyperstore.DomainModelScope(domain, "xx");
+            var scope = new hyperstore.DomainScope(domain, "xx");
             var lib2 = scope.get(lib.getId());
             lib2.Name = "Test2";
             var b = scope.create("Book");
@@ -67,7 +67,7 @@ var store;
             lib.Name = "test";
             expect(lib.Books.count()).to.equal(0);
 
-            var scope = new hyperstore.DomainModelScope(domain, "xx");
+            var scope = new hyperstore.DomainScope(domain, "xx");
             var lib2 = scope.getElements("Library").firstOrDefault();
             expect(lib).to.not.be.undefined;
             expect(lib2.Name).to.equal("test");
@@ -85,7 +85,7 @@ var store;
         it("Extension changes commit", function() {
             var lib = domain.create("Library");
             lib.Name = "test";
-            var scope = new hyperstore.DomainModelScope(domain, "xx");
+            var scope = new hyperstore.DomainScope(domain, "xx");
             var lib2 = scope.get(lib.getId());
             lib2.Name = "Test2";
             expect(lib2.Name).to.equal("Test2");

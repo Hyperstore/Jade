@@ -35,7 +35,7 @@ module Hyperstore
 
     export interface IStoreConfiguration
     {
-        defaultDomainModel?:string;
+        defaultDomain?:string;
         storeId?:string;
         channels?: any[];
         schemas : any;
@@ -82,7 +82,7 @@ module Hyperstore
             Utils.forEach(this._keys, v => this._iterations.push(v));
         }
 
-        public unload(domain:DomainModel)
+        public unload(domain:Domain)
         {
             domain.dispose();
             var i = this._keys[domain.name];
@@ -109,12 +109,12 @@ module Hyperstore
             }
         }
 
-        getDomain(name:string) : DomainModel {
+        getDomain(name:string) : Domain {
             var i = this._keys[name];
             return i !== undefined ? this._domains[i] : undefined;
         }
 
-        all() : DomainModel[] {
+        all() : Domain[] {
             return this._domains;
         }
 
@@ -170,7 +170,7 @@ module Hyperstore
         private _domains:DomainManager;
         private _subscriptions;
         public storeId:string;
-        public defaultDomainModel:DomainModel;
+        public defaultDomain:Domain;
         public fileResolver: IFileResolver;
 
         /**
@@ -238,18 +238,18 @@ module Hyperstore
             return loader.loadSchemas(schema, overrides);
         }
 
-        createDomainAsync(config?:any):Q.Promise<DomainModel> {
-            var p = Q.defer<DomainModel>();
+        createDomainAsync(config?:any):Q.Promise<Domain> {
+            var p = Q.defer<Domain>();
             this.createDomain(config, p);
             return p.promise;
         }
 
-        createDomain(config?:any, p?:Q.Deferred<any>):DomainModel {
+        createDomain(config?:any, p?:Q.Deferred<any>):Domain {
             if (!config)
                 return null;
 
             if(typeof(config) === "string") {
-                var domain = new DomainModel(this, <string>config);
+                var domain = new Domain(this, <string>config);
                 if(p) {
                     p.resolve(domain);
                 }
@@ -261,7 +261,7 @@ module Hyperstore
             }
 
             var domainName = config.name;
-            domain = new DomainModel(this, domainName);
+            domain = new Domain(this, domainName);
             this["config"] = config;
 
             var self = this;
@@ -287,7 +287,7 @@ module Hyperstore
                 Q.all(tasks).then(function () {
                         self.populateDomain(config, domain);
                         self.addChannels(config, domain);
-                        self.defaultDomainModel = this.getDomain(config.defaultDomainModel);
+                        self.defaultDomain = this.getDomain(config.defaultDomain);
                         p.resolve(domain);
                     }
                 ).fail(function (err) {
@@ -298,14 +298,14 @@ module Hyperstore
             else {
                 this.populateDomain(config, domain);
                 self.addChannels(config, domain);
-                this.defaultDomainModel = this.getDomain(config.defaultDomainModel);
+                this.defaultDomain = this.getDomain(config.defaultDomain);
                 if (p) p.resolve(domain);
             }
 
             return domain;
         }
 
-        private addChannels(config, domain:DomainModel) {
+        private addChannels(config, domain:Domain) {
             if (config.channels) {
                 var channels = typeof(config.channels) === "function" ? config.channels() : config.channels;
 
@@ -318,7 +318,7 @@ module Hyperstore
             }
         }
 
-        private populateDomain(def, domain:DomainModel) : SessionResult
+        private populateDomain(def, domain:Domain) : SessionResult
         {
             if (!def || domain.getElements().hasNext()) // already initialize
                 return;
@@ -383,9 +383,9 @@ module Hyperstore
          * @param domain - Domain or extension to unload
          * @param commitChanges - For an extension, persists changes in the parent domain.
          */
-        public unloadDomain(domain:DomainModel, commitChanges:boolean=false)
+        public unloadDomain(domain:Domain, commitChanges:boolean=false)
         {
-            var scope = <DomainModelScope>domain;
+            var scope = <DomainScope>domain;
             if( scope.apply && commitChanges )
                 scope.apply();
             this._domains.unload(domain);
@@ -393,9 +393,9 @@ module Hyperstore
 
         /**
          * Get the list of loaded domains
-         * @returns {DomainModel[]}
+         * @returns {Domain[]}
          */
-        public get domains():DomainModel[]
+        public get domains():Domain[]
         {
             return this._domains.all();
         }
@@ -446,8 +446,8 @@ module Hyperstore
             };
         }
 
-        getActiveDomains() : HashTable<string,DomainModel> {
-            var dic = new HashTable<string,DomainModel>();
+        getActiveDomains() : HashTable<string,Domain> {
+            var dic = new HashTable<string,Domain>();
             this._domains.all().forEach( d=> { dic._fastInsert(d.name, d);});
             return dic;
         }
@@ -465,14 +465,14 @@ module Hyperstore
          * @param name
          * @returns {*}
          */
-        getDomain(name:string):DomainModel
+        getDomain(name:string):Domain
         {
             if( Session.current) // optim
                 return Session.current.getDomain(name, true) || this._domains.getDomain(name);
             return this._domains.getDomain(name);
         }
 
-        __addDomain(domain:DomainModel)
+        __addDomain(domain:Domain)
         {
             this._domains.addDomain(domain);
         }
@@ -490,7 +490,7 @@ module Hyperstore
             if (!Session.current)
             {
                 config = config || {};
-                config.defaultDomain = config.defaultDomain || this.defaultDomainModel;
+                config.defaultDomain = config.defaultDomain || this.defaultDomain;
                 Session.current = new Session(this, config);
             }
             else
@@ -674,7 +674,7 @@ module Hyperstore
          * @param id
          * @returns {*}
          */
-        get(id:string):ModelElement
+        get(id:string):Element
         {
             var domainName = id.substr(0, id.indexOf(':'));
             var domain = this.getDomain(domainName);
@@ -685,11 +685,11 @@ module Hyperstore
          * Get a list of elements
          * @param schemaElement
          * @param kind
-         * @returns {ModelElement[]}
+         * @returns {Element[]}
          */
         getElements(schemaElement?:SchemaElement, kind:NodeType = NodeType.EntityOrRelationship): Cursor
         {
-            return new SelectManyCursor(this._domains, function (domain:DomainModel)
+            return new SelectManyCursor(this._domains, function (domain:Domain)
                 {
                     return domain.getElements(schemaElement, kind);
                 }

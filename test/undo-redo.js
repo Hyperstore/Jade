@@ -13,7 +13,7 @@ describe('Undo/Redo manager', function () {
         {
             store = new Hyperstore.Store();
             store.loadSchema(schemaTest);
-            domain = new Hyperstore.DomainModel(store, 'D');
+            domain = new Hyperstore.Domain(store, 'D');
             lib = domain.create("Library");
             lib.Name = "test";
         });

@@ -66,7 +66,7 @@ module Hyperstore
                 {
                     propertyName     : property.name,
                     messageType      : def.messageType,
-                    execute : function (self:ModelElement, ctx:ConstraintContext) : string
+                    execute : function (self:Element, ctx:ConstraintContext) : string
                     {
                         var pv = <PropertyValue>ctx.element.getInfo().domain.getPropertyValue(self.getInfo().id, property);
                         if (!pv)
@@ -117,7 +117,7 @@ module Hyperstore
             if(!constraint.execute)
             {
                 var message = constraint.message || "Constraint failed for element {id}";
-                constraint.execute = function (self:ModelElement, ctx:ConstraintContext)
+                constraint.execute = function (self:Element, ctx:ConstraintContext)
                 {
                     var result = <string>null;
                     ctx.propertyName = null;
@@ -154,7 +154,7 @@ module Hyperstore
          * @param elements - elements to validate or a domain model (to validates all its elements)
          * * @returns [[ DiagnosticMessage[] ]] - message list
          */
-        validate(elements:DomainModel);
+        validate(elements:Domain);
         /**
          * validate a list of elements by executing all constraints (including [[ConstraintKind.Check]] constraint)
          * and returns a list of messages.
@@ -164,14 +164,14 @@ module Hyperstore
         validate(elements):DiagnosticMessage[]
         {
             if (elements.store)
-                elements = <DomainModel>elements.getElements();
+                elements = <Domain>elements.getElements();
             return this.checkOrValidateElements(elements, ConstraintKind.Validate);
         }
 
         private checkOrValidateElements(elements, kind:ConstraintKind):DiagnosticMessage[]
         {
             var ctx = new ConstraintContext(kind);
-            Utils.forEach(elements, (mel:ModelElement) => {
+            Utils.forEach(elements, (mel:Element) => {
                 try {
                     ctx.element = mel;
                     this.checkCondition(ctx, mel.getInfo().schemaElement);

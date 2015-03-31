@@ -33,7 +33,7 @@ module Hyperstore
 
     export interface SessionConfiguration
     {
-        defaultDomain?: DomainModel;
+        defaultDomain?: Domain;
         mode?: SessionMode;
         sessionId?: number;
         origin?: string;
@@ -53,7 +53,7 @@ module Hyperstore
         public sessionId:number;
         public trackingData:TrackingData;
         public result:SessionResult;
-        private _activeDomains : HashTable<string, DomainModel>;
+        private _activeDomains : HashTable<string, Domain>;
         private _store: Store;
 
         /**
@@ -102,7 +102,7 @@ module Hyperstore
         /**
          *
           * @param domain
-         * @returns {DomainModel}
+         * @returns {Domain}
          */
         getDomain(domain:string, activeOnly:boolean=false) {
             return this._activeDomains ? this._activeDomains.get(domain) : activeOnly ? undefined : this._store.getDomain(domain);
@@ -188,7 +188,7 @@ module Hyperstore
             // First domain events
             if (!this.aborted) {
                 this.store.domains.forEach(d=> {
-                    (<DomainModel>d).events.__notifySessionCompleted(self);
+                    (<Domain>d).events.__notifySessionCompleted(self);
                 });
             }
             // store events is always send
@@ -210,9 +210,9 @@ module Hyperstore
             return this.result;
         }
 
-        private executeConstraints(elements:ModelElement[])
+        private executeConstraints(elements:Element[])
         {
-            var constraintsManager = Utils.groupBy(elements, (e:ModelElement) => e.getInfo().schemaElement.schema.constraints);
+            var constraintsManager = Utils.groupBy(elements, (e:Element) => e.getInfo().schemaElement.schema.constraints);
 
             var messages = [];
             Utils.forEach(constraintsManager, m =>

@@ -54,7 +54,7 @@ module Hyperstore
         /**
          * List of elements involved during the current session
          */
-        public involvedElements:ModelElement[];
+        public involvedElements:Element[];
         /**
          * Max version number founded during the session.
          *
