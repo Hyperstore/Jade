@@ -59,8 +59,14 @@ module Hyperstore
             this.eventDispatcher = undefined;
         }
 
-        newScope(extensionName:string, data?) : DomainScope {
-            var scope = new DomainScope(this, extensionName);
+        /**
+         * Create a new domain scope
+         * @param scopeName - Unique scope name
+         * @param data - (optional) data to load
+         * @returns {Hyperstore.DomainScope}
+         */
+        createScope(scopeName:string, data?) : DomainScope {
+            var scope = new DomainScope(this, scopeName);
             if(data)
             {
                 for (var name in data)
