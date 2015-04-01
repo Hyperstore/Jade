@@ -31,6 +31,7 @@ module Hyperstore
         public eventDispatcher:EventDispatcher;
         private _adapters:Adapter[];
         private _graph:Hypergraph;
+        root : Element;
 
         /**
          * Domain model constructor
@@ -38,7 +39,18 @@ module Hyperstore
          * @param name : domain name
          * @param extension: __internal use only. Use DomainScope constructor to create a domain extension
          */
-        constructor(public store:Store, public name:string, public extension?:string) {
+        constructor(public store:Store, public name:string, public schema:Schema, public extension?:string) {
+            if(!store) throw "invalid store argument in domain constructor.";
+            if(!name) throw "invalid domain name in domain constructor.";
+
+            if(typeof(schema) === "string")
+                this.schema = store.getSchema(<any>schema);
+            else if(schema && (<any>schema).schema)
+                this.schema = (<any>schema).schema;
+            else if (typeof(schema) === "object" && !(schema instanceof Schema))
+                this.schema = store.loadSchema(<any>schema).schema;
+            if(!this.schema) throw "invalid schema in domain constructor.";
+
             this.name = this.name.toLowerCase();
             this.extension = extension;
             this._graph = new Hypergraph(this);
@@ -122,14 +134,16 @@ module Hyperstore
         }
         static _seq:number=0;
         /**
-         * Add an adapter
+         * Add an adapter or an array of adapters
          * @param adapter
          */
-        addAdapter(adapter:Adapter)
+        addAdapter(adapter)
         {
-            var self = this;
-            adapter.init(this);
-            this._adapters.push(adapter);
+            var adapters: Array<Adapter> = Array.isArray(adapter) ? adapter : [adapter];
+            adapters.forEach( a=> {
+                a.init(this);
+                this._adapters.push(a);
+            });
         }
 
         /**
@@ -196,7 +210,7 @@ module Hyperstore
 
             if (!rootSchema)
             {
-                throw "rootSchema is required";
+                rootSchema = this.schema.root;
             }
 
             var refs = {};
@@ -629,6 +643,13 @@ module Hyperstore
                 this._cache[id] = mel; // TODO cache mel in node and remove _cache
                 schemaElement.onAfter({action: "Create", mel: mel});
                 session.acceptChanges();
+
+                if( !this.root || this.root.isDisposed) { // only one root
+                    if( mel.getSchemaElement().isA(this.schema.root))
+                    {
+                        this.root = mel;
+                    }
+                }
                 return mel;
             }
             finally {
@@ -835,7 +856,7 @@ module Hyperstore
 
         constructor(public domain:Domain, extension:string)
         {
-            super(domain.store, domain.name, extension);
+            super(domain.store, domain.name, domain.schema, extension);
 
             if(!extension)
                 throw "Invalid extension name";

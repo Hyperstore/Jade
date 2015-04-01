@@ -12,8 +12,8 @@ describe('Undo/Redo manager', function () {
         beforeEach(function()
         {
             store = new Hyperstore.Store();
-            store.loadSchema(schemaTest);
-            domain = new Hyperstore.Domain(store, 'D');
+            var schema = store.loadSchema(schemaTest);
+            domain = new Hyperstore.Domain(store, 'D', schema);
             lib = domain.create("Library");
             lib.Name = "test";
         });

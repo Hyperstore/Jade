@@ -131,6 +131,7 @@ module Hyperstore
         public constraints:ConstraintsManager;
 
         private _elements: HashTable<string,SchemaInfo>;
+        public root : SchemaEntity;
 
         constructor(public store:Store, public name?:string, def?:ISchemaDefinition)
         {
@@ -164,15 +165,25 @@ module Hyperstore
             });
         }
 
+        private _getSimpleName(id:string) {
+            var pos = id.indexOf(':');
+            return pos < 0 ? id : id.substr(pos + 1);
+        }
+
         __addSchemaElement(schemaInfo:SchemaInfo)
         {
             var id = schemaInfo.id.toLowerCase();
-            var pos = id.indexOf(':');
-            var simpleName = pos < 0 ? id : id.substr(pos + 1);
+            var simpleName = this._getSimpleName(id);
             if( this._elements.keyExists(simpleName))
                 throw "Duplicate schema name " + id;
             this._elements.add(simpleName, schemaInfo);
             this.store.__addSchemaElement(schemaInfo);
+
+            // Calculate schema root
+            // Roots = elements which are not a target element of any relationships
+            if( schemaInfo.kind == SchemaKind.Entity && !this.root) {
+                this.root = <SchemaEntity>schemaInfo;
+            }
         }
     }
 }

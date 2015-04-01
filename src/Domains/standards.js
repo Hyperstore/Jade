@@ -23,7 +23,7 @@
         // Shared constraints can be referenced with the $ref property name.
         constraints: {
             "required": {
-                message: "Property '{propertyName}' is required for {_identity}",
+                message: "Property '{$propertyName}' is required for {$identity}",
                 check: function (val) {
                     return val != undefined;
                 }
@@ -33,7 +33,7 @@
         types: {
             "Date" : {
               constraints : {
-                  "{value} is not a date for {propertyName} of {_identity}." : function(val) {
+                  "{$value} is not a date for {$propertyName} of {$identity}." : function(val) {
                       return val instanceof Date;
                   }
               }
@@ -44,7 +44,7 @@
                 type: "string",
                 constraints: {
                     "duplicate": {
-                        message: "Duplicate value '{value}' for {propertyName} of {_identity}.",
+                        message: "Duplicate value '{$value}' for {$propertyName} of {$identity}.",
                         // Property condition
                         // val : current value
                         // old : old value
@@ -74,7 +74,7 @@
                 type: "string",
                 max: 0,
                 constraints: {
-                    " Invalid value '{value}' for  {propertyName} must have less than {$max} characters of {_identity}.": function (val) {
+                    " Invalid value '{$value}' for  {$propertyName} must have less than {@max} characters of {$identity}.": function (val) {
                         return this.max === 0 || val.length <= this.max;
                     }
                 }
@@ -86,7 +86,7 @@
                 pattern: /[a-zA-Z0-9.!#$%&'*+-/=?\^_`{|}~-]+@[a-zA-Z0-9-]+(?:\.[a-zA-Z0-9-]+)*/,
                 constraints: {
                     check_format: {
-                        message: "Invalid email '{value}' for property '{propertyName}' of {_identity}.",
+                        message: "Invalid email '{$value}' for property '{$propertyName}' of {$identity}.",
                         check: function (val) {
                             return (!val && this.optional) || this.pattern.test(val);
                         }
@@ -98,7 +98,7 @@
                 values: [],
                 constraints: {
                     "invalid": {
-                        message: "Invalid value '{value}' for property '{propertyName}' of {_identity} must be one of {$values}.",
+                        message: "Invalid value '{$value}' for property '{$propertyName}' of {$identity} must be one of {@values}.",
                         check: function (val) {
                             return this.values.indexOf(val) !== -1;
                         }
@@ -113,7 +113,7 @@
                 optional: false,
                 constraints: {
                     "invalid": {
-                        message: "Invalid value '{value}' for '{propertyName}' of {_identity} value must be between {$min} and {$max}",
+                        message: "Invalid value '{$value}' for '{$propertyName}' of {$identity} value must be between {@min} and {@max}",
                         check: function (val) {
                             return (!val && this.optional) || val >= this.min && val <= this.max;
                         }
@@ -126,7 +126,7 @@
                 optional: false,
                 constraints: {
                     "invalid": {
-                        message: "Invalid value '{value}' for '{propertyName}' of {_identity}. Must be an array of {$valueType}",
+                        message: "Invalid value '{$value}' for '{$propertyName}' of {$identity}. Must be an array of {@valueType}",
                         check: function (val) {
                             if (!val) return this.optional;
                             if (!val.length) return false;

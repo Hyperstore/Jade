@@ -51,22 +51,20 @@ module Hyperstore
             this._resolver = store.fileResolver;
         }
 
-        loadSchemas(schemas, overrides?):any
+        loadSchema(schema, overrides?):any
         {
             var meta = {};
-            if (!schemas) return meta;
+            if (!schema) return meta;
             this._overrides = overrides;
 
-            if (!Array.isArray(schemas)) schemas = [schemas];
-            this._configs = schemas;
+            this._configs = [schema];
             this._schemas = new HashTable<string,any>();
             this.store.schemas.forEach( s => this._schemas.add(s.name, new SchemaState(this.store, s.name, null, s, false)));
 
-            this._configs.forEach(schema => {
-                    var state = this._parseSchema(schema);
-                    meta[state.id] = state.meta;
-                }
-            );
+
+            var state = this._parseSchema(schema);
+            meta[state.id] = state.meta;
+            meta["schema"] = state.schema;
             return meta;
         }
 

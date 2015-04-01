@@ -34,7 +34,7 @@ describe('Serialization tests', function ()
 
 
     it('serialize a simple element', function() {
-        var domain = new hyperstore.Domain(store,"Test");
+        var domain = new hyperstore.Domain(store, "Test", "Test");
 
         var session = store.beginSession();
         var item = domain.create("Item");
@@ -46,7 +46,7 @@ describe('Serialization tests', function ()
         var txt = hyperstore.DomainSerializer.save(domain);
         expect(txt).to.not.be.undefined;
 
-        var domain2 = new hyperstore.Domain(store,"Test2");
+        var domain2 = new hyperstore.Domain(store, "Test2", "Test");
         domain2.loadFromJson(JSON.parse(txt));
     });
 

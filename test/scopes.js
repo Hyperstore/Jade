@@ -9,8 +9,7 @@ var store;
 
         beforeEach(function() {
             store = new hyperstore.Store();
-            store.loadSchema(schemaTest);
-            domain = new hyperstore.Domain(store, 'D');
+            domain = new hyperstore.Domain(store, 'D', schemaTest);
         });
 
         //Spec - 1

@@ -45,15 +45,15 @@ describe('Validation tests', function ()
 
     beforeEach(function() {
         store = new hyperstore.Store();
-        store.loadSchema([testSchema, standard]);
-        domain = store.createDomain({name:"Test", root : {
-            Container : {
-                Items : {
-                    Key : "1",
-                    Flag:true
+        store.loadSchema(testSchema);
+        domain = store.createDomain("Test", "Test", {
+            Container: {
+                Items: {
+                    Key: "1",
+                    Flag: true
                 }
             }
-        } });
+        });
         root = domain.getElements("Container").firstOrDefault();
     });
 

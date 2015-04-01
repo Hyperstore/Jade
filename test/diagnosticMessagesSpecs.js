@@ -8,13 +8,13 @@ var expect = require('chai').expect;
         var librarySchema = new hyperstore.SchemaEntity(schema, 'Library');
         librarySchema.defineProperty('Name', 'string');
 
-        var domain = new hyperstore.Domain(store, 'D');
+        var domain = new hyperstore.Domain(store, 'D', schema);
 
         //Spec - 1
         it('Checks message formatting with element properties', function () {
             var mel = domain.create(librarySchema, "Test:1");
             mel.Name = 'test';
-            var msg = hyperstore.DiagnosticMessage.__format("Name prop {Name} Id={ _id }", mel, null);
+            var msg = hyperstore.DiagnosticMessage.__format("Name prop {Name} Id={ $id }", mel, null);
             expect(msg).to.equal('Name prop test Id=Test:1');
         });
 

@@ -14,13 +14,13 @@ describe('Dsl specs tests', function ()
     });
 
     it('should initialize store from the dsl', function() {
-        store.createDomain({name:"test", data: {Library:{Name:"MyLibrary"}}});
+        store.createDomain("test", "Lib", {Name:"MyLibrary"});
         expect(store.getDomain('test')).to.not.be.undefined;
         expect(store.getSchemaElement('Library', false)).to.not.be.undefined;
     });
 
     it('should detect inheritance', function() {
-        var domain = store.createDomain({name:"test", data: {Library:{Name:"MyLibrary", Books:[ {Title:"Book1"}, {Title:"SuperBook", isSuperBook:true}]}}});
+        var domain = store.createDomain("test", "Lib", {Name:"MyLibrary", Books:[ {Title:"Book1"}, {Title:"SuperBook", isSuperBook:true}]});
 
         var lib = domain.root;
         expect(lib.Books.items.length).to.equal(2);

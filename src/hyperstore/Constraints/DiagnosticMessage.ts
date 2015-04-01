@@ -8,13 +8,25 @@ module Hyperstore
      * are executed on a domain element, every diagnostic has a reference to this element and if the constraint is a
      * property constraint, the propertyName property is set.
      *
-     * You can use this dynamic informations to create a message with pattern like {{property_name}}
+     * You can use this dynamic informations to create a message with pattern like {{$property_name}}
      * (Only simple properties are allowed. xxx.yyy are not take into account.)
      *
      * **example** : "{{Email}} is already taken for customer {{Name}}"
      *
-     * The special pattern {{propertyName}} can be used to include the property in error and property
-     * beginning with a $ references property of the current constraint (useful for valueobject constraint)
+     * Special patterns :
+     *  - $propertyName : Name of the current checked property (*)
+     *  - $id           : Current element id
+     *  - $schema       : Current element schema id
+     *  - $identity     : Try to display an identity for the current element by checking in order :
+     *          1 - IsKey property(ies) value
+     *          2 - An id property
+     *          3 - A name property
+     *          4 - $id
+     *  - $value        : value of the checked property (*)
+     *  - $oldValue     : old value of the checked property (*)
+     *  can be used.
+     *  (*) Only valid on a property constraint.
+     *  Property beginning with '@', references property of the current constraint (useful for valueobject constraint)
      */
     export class DiagnosticMessage
     {
@@ -58,21 +70,21 @@ module Hyperstore
                     {
                         switch(name)
                         {
-                            case "value" :
+                            case "$value" :
                                 return val;
-                            case "_schema":
+                            case "$schema":
                                 return element.getSchemaElement().id;
-                            case "_identity" :
+                            case "$identity" :
                                 return element.id || element.name || element.getKey(true) || element.getId();
-                            case "_id" :
+                            case "$id" :
                                 return element.getId();
-                            case "oldValue" :
+                            case "$oldValue" :
                                 return old;
-                            case "propertyName" :
+                            case "$propertyName" :
                                 return propertyName;
                             default :
                                 if(!element) return null;
-                                if(name[0] === '_') {
+                                if(name[0] === '$') {
                                     var info = element.getInfo();
                                     return info[name.substring(1)];
                                 }
@@ -85,7 +97,7 @@ module Hyperstore
             if( !msg || !constraint )
                 return msg;
 
-            var regex = /{\s*\$([^}\s]*)\s*}/g;
+            var regex = /{\s*\@([^}\s]*)\s*}/g;
             return msg.replace(regex, function (match, name)
                 {
                     return constraint[name];

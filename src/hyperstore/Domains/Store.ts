@@ -235,129 +235,22 @@ module Hyperstore
                 schema = schema();
 
             var loader = new Loader(this);
-            return loader.loadSchemas(schema, overrides);
+            return loader.loadSchema(schema, overrides);
         }
 
-        createDomainAsync(config?:any):Q.Promise<Domain> {
-            var p = Q.defer<Domain>();
-            this.createDomain(config, p);
-            return p.promise;
-        }
+        createDomain(name:string, schema:Schema, data:any, defaultDomain=false):Domain {
+            if (!name)
+                throw "Invalid domain name";
+            if(!schema)
+                throw "Invalid schema";
 
-        createDomain(config?:any, p?:Q.Deferred<any>):Domain {
-            if (!config)
-                return null;
-
-            if(typeof(config) === "string") {
-                var domain = new Domain(this, <string>config);
-                if(p) {
-                    p.resolve(domain);
-                }
-                return domain;
+            var domain = new Domain(this, name, schema);
+            if( defaultDomain )
+                this.defaultDomain = domain;
+            if(data) {
+                domain.loadFromJson(data);
             }
-
-            if( config.schema) {
-                this.loadSchema(config.schema, config.overrides);
-            }
-
-            var domainName = config.name;
-            domain = new Domain(this, domainName);
-            this["config"] = config;
-
-            var self = this;
-            var tasks;
-            // Adapters must be asynchronous
-            if (config.adapters) {
-                tasks = [];
-                // Get adapter list
-                var adapters = typeof(config.adapters) === "function" ? config.adapters() : config.adapters;
-
-                // Initialize and load data
-                adapters.forEach(a=> {
-                        domain.addAdapter(a)
-                        tasks.push(a.loadElementsAsync());
-                    }
-                );
-            }
-
-            // If any adapter or channels,
-            if (tasks) {
-                if (!p) throw Error("You must use createDomainAsync when using adapters and/or channels.");
-
-                Q.all(tasks).then(function () {
-                        self.populateDomain(config, domain);
-                        self.addChannels(config, domain);
-                        self.defaultDomain = this.getDomain(config.defaultDomain);
-                        p.resolve(domain);
-                    }
-                ).fail(function (err) {
-                        p.reject(err);
-                    }
-                );
-            }
-            else {
-                this.populateDomain(config, domain);
-                self.addChannels(config, domain);
-                this.defaultDomain = this.getDomain(config.defaultDomain);
-                if (p) p.resolve(domain);
-            }
-
             return domain;
-        }
-
-        private addChannels(config, domain:Domain) {
-            if (config.channels) {
-                var channels = typeof(config.channels) === "function" ? config.channels() : config.channels;
-
-                // Initialize channels
-                channels.forEach(channel=> {
-                        channel.associate(domain);
-                        domain.store.eventBus.addChannel(channel);
-                    }
-                );
-            }
-        }
-
-        private populateDomain(def, domain:Domain) : SessionResult
-        {
-            if (!def || domain.getElements().hasNext()) // already initialize
-                return;
-
-            if (def.seed)
-            {
-                if (typeof(def.seed) === "function")
-                {
-                    var session = domain.store.beginSession();
-                    try
-                    {
-                        def.seed(domain);
-                        session.acceptChanges();
-                    }
-                    finally
-                    {
-                        var r = session.close();
-                        return r;
-                    }
-                }
-                else if (typeof(def.seed) === "string")
-                {
-                    // url
-                }
-                return;
-            }
-
-            if (def.data)
-            {
-                for (var name in def.data)
-                {
-                    if (!def.data.hasOwnProperty(name))
-                        continue;
-                    var root = domain.store.getSchemaElement(name);
-                    var list = domain.loadFromJson(def.data[name], root);
-                    domain["root"] = list && list.length === 1 ? Utils.firstOrDefault(list) : list;
-                    break;
-                }
-            }
         }
 
         /**
