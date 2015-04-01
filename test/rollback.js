@@ -12,7 +12,7 @@ describe('session rollback', function () {
         beforeEach(function()
         {
             store = new hyperstore.Store();
-            var schema = store.loadSchema(schemaTest).schema;
+            var schema = store.loadSchema(schemaTest);
             domain = store.createDomain("test", schema, {Name:"MyLibrary",
                     Books : [
                         {

@@ -179,6 +179,29 @@ module Hyperstore
             return uuid;
         }
 
+        static extends(v, o, callback?, inheritProto=false)
+        {
+            if (!o) return;
+            for (var p in o)
+            {
+                if (o.hasOwnProperty(p))
+                {
+                    if (callback && !callback(p))
+                        continue;
+
+                    v[p] = o[p];
+                }
+            }
+            if(inheritProto) {
+                function __() {
+                    this.constructor = v;
+                }
+
+                __.prototype = o.prototype;
+                v.prototype = new __();
+            }
+        }
+
         static isArray(value):boolean
         {
             var s = typeof value;

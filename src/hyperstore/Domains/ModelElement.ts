@@ -353,10 +353,26 @@ module Hyperstore {
         }
     }
 
+    export class Entity extends Element {
+        constructor(domain:Domain, schemaElement:SchemaEntity, id?:string, version?:number) {
+            super();
+            if(!domain)
+                throw "Invalid domain argument on element ctor.";
+            domain.create(schemaElement, id, version, this);
+        }
+    }
+
     export class Relationship extends Element {
 
         private __start:Element;
         private __end:Element;
+
+        constructor(domain:Domain, schemaElement:SchemaRelationship, start:Element, end:Element, id?:string, version?:number) {
+            super();
+            if(!domain)
+                throw "Invalid domain argument on element ctor.";
+            domain.createRelationship(schemaElement, start, end.getId(), end.getSchemaElement().id, id, version, this);
+        }
 
         getStartId() {
             return (<IRelationshipMetadata>this.getInfo()).startId;

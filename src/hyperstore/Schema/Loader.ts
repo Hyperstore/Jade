@@ -22,7 +22,6 @@ module Hyperstore
     {
         schema:Schema;
         constraints;
-        meta;
         extension = false;
 
         static Pending = new SchemaState(null, null, "$pending");
@@ -31,7 +30,6 @@ module Hyperstore
         {
             this.extension = ext;
             this.constraints = {};
-            this.meta = {};
             if (store)
             {
                 this.schema = schema || new Schema(store, this.id);
@@ -53,19 +51,15 @@ module Hyperstore
 
         loadSchema(schema, overrides?):any
         {
-            var meta = {};
-            if (!schema) return meta;
+            if (!schema) return;
             this._overrides = overrides;
 
             this._configs = [schema];
             this._schemas = new HashTable<string,any>();
             this.store.schemas.forEach( s => this._schemas.add(s.name, new SchemaState(this.store, s.name, null, s, false)));
-
-
             var state = this._parseSchema(schema);
-            meta[state.id] = state.meta;
-            meta["schema"] = state.schema;
-            return meta;
+
+            return state.schema;
         }
 
         private _resolveUri(uri) {
@@ -222,8 +216,6 @@ module Hyperstore
             this.parseConstraints(o.constraints, c=> entity.addConstraint(c.message, c.condition, c.error, c.kind));
             this.parseInterceptors(entity, o.interceptors);
 
-            this._state.meta[name] = entity;
-
             if(o.properties) {
                 for (var prop in o.properties) {
                     if (prop[0] !== "$" && o.properties.hasOwnProperty(prop))
@@ -249,7 +241,7 @@ module Hyperstore
                     }
                 );
             }
-            this.extends(entity, o.members);
+            Utils.extends(entity, o.members);
         }
 
         private parseRelationship(o, name:string)
@@ -316,7 +308,6 @@ module Hyperstore
                     c.embedded || false, c.type, undefined, undefined,
                     def.base
                 );
-                this._state.meta[name] = rel;
             }
 
             this.parseConstraints(def.const, c => rel.addConstraint(c.message, c.condition, c.error, c.type));
@@ -339,7 +330,7 @@ module Hyperstore
             if (!def.obj)
                 return;
 
-            this.extends(rel, def.obj.members);
+            Utils.extends(rel, def.obj.members);
         }
 
         private static cardinalities = {
@@ -411,7 +402,7 @@ module Hyperstore
             // If there are some fields to extends, a new type is created to contains the override values
             // this way, the underlying type is not affected and can be reused in another property.
             t = Object.create(t); // For simplicity, always create an new super type even if there is no field to override
-            this.extends(t, definition, n => {
+            Utils.extends(t, definition, n => {
                     return (n === "type" || n === "constraints" || n === "isKey" || n === "default") ? null : n;
                 }
             );
@@ -479,7 +470,7 @@ module Hyperstore
 
                 var valueObject = new SchemaValueObject(this._state.schema, name);
 
-                this.extends(valueObject, val, p => {
+                Utils.extends(valueObject, val, p => {
                     if (p === "type") {
                         var s = this._resolveType(val[p]);
                         if (!s)
@@ -498,20 +489,6 @@ module Hyperstore
             }
         }
 
-        private extends(v, o, callback?)
-        {
-            if (!o) return;
-            for (var p in o)
-            {
-                if (o.hasOwnProperty(p))
-                {
-                    if (callback && !callback(p))
-                        continue;
-
-                    v[p] = o[p];
-                }
-            }
-        }
 
         private parseInterceptors(schema, interceptors) {
             if( !interceptors) return;

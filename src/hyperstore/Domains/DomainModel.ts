@@ -48,7 +48,7 @@ module Hyperstore
             else if(schema && (<any>schema).schema)
                 this.schema = (<any>schema).schema;
             else if (typeof(schema) === "object" && !(schema instanceof Schema))
-                this.schema = store.loadSchema(<any>schema).schema;
+                this.schema = store.loadSchema(<any>schema);
             if(!this.schema) throw "invalid schema in domain constructor.";
 
             this.name = this.name.toLowerCase();
@@ -620,23 +620,28 @@ module Hyperstore
          * create a new domain entity using the specified schema
          * @param schemaElement
          * @param id
-         * @param version
          * @returns {Hyperstore.Element}
          */
-        create(schemaElement:SchemaElement, id?:string, version?:number):Element
+        create(schemaElement:SchemaElement, id?:string, __version?:number, __mel?:Element):Element
         {
+            Utils.Requires(schemaElement, "schemaElement");
+            if (typeof(schemaElement) == "string")
+                schemaElement = this.store.getSchemaEntity(<any>schemaElement);
+            if( schemaElement.kind !== SchemaKind.Entity)
+                throw "You must provide an Entity schema element to create an entity.";
+
             var session = this.store.beginSession();
             try {
-                Utils.Requires(schemaElement, "schemaElement");
-                if (typeof(schemaElement) == "string")
-                    schemaElement = this.store.getSchemaEntity(<any>schemaElement);
-
                 id = this.createId(id);
                 schemaElement.onBefore({action: "Create", id: id});
 
-                var node = this._graph.addNode(id, schemaElement.id, version);
+                var node = this._graph.addNode(id, schemaElement.id, __version);
                 // after node creation
-                var mel = <Element>schemaElement.deserialize(new SerializationContext(this, id));
+                var mel = __mel;
+                if( mel )
+                    mel.__initialize(this, id, schemaElement);
+                else
+                    mel = <Element>schemaElement.deserialize(new SerializationContext(this, id));
                 this._raiseEvent(
                     new AddEntityEvent(this.name, id, schemaElement.id, node.version)
                 );
@@ -664,10 +669,9 @@ module Hyperstore
          * @param endId
          * @param endSchemaId
          * @param id
-         * @param version
          * @returns {Hyperstore.Relationship}
          */
-        createRelationship(schemaRelationship:SchemaRelationship, start:Element, endId:string, endSchemaId:string, id?:string, version?:number):Relationship {
+        createRelationship(schemaRelationship:SchemaRelationship, start:Element, endId:string, endSchemaId:string, id?:string, __version?:number, __mel?:Relationship):Relationship {
             Utils.Requires(schemaRelationship, "schemaRelationship");
             Utils.Requires(start, "start");
             Utils.Requires(endId, "endId");
@@ -681,12 +685,18 @@ module Hyperstore
 
                 var src = start.getInfo();
                 var node = this._graph.addRelationship(
-                    id, schemaRelationship.id, src.id, src.schemaElement.id, endId, endSchemaId, version
+                    id, schemaRelationship.id, src.id, src.schemaElement.id, endId, endSchemaId, __version
                 );
                 // after node creation
-                var mel = <Relationship>schemaRelationship.deserialize(
-                    new SerializationContext(this, id, src.id, src.schemaElement.id, endId, endSchemaId)
-                );
+                var mel = __mel;
+                if(mel) {
+                    mel.__initialize(this, id, schemaRelationship, src.id, src.schemaElement.id, endId, endSchemaId);
+                }
+                else {
+                    <Relationship>schemaRelationship.deserialize(
+                        new SerializationContext(this, id, src.id, src.schemaElement.id, endId, endSchemaId)
+                    );
+                }
 
                 this._raiseEvent(new AddRelationshipEvent(
                         this.name, id, schemaRelationship.id, src.id, src.schemaElement.id, endId, endSchemaId, node.version)

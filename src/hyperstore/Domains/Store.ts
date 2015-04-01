@@ -245,7 +245,7 @@ module Hyperstore
         /**
          * load schema
          * @param schema - One (or an array of) schema configuration
-         * @returns an object containing all created schema
+         * @returns a schema
          */
         loadSchema(schema, overrides?) {
             if(!schema) return null;
