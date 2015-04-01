@@ -91,5 +91,26 @@ var store;
             store.unloadDomain(scope, true); // Commit before unload
             expect(lib.Name).to.equal("Test2");
         });
+
+        it("Can create a scope on a whole store", function() {
+            var lib = domain.create("Library");
+            lib.Name = "test";
+            expect(lib.Books.count()).to.equal(0);
+
+            var store2 = store.createScope("X");
+            var scope = store2.getDomain("D");
+
+            var lib2 = scope.getElements("Library").firstOrDefault();
+            expect(lib).to.not.be.undefined;
+            expect(lib2.Name).to.equal("test");
+            lib2.Name = "Test2";
+            expect(lib2.Name).to.equal("Test2");
+            var b = scope.create("Book");
+            lib2.Books.add(b);
+            expect(lib2.Books.count()).to.equal(1);
+
+            expect(lib.Books.count()).to.equal(0);
+            expect(lib.Name).to.equal("test");
+        });
     });
 

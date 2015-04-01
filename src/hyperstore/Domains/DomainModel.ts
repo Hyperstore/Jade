@@ -854,9 +854,9 @@ module Hyperstore
     export class DomainScope extends Domain {
         private _events: AbstractEvent[];
 
-        constructor(public domain:Domain, extension:string)
+        constructor(public domain:Domain, extension:string, store?:Store)
         {
-            super(domain.store, domain.name, domain.schema, extension);
+            super(store || domain.store, domain.name, domain.schema, extension);
 
             if(!extension)
                 throw "Invalid extension name";

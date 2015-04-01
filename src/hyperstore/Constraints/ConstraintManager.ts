@@ -30,7 +30,7 @@ module Hyperstore
          * create a new constraint manager instance.
          * @param schema
          */
-        constructor(public schema:Schema)
+        constructor(public schema:Schema, private parent?:ConstraintsManager)
         {
             this._constraints = {};
         }
@@ -208,6 +208,8 @@ module Hyperstore
         private checkCondition(ctx:ConstraintContext, schemaElement:SchemaElement)
         {
             var constraints = this._constraints[schemaElement.id];
+            if( this.parent)
+                constraints = this.parent._constraints.concat(constraints);
             if (constraints)
             {
                 for (var key in constraints)

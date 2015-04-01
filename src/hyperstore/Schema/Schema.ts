@@ -144,6 +144,14 @@ module Hyperstore
             store.__addSchema(name, this);
         }
 
+        __clone(store:Store) : Schema {
+            var sch = new Schema(store, this.name);
+            sch.root = this.root;
+            this._elements.forEach( e => sch.__addSchemaElement(e));
+            sch.constraints = new Hyperstore.ConstraintsManager(sch, this.constraints);
+            return sch;
+        }
+
         /**
          * get all schema elements
          * @returns {Hyperstore.Cursor}

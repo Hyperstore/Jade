@@ -110,7 +110,8 @@ module Hyperstore
         }
 
         getDomain(name:string) : Domain {
-            var i = this._keys[name];
+            if(!name) return undefined;
+            var i = this._keys[name.toLowerCase()];
             return i !== undefined ? this._domains[i] : undefined;
         }
 
@@ -172,6 +173,7 @@ module Hyperstore
         public storeId:string;
         public defaultDomain:Domain;
         public fileResolver: IFileResolver;
+        public extension:string;
 
         /**
          * EventBus - Allow communication between stores.
@@ -197,6 +199,22 @@ module Hyperstore
             this._domains = new DomainManager();
             new Schema(this, "$", this.primitiveSchemaDefinition());
             this.storeId = id || Utils.newGuid();
+        }
+
+        /**
+         * Create a scope on the whole store
+         * @param name - Scope name
+         * @returns {Hyperstore.Store} - a new scoped store
+         */
+        createScope(name:string) : Store {
+            var store = new Store();
+            store.extension = name;
+            this._schemas.forEach( (s:Schema) => {
+                if(s.name !== "$") s.__clone(store)
+            });
+            store.storeId = this.storeId;
+            this.getActiveDomains().forEach(d => new DomainScope(d, name, store));
+            return store;
         }
 
         /**
