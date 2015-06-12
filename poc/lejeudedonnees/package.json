@@ -6,5 +6,9 @@
   "author": {
     "name": "Pascal",
     "email": ""
+  },
+  "dependencies": {
+    "chance": "^0.7.5",
+    "hyperstore": "^0.99.205"
   }
 }
