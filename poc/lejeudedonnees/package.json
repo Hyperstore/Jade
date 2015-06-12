@@ -1,0 +1,10 @@
+{
+  "name": "lejeudedonnees",
+  "version": "0.0.0",
+  "description": "lejeudedonnees",
+  "main": "app.js",
+  "author": {
+    "name": "Pascal",
+    "email": ""
+  }
+}
