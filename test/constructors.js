@@ -8,6 +8,7 @@ describe('Constructor tests', function ()
     var config =
     {
         id: "Test",
+        field: {type:"string", defaultValue:"xxx"},
         Container: {
             references: {
                 Items: {
@@ -47,6 +48,8 @@ describe('Constructor tests', function ()
         var c = new schema.Container(domain);
         var id = c.getId();
         expect(c instanceof schema.Container).to.equal(true);
+        var f = c.field;
+        expect(f).to.equal("xxx");
     });
 
 });
