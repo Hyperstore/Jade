@@ -1,0 +1,17 @@
+﻿{
+    "name": "Todo",
+    "Data": {
+        "id": "TodoDataId",
+        "Entities": [
+            {
+                "name": "Item",
+                "repeat": 2,
+                "Properties": [
+                    { "name": "id", "stringQualifier": { } },
+                    { "name": "title", "wordQualifier": { "syllables": 2 } },
+                    { "name": "completed", "boolQualifier": { } }
+                ]
+            }
+        ]
+    }
+}

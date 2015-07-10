@@ -200,14 +200,14 @@ module Hyperstore
 
             if( schemaInfo.kind == SchemaKind.Entity || schemaInfo.kind === SchemaKind.Relationship) {
                 var simpleName = this._getSimpleName(schemaInfo.id);
-                var type = (function (_super) {
-                    type = function (d) {
+                var fn = (function (_super) {
+                    var type = function (d) {
                         _super.call(this, d, simpleName);
+                        Utils.extends(type, _super, null, true);
                     };
-                Utils.extends(type, _super, null, true);
                     return type;
                 })(schemaInfo.kind == SchemaKind.Entity ? Entity : Relationship);
-                this[simpleName] = type;
+                this[simpleName] = fn;
             }
         }
     }

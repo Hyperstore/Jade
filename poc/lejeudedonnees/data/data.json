@@ -1,0 +1,16 @@
+﻿{
+    "name": "Todo",
+    "Data": {
+        "id": "TodoDataId",
+        "Entities": [
+            {
+                "name": "Item",
+                "Properties": [
+                    { "name": "id", "type": "string" },
+                    { "name": "title", "type": "string" },
+                    { "name": "completed", "type": "boolean"}
+                ]
+            }
+        ]
+    }
+}
