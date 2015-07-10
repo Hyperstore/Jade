@@ -334,7 +334,7 @@ module Hyperstore
                             var propDef = schema.getProperty(<string>prop.name, true);
                             if (propDef)
                             {
-                                var v = prop.value;
+                                var v = propDef.deserialize( new SerializationContext(this, elem.getId(), null, null, null, null, prop.value));
                                 this.setPropertyValue(entityId, propDef, v);
                             }
                         }

@@ -116,7 +116,7 @@ module Hyperstore
          */
         get hasErrorsOrWarnings()
         {
-            return this.hasErrors || this.hasWarnings;
+            return this.aborted || this.hasErrors || this.hasWarnings;
         }
 
         __addMessages(messages)

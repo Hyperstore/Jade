@@ -350,9 +350,9 @@ module Hyperstore
                 defineSchema: function (schema)
                 {
                     new Primitive(schema, "any"),
-                    new Primitive(schema, "string", "{value} must be a string", (val, old, ctx) => !val || typeof(val) === "string", false, ConstraintKind.Check);
-                    new Primitive(schema, "number", "{value} must be a number", (val, old, ctx) => !val || typeof(val) === "number", false, ConstraintKind.Check);
-                    new Primitive(schema, "boolean", "{value} must be a boolean", (val, old, ctx) => !val || typeof(val) === "boolean", false, ConstraintKind.Check);
+                    new StringPrimitive(schema);
+                    new NumberPrimitive(schema);
+                    new BooleanPrimitive(schema);
                 }
             };
         }

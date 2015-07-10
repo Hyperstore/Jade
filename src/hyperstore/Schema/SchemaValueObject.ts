@@ -98,4 +98,45 @@ module Hyperstore
             this.kind = SchemaKind.Primitive;
         }
     }
+
+    export class NumberPrimitive extends Primitive {
+        constructor(schema:Schema) {
+            super(schema, "number");
+            this.addConstraint("{$value} must be a number for {$propertyName}", (val, old, ctx) => !val || typeof(val) === "number", true, ConstraintKind.Check );
+        }
+
+        deserialize(ctx:SerializationContext):any
+        {
+            return ctx.value ? parseFloat(ctx.value) : 0;
+        }
+
+        serialize(value:any):any
+        {
+            return value;
+        }
+    }
+
+    export class StringPrimitive extends Primitive {
+        constructor(schema:Schema) {
+            super(schema, "string");
+            this.addConstraint("{$value} must be a string for {$propertyName}", (val, old, ctx) => !val || typeof(val) === "string", true, ConstraintKind.Check );
+        }
+    }
+
+    export class BooleanPrimitive extends Primitive {
+        constructor(schema:Schema) {
+            super(schema, "boolean");
+            this.addConstraint("{$value} must be a boolean for {$propertyName}", (val, old, ctx) => !val || typeof(val) === "boolean", true, ConstraintKind.Check );
+        }
+
+        deserialize(ctx:SerializationContext):any
+        {
+            return ctx.value == "true";
+        }
+
+        serialize(value:any):any
+        {
+            return value;
+        }
+    }
 }

@@ -37,6 +37,7 @@ module Hyperstore
         mode?: SessionMode;
         sessionId?: number;
         origin?: string;
+        silentMode?:boolean
     }
 
     export class Session

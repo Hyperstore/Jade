@@ -34,7 +34,8 @@ describe('Validation tests', function ()
                 Key: "std.identity",
                 Flag: "boolean",
                 Values: {type: "std.enum", values: ['A', 'B', 'C']},
-                Range: {type: "std.range", min: 1, max: 10}
+                Range: {type: "std.range", min: 1, max: 10},
+                Name : "string"
             }
         }
     };
@@ -57,44 +58,55 @@ describe('Validation tests', function ()
         root = domain.getElements("Container").firstOrDefault();
     });
 
-    it('should failed on wrong primitives values', function() {
+    it('should failed on wrong primitive values', function() {
 
         var schema = store.getSchema("Test");
       //  schema.constraints.__dump();
 
-        var session = store.beginSession();
+        var session = store.beginSession({mode:64/*SessionMode*/}); // Don't throw exception on validation errors
         var item = domain.create("Item");
-        item.Num = "str";
-        session.acceptChanges();
+        item.Name = {test:"str"};
         var r = session.close();
-        expect(r.hasErrorsOrWarnings).to.equal(true);
-        expect(r.messages.length).to.equal(3); // Num : str is not a number, Values, range
-        session = store.beginSession();
-        item.Num = 2;
-        item.Values = "A";
-        item.Range = 1;
-        session.acceptChanges();
-        r = session.close();
-        expect(r.hasErrorsOrWarnings).to.equal(false);
+        expect(r.aborted).to.equal(true);
+    });
+
+    it('can get constraints on element', function() {
+        var sch = store.getSchemaElement("Item");
+        expect(sch).to.be.not.null();
+
+        var constraints = sch.getConstraints();
+        expect(constraints).to.be.not.null();
     });
 
     it('should failed on wrong range values', function() {
-        var session = store.beginSession();
+        var session = store.beginSession({mode:64/*SessionMode*/}); // Don't throw exception on validation errors
         var item = domain.create("Item");
         item.Values = "A";
-        item.Num=0;
+        item.Num = 0;
         item.Range = "str";
         session.acceptChanges();
         var r = session.close();
         expect(r.hasErrorsOrWarnings).to.equal(true);
+    });
 
-        session = store.beginSession();
+    it('should failed on wrong range values', function() {
+        var session = store.beginSession({mode:64/*SessionMode*/}); // Don't throw exception on validation errors
+        var item = domain.create("Item");
+        item.Values = "A";
+        item.Num=0;
+        item.Range = 1;
+        item.Name = "str";
+        session.acceptChanges();
+        var r = session.close();
+        expect(r.hasErrorsOrWarnings).to.equal(false);
+
+        session = store.beginSession({mode:64/*SessionMode*/}); // Don't throw exception on validation errors
         item.Range = 0;
         session.acceptChanges();
         r = session.close();
         expect(r.hasErrorsOrWarnings).to.equal(true);
 
-        session = store.beginSession();
+        session = store.beginSession({mode:64/*SessionMode*/}); // Don't throw exception on validation errors
         item.Range = 1;
         session.acceptChanges();
         r = session.close();
@@ -103,7 +115,7 @@ describe('Validation tests', function ()
     });
 
     it('on demand validations', function() {
-        var session = store.beginSession();
+        var session = store.beginSession({mode:64/*SessionMode*/}); // Don't throw exception on validation errors
         var item = domain.create("Item");
         session.acceptChanges();
         var r = session.close();

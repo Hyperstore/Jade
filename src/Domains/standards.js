@@ -24,6 +24,7 @@
         constraints: {
             "required": {
                 message: "Property '{$propertyName}' is required for {$identity}",
+                error: true,
                 check: function (val) {
                     return val != undefined;
                 }

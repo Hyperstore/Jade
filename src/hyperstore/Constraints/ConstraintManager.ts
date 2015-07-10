@@ -100,6 +100,10 @@ module Hyperstore
             );
         }
 
+        getConstraints(schemaElement:SchemaElement) {
+            return this._constraints[schemaElement.id];
+        }
+
         /**
          * add an element constraint
          * @param schemaElement - schema of the element to validate

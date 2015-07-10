@@ -43,5 +43,9 @@ module Hyperstore
             if(!domain) throw "domain is required.";
             return domain.create(this, id, version);
         }
+
+        getConstraints() {
+            return this.schema.constraints.getConstraints(this);
+        }
     }
 }
