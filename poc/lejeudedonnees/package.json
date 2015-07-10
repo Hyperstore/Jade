@@ -1,0 +1,14 @@
+{
+  "name": "lejeudedonnees",
+  "version": "0.0.0",
+  "description": "lejeudedonnees",
+  "main": "app.js",
+  "author": {
+    "name": "Pascal",
+    "email": ""
+  },
+  "dependencies": {
+    "chance": "^0.7.5",
+    "hyperstore": "^0.99.205"
+  }
+}
